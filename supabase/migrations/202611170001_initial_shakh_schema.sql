@@ -307,17 +307,16 @@ alter table public.platform_settings enable row level security;
 
 create policy profiles_read_self_or_admin on public.profiles for select
 using (id = auth.uid() or public.is_super_admin());
-create policy profiles_update_self_or_admin on public.profiles for update
-using (id = auth.uid() or public.is_super_admin())
-with check (id = auth.uid() or public.is_super_admin());
+-- Profile role and account fields are intentionally not directly user-updatable.
+-- Add narrowly-scoped profile-edit RPCs later; never allow users to update their own role.
 
 create policy merchants_read_active_or_owner_or_admin on public.merchant_profiles for select
 using (approval_status = 'approved' or user_id = auth.uid() or public.is_super_admin());
 create policy merchants_insert_self on public.merchant_profiles for insert
 with check (user_id = auth.uid() and public.current_app_role() = merchant_type);
-create policy merchants_update_owner_or_admin on public.merchant_profiles for update
-using (user_id = auth.uid() or public.is_super_admin())
-with check (user_id = auth.uid() or public.is_super_admin());
+create policy merchants_update_admin_only on public.merchant_profiles for update
+using (public.is_super_admin())
+with check (public.is_super_admin());
 
 create policy zones_read_active on public.service_zones for select using (is_active = true or public.is_super_admin());
 create policy zones_admin_all on public.service_zones for all using (public.is_super_admin()) with check (public.is_super_admin());
