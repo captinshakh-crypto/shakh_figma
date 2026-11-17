@@ -30,6 +30,14 @@ The login page uses Supabase OAuth with the PKCE callback at `https://daim-post.
 
 The Google Client Secret must never be placed in `NEXT_PUBLIC_*` variables or committed to Git.
 
+## Profile and captain onboarding
+
+- Users can edit their own full name and phone from `/dashboard/profile`; role changes are not user-editable.
+- Captain applications are submitted from the profile page and reviewed by the super-admin at `/dashboard/admin/captain-applications`.
+- `shakh` captains can be assigned to any eligible order on the platform.
+- `merchant` captains are bound to exactly one approved merchant and the database prevents assigning them orders for another merchant.
+- Manual super-admin assignment of the generic captain role creates a SHAKH-wide captain profile by default. Scoped store captains must use the merchant-specific approval flow.
+
 ## Business rules
 - All prices and wallet values are integer IQD.
 - The platform receives 200 IQD from a 1,000 IQD delivery fee; the captain receives the remaining 800 IQD.
