@@ -105,8 +105,8 @@ export default function ProfilePage() {
     try {
       const { error } = await createClient().rpc("request_captain_application", {
         p_captain_type: captainType,
-        p_merchant_id: captainType === "merchant" ? merchantId : null,
-        p_note: note.trim() || null,
+        ...(captainType === "merchant" ? { p_merchant_id: merchantId } : {}),
+        p_note: note.trim(),
       });
       if (error) throw error;
       setMessage("داواکاری کپتن نێردرا. دوای پەسەندکردنی سوپەر ئەدمین ڕۆڵەکەت دەگۆڕدرێت.");
