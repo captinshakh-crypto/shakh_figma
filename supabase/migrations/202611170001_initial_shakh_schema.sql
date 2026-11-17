@@ -218,6 +218,31 @@ create trigger on_auth_user_created_shakh
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
+
+-- Bootstrap the named owner only after Supabase Auth confirms the exact email.
+create or replace function public.bootstrap_shakh_super_admin()
+returns trigger
+language plpgsql security definer
+set search_path = public, pg_temp
+as $
+begin
+  if lower(coalesce(new.email,'')) = 'sardar.xano59@gmail.com'
+     and new.email_confirmed_at is not null then
+    insert into public.profiles(id,email,role,is_active)
+    values(new.id,new.email,'super_admin',true)
+    on conflict (id) do update set email = excluded.email, role = 'super_admin', is_active = true;
+    insert into public.wallets(user_id,balance_iqd)
+    values(new.id,0) on conflict(user_id) do nothing;
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists on_auth_user_confirmed_shakh_admin on auth.users;
+create trigger on_auth_user_confirmed_shakh_admin
+after insert or update of email_confirmed_at on auth.users
+for each row execute function public.bootstrap_shakh_super_admin();
+
 -- A user can request a top-up without paying. Approval is the only operation that credits it.
 create or replace function public.request_wallet_topup(p_amount_iqd bigint, p_note text default null)
 returns uuid
@@ -375,6 +400,6 @@ create policy settings_admin_all on public.platform_settings for all using (publ
 
 revoke all on function public.review_wallet_topup(uuid,boolean,text) from public;
 revoke all on function public.admin_credit_own_wallet(bigint,text) from public;
-grant execute on function public.request_wallet_topup(bigint,text) to authenticated;
+revoke all on function public.request_wallet_topup(bigint,text) from public;\ngrant execute on function public.request_wallet_topup(bigint,text) to authenticated;
 grant execute on function public.review_wallet_topup(uuid,boolean,text) to authenticated;
 grant execute on function public.admin_credit_own_wallet(bigint,text) to authenticated;
