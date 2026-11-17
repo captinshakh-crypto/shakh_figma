@@ -30,3 +30,15 @@ Migrations are in `supabase/migrations`. The initial owner account is promoted o
 
 ## Deployment
 Connect this Git repository to Vercel and set the environment variables in the Vercel project settings. Attach `daim-post.online` only after the Vercel project is linked and DNS verification is complete.
+
+## Email notifications (Resend)
+The `send-wallet-email` Supabase Edge Function is deployed with JWT verification enabled. Add these secrets in Supabase Dashboard → Edge Functions → Secrets:
+- `RESEND_API_KEY` — a newly rotated Resend API key
+- `RESEND_FROM_EMAIL` — a sender on the verified `daim-post.online` domain
+- `SHAKH_ADMIN_EMAIL` — `sardar.xano59@gmail.com`
+- `SHAKH_ALLOWED_ORIGIN` — `https://daim-post.online`
+
+The Resend sender domain must be verified before delivery succeeds. Never commit these secrets.
+
+## Vercel environment variables
+Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for Production, Preview and Development. These are client-safe values; do not add a service-role key to Vercel's public variables.
