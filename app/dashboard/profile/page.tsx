@@ -86,7 +86,7 @@ export default function ProfilePage() {
     try {
       const { error } = await createClient().rpc("update_my_profile", {
         p_full_name: name.trim(),
-        p_phone: phone.trim() || null,
+        p_phone: phone.trim(),
       });
       if (error) throw error;
       setMessage("زانیاری پڕۆفایلەکەت پاشەکەوت کرا.");
