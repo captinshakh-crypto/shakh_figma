@@ -201,6 +201,6 @@ end;
 $fn$;
 
 revoke execute on function public.create_order(uuid,uuid,jsonb,uuid,bigint) from public,anon;
-grant execute on function public.create_order(uuid,uuid,jsonb,bigint,bigint) to authenticated;
+grant execute on function public.create_order(uuid,uuid,jsonb,uuid,bigint) to authenticated;
 revoke execute on function public.settle_delivered_order(uuid) from public,anon;
 grant execute on function public.settle_delivered_order(uuid) to authenticated;
