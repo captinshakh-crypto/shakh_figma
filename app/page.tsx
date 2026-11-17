@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -16,6 +17,7 @@ import {
   Store,
   Truck,
   Utensils,
+  UserRound,
   WalletCards,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -29,6 +31,31 @@ type Product = {
   category_key: string;
   is_shakh_store: boolean;
 };
+
+type ProfileSummary = {
+  full_name: string;
+  email: string | null;
+  role: string | null;
+};
+
+const roleLabels: Record<string, string> = {
+  super_admin: "سوپەر ئەدمین",
+  captain: "کپتن",
+  customer: "کڕیار",
+  supermarket: "سوپەرمارکێت",
+  restaurant: "چێشتخانە",
+  butcher_poultry: "گۆشت و سپیاتی",
+  grocery: "بەقالی",
+};
+
+function getUserName(user: User) {
+  const metadata = user.user_metadata ?? {};
+  const fullName = metadata.full_name;
+  const name = metadata.name;
+  if (typeof fullName === "string" && fullName.trim()) return fullName.trim();
+  if (typeof name === "string" && name.trim()) return name.trim();
+  return user.email?.split("@")[0] || "بەکارهێنەر";
+}
 
 const categories = [
   { key: "restaurant", label: "چێشتخانە", detail: "خواردن و خواردنەوە", icon: Utensils },
@@ -59,6 +86,8 @@ export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [profile, setProfile] = useState<ProfileSummary | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -89,6 +118,82 @@ export default function HomePage() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    let revision = 0;
+    const supabase = createClient();
+
+    const syncUser = (user: User | null) => {
+      const currentRevision = ++revision;
+      if (!user) {
+        setProfile(null);
+        setAuthLoading(false);
+        return;
+      }
+
+      setAuthLoading(true);
+      const fallbackProfile: ProfileSummary = {
+        full_name: getUserName(user),
+        email: user.email ?? null,
+        role: null,
+      };
+
+      void supabase
+        .from("profiles")
+        .select("full_name,role")
+        .eq("id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!active || currentRevision !== revision) return;
+          setProfile({
+            full_name: data?.full_name || fallbackProfile.full_name,
+            email: user.email ?? null,
+            role: data?.role ?? null,
+          });
+          setAuthLoading(false);
+        })
+        .catch(() => {
+          if (!active || currentRevision !== revision) return;
+          setProfile(fallbackProfile);
+          setAuthLoading(false);
+        });
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      syncUser(session?.user ?? null);
+    });
+
+    void supabase.auth.getUser().then(({ data }) => {
+      if (active) syncUser(data.user);
+    }).catch(() => {
+      if (active) setAuthLoading(false);
+    });
+
+    return () => {
+      active = false;
+      revision += 1;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const accountLink = profile ? (
+    <Link
+      href="/dashboard"
+      aria-label={`پڕۆفایلی ${profile.full_name}، ڕۆڵ: ${profile.role ? roleLabels[profile.role] || profile.role : "دیاری نەکراو"}`}
+      className="inline-flex min-w-0 items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 transition hover:border-shakh-orange hover:bg-orange-100"
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-shakh-orange text-white">
+        <UserRound size={18} />
+      </span>
+      <span className="min-w-0 text-right">
+        <b className="block max-w-36 truncate text-sm text-shakh-ink">{profile.full_name}</b>
+        <small className="block text-xs text-shakh-blue">
+          {profile.role ? roleLabels[profile.role] || profile.role : "ڕۆڵ دیاری نەکراو"}
+        </small>
+      </span>
+    </Link>
+  ) : null;
+
   return (
     <main className="min-h-screen overflow-hidden">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
@@ -102,8 +207,16 @@ export default function HomePage() {
           </Link>
           <nav aria-label="ناڤی سەرەکی" className="flex items-center gap-2">
             <Link href="/shop" className="hidden rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-100 sm:inline-flex">بازاڕ</Link>
-            <Link href="/login" className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-shakh-ink transition hover:border-shakh-blue hover:text-shakh-blue">چوونەژوورەوە</Link>
-            <Link href="/login" className="rounded-xl bg-shakh-orange px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600">هەژمار دروست بکە</Link>
+            {authLoading ? (
+              <span className="h-11 w-28 animate-pulse rounded-xl bg-slate-100" aria-label="بارکردنی پڕۆفایل" />
+            ) : profile ? (
+              accountLink
+            ) : (
+              <>
+                <Link href="/login" className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-shakh-ink transition hover:border-shakh-blue hover:text-shakh-blue">چوونەژوورەوە</Link>
+                <Link href="/login" className="rounded-xl bg-shakh-orange px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600">هەژمار دروست بکە</Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -128,9 +241,15 @@ export default function HomePage() {
               <Link href="/shop" className="inline-flex items-center gap-3 rounded-xl bg-shakh-orange px-6 py-3.5 font-bold text-white shadow-lg shadow-orange-950/20 transition hover:-translate-y-0.5 hover:bg-orange-600">
                 بینینی بازاڕ <ArrowLeft size={18} />
               </Link>
-              <Link href="/login" className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-6 py-3.5 font-bold text-white transition hover:bg-white/10">
-                چوونەژوورەوە <ChevronLeft size={18} />
-              </Link>
+              {authLoading ? null : profile ? (
+                <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-6 py-3.5 font-bold text-white transition hover:bg-white/10">
+                  پڕۆفایل و ڕۆڵ <UserRound size={18} />
+                </Link>
+              ) : (
+                <Link href="/login" className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-6 py-3.5 font-bold text-white transition hover:bg-white/10">
+                  چوونەژوورەوە <ChevronLeft size={18} />
+                </Link>
+              )}
             </div>
             <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-sm text-slate-300">
               <span className="inline-flex items-center gap-2"><ShieldCheck size={17} className="text-orange-300" /> پاراستنی دەستگەیشتن</span>
@@ -273,7 +392,11 @@ export default function HomePage() {
             <p className="mt-1 text-sm text-slate-400">شاخ · بازاڕ و گەیاندن</p>
           </div>
           <p className="text-xs text-slate-400">© {new Date().getFullYear()} SHAKH. هەموو مافەکان پارێزراون.</p>
-          <Link href="/login" className="text-sm font-semibold text-white transition hover:text-orange-300">هەژمار و چوونەژوورەوە</Link>
+          {authLoading ? null : profile ? (
+            <Link href="/dashboard" className="text-sm font-semibold text-white transition hover:text-orange-300">پڕۆفایل · {profile.role ? roleLabels[profile.role] || profile.role : "ڕۆڵ دیاری نەکراو"}</Link>
+          ) : (
+            <Link href="/login" className="text-sm font-semibold text-white transition hover:text-orange-300">هەژمار و چوونەژوورەوە</Link>
+          )}
         </div>
       </footer>
     </main>
