@@ -58,7 +58,7 @@ export default function CaptainApplicationsPage() {
     const { error } = await createClient().rpc("review_captain_application", {
       p_application_id: id,
       p_approve: approve,
-      p_admin_note: approve ? null : "تکایە زانیاری داواکارییەکەت تەواو بکە و دووبارە هەوڵ بدەرەوە.",
+      p_admin_note: approve ? "" : "تکایە زانیاری داواکارییەکەت تەواو بکە و دووبارە هەوڵ بدەرەوە.",
     });
     setBusyId("");
     if (error) { setMessage(error.message); return; }
