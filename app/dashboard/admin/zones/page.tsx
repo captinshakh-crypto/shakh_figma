@@ -1,0 +1,12 @@
+"use client";
+import Link from "next/link";
+import {useEffect,useState} from "react";
+import {createClient} from "@/lib/supabase/client";
+type Zone={id:string;name:string;description:string|null;delivery_fee_iqd:number;is_active:boolean};
+export default function ZonesPage(){const [zones,setZones]=useState<Zone[]>([]);const [name,setName]=useState("");const [fee,setFee]=useState("1000");const [message,setMessage]=useState("");
+ async function load(){const s=createClient();const {data:{user}}=await s.auth.getUser();if(!user){location.href="/login";return;}const p=await s.from("profiles").select("role").eq("id",user.id).single();if(p.data?.role!=="super_admin"){location.href="/dashboard";return;}const {data}=await s.from("service_zones").select("*").order("name");setZones(data||[]);}
+ useEffect(()=>{load().catch(()=>setMessage("نەتوانرا زۆنەکان باربکرێن."));},[]);
+ async function add(){const s=createClient();const {error}=await s.from("service_zones").insert({name,delivery_fee_iqd:Number(fee),is_active:true});setMessage(error?.message||"زۆن زیاد کرا.");if(!error){setName("");await load();}}
+ async function toggle(z:Zone){const s=createClient();const {error}=await s.from("service_zones").update({is_active:!z.is_active}).eq("id",z.id);setMessage(error?.message||"زۆن نوێکرایەوە.");await load();}
+ return <main className="min-h-screen px-4 py-8"><div className="mx-auto max-w-3xl"><Link href="/dashboard/admin" className="font-bold text-shakh-blue">← سوپەر ئەدمین</Link><h1 className="mt-6 text-3xl font-black">زۆنەکانی گەیاندن</h1><section className="mt-6 rounded-2xl bg-white p-6 shadow-soft"><h2 className="font-black">زیادکردنی زۆنی نوێ</h2><input value={name} onChange={e=>setName(e.target.value)} placeholder="ناوی گەڕەک / زۆن" className="mt-4 w-full rounded-xl border p-3"/><input type="number" min="0" value={fee} onChange={e=>setFee(e.target.value)} placeholder="کرێی گەیاندن" className="mt-3 w-full rounded-xl border p-3"/><button onClick={add} className="mt-4 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white">زیادکردن</button></section>{zones.map(z=><div key={z.id} className="mt-3 flex items-center justify-between rounded-xl bg-white p-4"><div><b>{z.name}</b><p className="text-sm text-slate-500">{z.delivery_fee_iqd.toLocaleString("en-US")} د.ع · {z.is_active?"چالاک":"ناچالاک"}</p></div><button onClick={()=>toggle(z)} className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold">{z.is_active?"ناچالاککردن":"چالاککردن"}</button></div>)}{message&&<p className="mt-4 text-sm text-shakh-blue">{message}</p>}</div></main>;
+}
