@@ -1,11 +1,19 @@
 "use client";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [name,setName]=useState("");
   const [mode,setMode]=useState<"login"|"signup">("login"); const [message,setMessage]=useState(""); const [busy,setBusy]=useState(false);
+
+  useEffect(() => {
+    let active = true;
+    createClient().auth.getUser().then(({ data }) => {
+      if (active && data.user) window.location.replace("/dashboard");
+    });
+    return () => { active = false; };
+  }, []);
 
   async function submit(e:FormEvent) {
     e.preventDefault(); setBusy(true); setMessage("");
@@ -16,8 +24,10 @@ export default function LoginPage() {
         ? await supabase.auth.signInWithPassword({email,password})
         : await supabase.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:callback}});
       if(result.error) setMessage(result.error.message);
-      else if(mode==="signup") setMessage("هەژمارەکەت دروست کرا. تکایە ئیمەیڵەکەت بپشکنە و لینکی پشتڕاستکردنەوە بکەرەوە.");
-      else window.location.href="/dashboard";
+      else if(mode==="signup") {
+        if(result.data.session) window.location.href="/dashboard";
+        else setMessage("هەژمارەکەت دروست کرا. تکایە ئیمەیڵەکەت بپشکنە و لینکی پشتڕاستکردنەوە بکەرەوە؛ دوای پشتڕاستکردنەوە پڕۆفایل و ڕۆڵەکەت پیشان دەدرێت.");
+      } else window.location.href="/dashboard";
     } catch { setMessage("پەیوەندی بە داتابەیس نەکرا. ڕێکخستنی پڕۆژە بپشکنە."); }
     finally { setBusy(false); }
   }
