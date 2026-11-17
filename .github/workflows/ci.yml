@@ -27,6 +27,11 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Dependency security audit
+        continue-on-error: true
+        run: |
+          npm audit --json > npm-audit.json || true
+          node -e 'const a=require("./npm-audit.json"); console.log(JSON.stringify(a.metadata?.vulnerabilities ?? {}, null, 2)); for (const [name, item] of Object.entries(a.vulnerabilities ?? {})) console.log(JSON.stringify({name, severity:item.severity, range:item.range, fixAvailable:item.fixAvailable, via:item.via?.map(v=>typeof v === "string" ? v : {name:v.name,title:v.title,url:v.url,range:v.range})}));'
       - name: TypeScript validation
         run: npm run typecheck
       - name: Production build
