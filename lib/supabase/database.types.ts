@@ -52,6 +52,116 @@ export type Database = {
           },
         ]
       }
+      captain_applications: {
+        Row: {
+          captain_type: Database["public"]["Enums"]["captain_type"]
+          created_at: string
+          id: string
+          merchant_id: string | null
+          note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["record_status"]
+          user_id: string
+        }
+        Insert: {
+          captain_type: Database["public"]["Enums"]["captain_type"]
+          created_at?: string
+          id?: string
+          merchant_id?: string | null
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["record_status"]
+          user_id: string
+        }
+        Update: {
+          captain_type?: Database["public"]["Enums"]["captain_type"]
+          created_at?: string
+          id?: string
+          merchant_id?: string | null
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["record_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captain_applications_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchant_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captain_applications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captain_applications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      captain_profiles: {
+        Row: {
+          approved_at: string
+          approved_by: string | null
+          captain_type: Database["public"]["Enums"]["captain_type"]
+          created_at: string
+          is_active: boolean
+          merchant_id: string | null
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string
+          approved_by?: string | null
+          captain_type: Database["public"]["Enums"]["captain_type"]
+          created_at?: string
+          is_active?: boolean
+          merchant_id?: string | null
+          user_id: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string | null
+          captain_type?: Database["public"]["Enums"]["captain_type"]
+          created_at?: string
+          is_active?: boolean
+          merchant_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captain_profiles_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captain_profiles_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchant_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captain_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commission_settings: {
         Row: {
           commission_rate_bps: number
@@ -721,6 +831,14 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_super_admin: { Args: never; Returns: boolean }
+      request_captain_application: {
+        Args: {
+          p_captain_type: Database["public"]["Enums"]["captain_type"]
+          p_merchant_id?: string
+          p_note?: string
+        }
+        Returns: string
+      }
       request_merchant_account: {
         Args: {
           p_address?: string
@@ -737,6 +855,14 @@ export type Database = {
       request_wallet_topup: {
         Args: { p_amount_iqd: number; p_note?: string }
         Returns: string
+      }
+      review_captain_application: {
+        Args: {
+          p_admin_note?: string
+          p_application_id: string
+          p_approve: boolean
+        }
+        Returns: undefined
       }
       review_wallet_topup: {
         Args: {
@@ -758,6 +884,10 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: undefined
       }
+      update_my_profile: {
+        Args: { p_full_name: string; p_phone: string }
+        Returns: undefined
+      }
       update_order_status: {
         Args: { p_order_id: string; p_status: string }
         Returns: undefined
@@ -772,6 +902,7 @@ export type Database = {
         | "restaurant"
         | "butcher_poultry"
         | "grocery"
+      captain_type: "shakh" | "merchant"
       record_status: "pending" | "approved" | "rejected" | "active" | "inactive"
       wallet_entry_type:
         | "topup"
@@ -918,6 +1049,7 @@ export const Constants = {
         "butcher_poultry",
         "grocery",
       ],
+      captain_type: ["shakh", "merchant"],
       record_status: ["pending", "approved", "rejected", "active", "inactive"],
       wallet_entry_type: [
         "topup",
