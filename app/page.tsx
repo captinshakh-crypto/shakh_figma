@@ -138,12 +138,13 @@ export default function HomePage() {
         role: null,
       };
 
-      void supabase
-        .from("profiles")
-        .select("full_name,role")
-        .eq("id", user.id)
-        .maybeSingle()
-        .then(({ data }) => {
+      void Promise.resolve(
+        supabase
+          .from("profiles")
+          .select("full_name,role")
+          .eq("id", user.id)
+          .maybeSingle()
+      ).then(({ data }) => {
           if (!active || currentRevision !== revision) return;
           setProfile({
             full_name: data?.full_name || fallbackProfile.full_name,
