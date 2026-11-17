@@ -9,9 +9,24 @@ export default function LoginPage() {
 
   useEffect(() => {
     let active = true;
-    createClient().auth.getUser().then(({ data }) => {
-      if (active && data.user) window.location.replace("/dashboard");
-    });
+    const authError = new URLSearchParams(window.location.search).get("auth_error");
+    if (authError) {
+      setMessage(authError === "verification"
+        ? "پشتڕاستکردنەوەی چوونەژوورەوە سەرکەوتوو نەبوو یان لینکەکە بەسەرچووە. دووبارە هەوڵ بدەرەوە."
+        : "لینکی پشتڕاستکردنەوە دروست نەبوو. تکایە دووبارە هەوڵ بدەرەوە.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
+    try {
+      void Promise.resolve(createClient().auth.getUser()).then(({ data }) => {
+        if (active && data.user) window.location.replace("/dashboard");
+      }).catch(() => {
+        // Keep the sign-in form available when the session check is temporarily offline.
+      });
+    } catch {
+      // The form remains usable and will display an error on submit.
+    }
+
     return () => { active = false; };
   }, []);
 
@@ -20,9 +35,10 @@ export default function LoginPage() {
     try {
       const supabase=createClient();
       const callback = `${window.location.origin}/auth/callback?next=/dashboard`;
+      const cleanEmail = email.trim();
       const result=mode==="login"
-        ? await supabase.auth.signInWithPassword({email,password})
-        : await supabase.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:callback}});
+        ? await supabase.auth.signInWithPassword({email:cleanEmail,password})
+        : await supabase.auth.signUp({email:cleanEmail,password,options:{data:{full_name:name.trim()},emailRedirectTo:callback}});
       if(result.error) setMessage(result.error.message);
       else if(mode==="signup") {
         if(result.data.session) window.location.href="/dashboard";
