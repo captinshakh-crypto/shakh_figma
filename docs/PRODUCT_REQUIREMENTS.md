@@ -53,7 +53,13 @@
 - Add audit logs for admin actions and financial mutations.
 - Use database constraints, indexes, idempotency keys, and tests for settlement and wallet functions.
 
-## Open business decisions before production settlement
-- Confirm whether checkout is one merchant per order or a single cart can split across merchants.
-- Confirm whether the 200 IQD platform share is deducted from the captain’s 1,000 IQD delivery fee (leaving 800 IQD to captain), or is an additional fee paid by the customer.
-- Set default merchant commission rates and reward/gift rules; admin-configurable values can be introduced, but initial rates must be approved before live charging.
+## Confirmed decisions and production setup
+- Delivery fee example is confirmed: from a 1,000 IQD delivery fee, 200 IQD goes to SHAKH and 800 IQD goes to the assigned captain. The platform share can be configured by merchant category in the admin dashboard; SHAKH Store uses the 200 IQD default.
+- Merchant commission is configurable separately for supermarket, restaurant, butcher/poultry, and grocery. The initial rates are set to 0 basis points until the super-admin chooses the real rates; no unapproved commission is charged.
+- One order belongs to one merchant in the first release. SHAKH Store is represented as a platform-owned store with no merchant owner.
+- Reward/gift campaign amount is added to the customer's order total. After delivery settlement, the exact amount is credited to the campaign owner's internal wallet.
+- Reward owners may request a cash payout using FastPay or FIB. The platform admin must complete the off-platform payment and then mark the request paid.
+- Before launch, the super-admin must sign up with the verified email `sardar.xano59@gmail.com`; the Auth trigger promotes that exact verified account.
+- The super-admin must create the active delivery zones and delivery fees before checkout can accept orders.
+- Resend credentials must be rotated and added as Supabase Edge Function secrets. The sender domain must be verified in Resend before email delivery is live.
+- Vercel team access and the domain `daim-post.online` must be authorized/verified before production deployment.
