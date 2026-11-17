@@ -400,6 +400,7 @@ create policy settings_admin_all on public.platform_settings for all using (publ
 
 revoke all on function public.review_wallet_topup(uuid,boolean,text) from public;
 revoke all on function public.admin_credit_own_wallet(bigint,text) from public;
-revoke all on function public.request_wallet_topup(bigint,text) from public;\ngrant execute on function public.request_wallet_topup(bigint,text) to authenticated;
+revoke all on function public.request_wallet_topup(bigint,text) from public;
+grant execute on function public.request_wallet_topup(bigint,text) to authenticated;
 grant execute on function public.review_wallet_topup(uuid,boolean,text) to authenticated;
 grant execute on function public.admin_credit_own_wallet(bigint,text) to authenticated;
