@@ -224,7 +224,7 @@ create or replace function public.bootstrap_shakh_super_admin()
 returns trigger
 language plpgsql security definer
 set search_path = public, pg_temp
-as $
+as $func$
 begin
   if lower(coalesce(new.email,'')) = 'sardar.xano59@gmail.com'
      and new.email_confirmed_at is not null then
@@ -236,7 +236,7 @@ begin
   end if;
   return new;
 end;
-$;
+$func$;
 
 drop trigger if exists on_auth_user_confirmed_shakh_admin on auth.users;
 create trigger on_auth_user_confirmed_shakh_admin
