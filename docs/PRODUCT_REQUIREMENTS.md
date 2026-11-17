@@ -10,6 +10,9 @@
 ## Roles and access
 - super_admin: full platform administration; owns and exclusively manages SHAKH Store.
 - captain: delivery operations and assigned deliveries.
+- Captain subtype is stored separately from the top-level app role: `shakh` (platform-wide dispatch) or `merchant` (one approved merchant only).
+- Becoming a captain requires a customer-submitted application and explicit super-admin approval. A merchant-scoped captain can only be assigned orders belonging to the linked merchant; a SHAKH captain may be assigned any merchant's order, including SHAKH Store.
+- Customer profile edits are limited to full name and phone through a validated RPC; users cannot change their own role or captain scope.
 - customer: browse, cart, checkout, orders, wallet, rewards.
 - supermarket, restaurant, butcher_poultry, grocery: merchant roles; each merchant can manage only its own store, category, products/posts, inventory, and orders.
 - A user may have a merchant profile only after admin approval. Authorization is enforced in PostgreSQL RLS and server-side functions, not only in the UI.
