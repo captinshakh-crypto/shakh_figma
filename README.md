@@ -14,10 +14,21 @@ Kurdish-first multi-merchant delivery PWA for restaurants, supermarkets, butcher
 3. Run `npm install`, then `npm run dev`.
 4. Use `npm run typecheck` and `npm run build` before deployment.
 
-Never put the Supabase service-role key or Resend API key in browser variables or commit secrets.
+Never put the Supabase service-role key, Google OAuth client secret, or Resend API key in browser variables or commit secrets.
 
 ## Supabase
 Migrations are in `supabase/migrations`. The initial owner account is promoted only when Supabase Auth verifies `sardar.xano59@gmail.com`. Create/sign up with that email and verify it; then the database trigger provisions the super-admin profile and wallet.
+
+## Google sign-in
+The login page uses Supabase OAuth with the PKCE callback at `https://daim-post.online/auth/callback`.
+
+1. In Google Cloud Console, create an OAuth Client ID for a **Web application** and configure the OAuth consent screen.
+2. In Google Cloud, add this exact **Authorized redirect URI** (replace with your own Supabase project URL if different): `https://zafspwzqxxddbfmtjziq.supabase.co/auth/v1/callback`.
+3. In Supabase Dashboard → Authentication → Providers → Google, enable Google and enter the Google OAuth Client ID and Client Secret. Save these credentials only in Supabase.
+4. In Supabase Dashboard → Authentication → URL Configuration → Redirect URLs, allow `https://daim-post.online/auth/callback` (or `https://daim-post.online/**`).
+5. Test Google sign-in on the production domain. If the Google consent screen is in Testing mode, add your Google account as a test user.
+
+The Google Client Secret must never be placed in `NEXT_PUBLIC_*` variables or committed to Git.
 
 ## Business rules
 - All prices and wallet values are integer IQD.
