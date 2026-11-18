@@ -69,7 +69,7 @@
 ## Confirmed decisions and production setup
 - Delivery fee split is configured per service zone, not by merchant category. A 1,000 IQD example zone uses 200 IQD for SHAKH and 800 IQD for the assigned captain. The database enforces that both shares sum exactly to the zone delivery fee, and each order stores immutable fee/share snapshots.
 - Merchant commission is configurable separately for supermarket, restaurant, butcher/poultry, and grocery. The initial rates are set to 0 basis points until the super-admin chooses the real rates; no unapproved commission is charged.
-- One order belongs to one merchant in the first release. SHAKH Store is represented as a platform-owned store with no merchant owner.
+- One order belongs to one merchant in the first release. SHAKH Store is represented as a platform-owned store with no merchant owner. SHAKH Store orders use a dedicated authenticated checkout RPC that retains product, stock, and service-zone validation and notifies the super-admin.
 - Reward/gift campaign amount is added to the customer's order total. After delivery settlement, the exact amount is credited to the campaign owner's internal wallet.
 - Reward owners may request a cash payout using FastPay or FIB. The platform admin must complete the off-platform payment and then mark the request paid.
 - Before launch, the super-admin must sign up with the verified email `sardar.xano59@gmail.com`; the Auth trigger promotes that exact verified account.
