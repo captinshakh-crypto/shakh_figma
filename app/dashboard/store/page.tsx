@@ -72,7 +72,7 @@ type Merchant = {
   merchant_type: Enums<"app_role">;
   address: string | null;
   description: string | null;
-  approval_status: Enums<"record_status">;
+  approval_status: string;
 };
 
 type Product = {
