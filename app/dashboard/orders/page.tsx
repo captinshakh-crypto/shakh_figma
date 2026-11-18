@@ -280,7 +280,6 @@ export default function OrdersPage() {
                       <div className="mt-3 space-y-2 text-sm">
                         <div className="flex justify-between"><span>کۆی کاڵاکان</span><b>{formatIQD(order.subtotal_iqd)}</b></div>
                         <div className="flex justify-between"><span>گەیاندن</span><b>{formatIQD(order.delivery_fee_iqd)}</b></div>
-                        {order.reward_amount_iqd > 0 && <div className="flex justify-between"><span>شێرو خەلات</span><b>{formatIQD(order.reward_amount_iqd)}</b></div>}
                         <div className="flex justify-between border-t border-slate-200 pt-3 font-black"><span>کۆی گشتی</span><span>{formatIQD(order.total_iqd || order.subtotal_iqd + order.delivery_fee_iqd)}</span></div>
                       </div>
                       {order.settled_at && <p className="mt-3 flex items-center gap-2 text-xs font-bold text-green-700"><CheckCircle2 size={15}/> حساب داخراوەتەوە</p>}
