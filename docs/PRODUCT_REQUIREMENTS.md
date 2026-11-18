@@ -38,9 +38,10 @@
 - Example: request 10,000 IQD -> pending request; on approval, credit 10,000 IQD.
 - Super-admin may manually credit their own wallet, with an auditable ledger entry.
 - All balance changes must be append-only ledger transactions, performed atomically by trusted database functions; never accept a client-supplied balance.
-- Merchant commission rates and captain/platform delivery fee split must be configurable and snapshotted on each order/settlement.
+- Merchant commission rates remain configurable by merchant category. Delivery fee, SHAKH share, and captain share are configured independently for each service zone; the three amounts must reconcile exactly.
+- Each order snapshots the selected service zone's delivery fee, SHAKH share, and captain share at creation. Later zone price edits must not change existing orders or earnings.
 - On a completed/settled sale, deduct the configured merchant commission from the merchant wallet and credit the platform wallet. Any selected reward/gift amount is credited to the reward owner’s wallet and recorded separately.
-- Example delivery fee: 1,000 IQD; platform share: 200 IQD. The remaining 800 IQD is the captain share unless the platform admin configures another split. The fee and split are snapshotted at order settlement.
+- Default example for a new zone: 1,000 IQD delivery fee = 200 IQD SHAKH share + 800 IQD captain share. The super-admin may configure a different exact split for each zone. The fee and both shares are snapshotted when the order is created.
 - Reward owners may request a cash payout through the platform admin. Requests can specify FastPay or FIB as the requested payout channel. Actual cash transfer is manual and must only be marked paid by an authorized admin after off-platform payment is verified.
 - Top-up approval, commissions, rewards, delivery settlement, and payout processing must be idempotent and auditable; prevent duplicate settlement and negative balances unless explicitly configured.
 
@@ -57,7 +58,7 @@
 - Use database constraints, indexes, idempotency keys, and tests for settlement and wallet functions.
 
 ## Confirmed decisions and production setup
-- Delivery fee example is confirmed: from a 1,000 IQD delivery fee, 200 IQD goes to SHAKH and 800 IQD goes to the assigned captain. The platform share can be configured by merchant category in the admin dashboard; SHAKH Store uses the 200 IQD default.
+- Delivery fee split is configured per service zone, not by merchant category. A 1,000 IQD example zone uses 200 IQD for SHAKH and 800 IQD for the assigned captain. The database enforces that both shares sum exactly to the zone delivery fee, and each order stores immutable fee/share snapshots.
 - Merchant commission is configurable separately for supermarket, restaurant, butcher/poultry, and grocery. The initial rates are set to 0 basis points until the super-admin chooses the real rates; no unapproved commission is charged.
 - One order belongs to one merchant in the first release. SHAKH Store is represented as a platform-owned store with no merchant owner.
 - Reward/gift campaign amount is added to the customer's order total. After delivery settlement, the exact amount is credited to the campaign owner's internal wallet.
