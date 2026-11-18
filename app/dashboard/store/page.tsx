@@ -89,6 +89,8 @@ type Product = {
   category_key: string;
   image_path: string | null;
   is_available: boolean;
+  approval_status: "pending" | "approved" | "rejected";
+  rejection_reason: string | null;
   created_at: string;
 };
 
@@ -163,7 +165,7 @@ export default function StorePage() {
     }
 
     let query = supabase.from("products")
-      .select("id,merchant_id,is_shakh_store,title,description,price_iqd,cost_price_iqd,referral_commission_iqd,stock_quantity,unit,category_key,image_path,is_available,created_at")
+      .select("id,merchant_id,is_shakh_store,title,description,price_iqd,cost_price_iqd,referral_commission_iqd,stock_quantity,unit,category_key,image_path,is_available,approval_status,rejection_reason,created_at")
       .order("created_at", { ascending: false });
 
     if (currentRole === "super_admin") query = query.eq("is_shakh_store", true);
@@ -479,13 +481,13 @@ export default function StorePage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className="font-black">{product.title}</h3>
-                              <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${product.is_available && !outOfStock ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{outOfStock ? "کۆگا تەواو بووە" : product.is_available ? "بەردەست" : "ناچالاک"}</span>
+                              <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${product.approval_status === "pending" ? "bg-amber-50 text-amber-800" : product.approval_status === "rejected" ? "bg-red-50 text-red-700" : product.is_available && !outOfStock ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{product.approval_status === "pending" ? "چاوەڕوانی پەسەندکردن" : product.approval_status === "rejected" ? "ڕەفزکراو" : outOfStock ? "کۆگا تەواو بووە" : product.is_available ? "بەردەست" : "ناچالاک"}</span>
                             </div>
                             {isAdmin && <p className="mt-1 text-xs font-semibold text-slate-500">نرخی کڕین: {product.cost_price_iqd === null ? "تۆمار نەکراوە" : formatIQD(product.cost_price_iqd)} · قازانجی هەر دانە: {product.cost_price_iqd === null ? "—" : formatIQD(product.price_iqd - product.cost_price_iqd)}</p>}
                             {product.referral_commission_iqd > 0 && <p className="mt-1 text-xs font-semibold text-purple-700">شێر و خەڵات بۆ هەر دانە: {formatIQD(product.referral_commission_iqd)}</p>}
                             <p className="mt-1 text-lg font-black text-shakh-orange">{formatIQD(product.price_iqd)} <small className="text-xs font-medium text-slate-500">/ {units.find((unit) => unit.value === product.unit)?.label || product.unit}</small></p>
                             <p className="mt-1 text-sm text-slate-500">کۆگا: {product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}</p>
-                            {product.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>}
+                            {product.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>}{product.rejection_reason && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">هۆکاری ڕەفز: {product.rejection_reason}</p>}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2 border-t border-slate-100 p-3">
