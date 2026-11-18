@@ -83,6 +83,7 @@ type Product = {
   description: string | null;
   price_iqd: number;
   cost_price_iqd: number | null;
+  referral_commission_iqd: number;
   stock_quantity: number | null;
   unit: string;
   category_key: string;
@@ -96,6 +97,7 @@ const emptyProduct = {
   description: "",
   price: "",
   costPrice: "",
+  referralCommission: "0",
   stock: "",
   unit: "piece",
   category: "general",
@@ -161,7 +163,7 @@ export default function StorePage() {
     }
 
     let query = supabase.from("products")
-      .select("id,merchant_id,is_shakh_store,title,description,price_iqd,cost_price_iqd,stock_quantity,unit,category_key,image_path,is_available,created_at")
+      .select("id,merchant_id,is_shakh_store,title,description,price_iqd,cost_price_iqd,referral_commission_iqd,stock_quantity,unit,category_key,image_path,is_available,created_at")
       .order("created_at", { ascending: false });
 
     if (currentRole === "super_admin") query = query.eq("is_shakh_store", true);
@@ -208,6 +210,7 @@ export default function StorePage() {
       description: product.description || "",
       price: String(product.price_iqd),
       costPrice: product.cost_price_iqd === null ? "" : String(product.cost_price_iqd),
+      referralCommission: String(product.referral_commission_iqd || 0),
       stock: product.stock_quantity === null ? "" : String(product.stock_quantity),
       unit: product.unit,
       category: product.category_key,
@@ -247,6 +250,11 @@ export default function StorePage() {
       return;
     }
     const costPrice = form.costPrice.trim() === "" ? null : Number(form.costPrice);
+    const referralCommission = Number(form.referralCommission || 0);
+    if (!Number.isSafeInteger(referralCommission) || referralCommission < 0) {
+      setMessage("کۆمسیۆنی شێر و خەڵات دەبێت ژمارەیەکی تەواوی سفر یان زیاتر بێت.");
+      return;
+    }
     if (isAdmin && (costPrice === null || !Number.isSafeInteger(costPrice) || costPrice < 0)) {
       setMessage("نرخی کڕین دەبێت ژمارەیەکی تەواوی سفر یان زیاتر بێت.");
       return;
@@ -283,6 +291,7 @@ export default function StorePage() {
         description: form.description.trim() || null,
         price_iqd: price,
         ...(isAdmin ? { cost_price_iqd: costPrice } : {}),
+        referral_commission_iqd: referralCommission,
         stock_quantity: stock,
         unit: form.unit,
         category_key: form.category,
@@ -408,7 +417,7 @@ export default function StorePage() {
                 <label className="block text-sm font-bold">وردەکاری کاڵا
                   <textarea maxLength={1000} rows={3} value={form.description} onChange={(event) => setForm((old) => ({ ...old, description: event.target.value }))} placeholder="پێناسە و زانیاریی کاڵا..." className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                 </label>
-                <div className={`grid gap-4 ${isAdmin ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
+                <div className={`grid gap-4 ${isAdmin ? "md:grid-cols-5" : "md:grid-cols-4"}`}>
                   {isAdmin && <label className="block text-sm font-bold">نرخی کڕین (د.ع)
                     <input required type="number" min="0" step="1" value={form.costPrice} onChange={(event) => setForm((old) => ({ ...old, costPrice: event.target.value }))} placeholder="نرخی کڕین" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                   </label>}
@@ -419,6 +428,9 @@ export default function StorePage() {
                     <select value={form.unit} onChange={(event) => setForm((old) => ({ ...old, unit: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 p-3">
                       {units.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
                     </select>
+                  </label>
+                  <label className="block text-sm font-bold">کۆمسیۆنی شێر و خەڵات بۆ هەر دانە (د.ع)
+                    <input type="number" min="0" step="1" value={form.referralCommission} onChange={(event) => setForm((old) => ({ ...old, referralCommission: event.target.value }))} placeholder="بۆ نموونە: ٥٠٠" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                   </label>
                   <label className="block text-sm font-bold">بڕی کۆگا (بەتاڵ = بێ سنوور)
                     <input type="number" min="0" step="0.001" value={form.stock} onChange={(event) => setForm((old) => ({ ...old, stock: event.target.value }))} placeholder="بۆ نموونە: ٢٥" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
@@ -470,6 +482,7 @@ export default function StorePage() {
                               <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${product.is_available && !outOfStock ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{outOfStock ? "کۆگا تەواو بووە" : product.is_available ? "بەردەست" : "ناچالاک"}</span>
                             </div>
                             {isAdmin && <p className="mt-1 text-xs font-semibold text-slate-500">نرخی کڕین: {product.cost_price_iqd === null ? "تۆمار نەکراوە" : formatIQD(product.cost_price_iqd)} · قازانجی هەر دانە: {product.cost_price_iqd === null ? "—" : formatIQD(product.price_iqd - product.cost_price_iqd)}</p>}
+                            {product.referral_commission_iqd > 0 && <p className="mt-1 text-xs font-semibold text-purple-700">شێر و خەڵات بۆ هەر دانە: {formatIQD(product.referral_commission_iqd)}</p>}
                             <p className="mt-1 text-lg font-black text-shakh-orange">{formatIQD(product.price_iqd)} <small className="text-xs font-medium text-slate-500">/ {units.find((unit) => unit.value === product.unit)?.label || product.unit}</small></p>
                             <p className="mt-1 text-sm text-slate-500">کۆگا: {product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}</p>
                             {product.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>}
