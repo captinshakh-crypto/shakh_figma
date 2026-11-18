@@ -118,6 +118,9 @@ export default function StorePage() {
 
   const isAdmin = role === "super_admin";
   const categories = categorySets[role] || categorySets.super_admin;
+  const formCategories = categories.some((item) => item.value === form.category)
+    ? categories
+    : [...categories, { value: form.category, label: form.category }];
 
   async function load() {
     const supabase = createClient();
@@ -184,7 +187,7 @@ export default function StorePage() {
 
   function resetProductForm() {
     setEditing(null);
-    setForm(emptyProduct);
+    setForm({ ...emptyProduct, category: categories[0]?.value || "general" });
     setImage(null);
   }
 
@@ -380,7 +383,7 @@ export default function StorePage() {
                   </label>
                   <label className="block text-sm font-bold">بەشی کاڵا
                     <select value={form.category} onChange={(event) => setForm((old) => ({ ...old, category: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 p-3">
-                      {categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                      {formCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                     </select>
                   </label>
                 </div>
