@@ -33,6 +33,8 @@ type OrderItem = {
   quantity: number;
   unit_price_iqd: number;
   line_total_iqd: number;
+  merchant_commission_per_unit_snapshot_iqd: number;
+  merchant_commission_line_snapshot_iqd: number;
 };
 
 type LiveLocation = { order_id: string; latitude: number; longitude: number; accuracy_m: number | null; updated_at: string };
