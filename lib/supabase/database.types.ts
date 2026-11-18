@@ -847,6 +847,15 @@ export type Database = {
         }
         Returns: string
       }
+      create_shakh_store_order: {
+        Args: {
+          p_items: Json
+          p_reward_amount_iqd?: number
+          p_reward_campaign_id?: string
+          p_service_zone_id: string
+        }
+        Returns: string
+      }
       current_app_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
