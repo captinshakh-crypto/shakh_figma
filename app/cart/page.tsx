@@ -149,17 +149,34 @@ export default function CartPage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { window.location.href = "/login"; return; }
-      const { data, error } = await supabase.rpc("create_order", {
-        p_merchant_id: merchantId,
-        p_service_zone_id: zone,
-        p_items: items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
+      const orderItems = items.map((item) => ({ product_id: item.product_id, quantity: item.quantity }));
+      const rewardArgs = {
         p_reward_campaign_id: campaign || undefined,
         p_reward_amount_iqd: selectedCampaign?.reward_amount_iqd || 0,
-      });
-      if (error) throw error;
+      };
+      let orderId: string;
+      if (storeIds[0] === "shakh_store") {
+        const { data, error } = await supabase.rpc("create_shakh_store_order", {
+          p_service_zone_id: zone,
+          p_items: orderItems,
+          ...rewardArgs,
+        });
+        if (error) throw error;
+        orderId = data;
+      } else {
+        if (!merchantId) throw new Error("فرۆشگا دیاری نەکراوە.");
+        const { data, error } = await supabase.rpc("create_order", {
+          p_merchant_id: merchantId,
+          p_service_zone_id: zone,
+          p_items: orderItems,
+          ...rewardArgs,
+        });
+        if (error) throw error;
+        orderId = data;
+      }
       localStorage.removeItem("shakh-cart");
       setItems([]);
-      setMessage("داواکارییەکەت بە سەرکەوتوویی نێردرا. ژمارە: " + data);
+      setMessage("داواکارییەکەت بە سەرکەوتوویی نێردرا. ژمارە: " + orderId);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "نەتوانرا داواکاری تۆمار بکرێت.");
     } finally {
