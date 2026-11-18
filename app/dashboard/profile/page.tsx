@@ -57,15 +57,20 @@ export default function ProfilePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = "/login"; return; }
 
-    const [p, c, a, m] = await Promise.all([
+    const [p, c, a, m, roleResult] = await Promise.all([
       supabase.from("profiles").select("email,full_name,phone,role").eq("id", user.id).single(),
       supabase.from("captain_profiles").select("captain_type,merchant_id,is_active").eq("user_id", user.id).maybeSingle(),
       supabase.from("captain_applications").select("id,captain_type,merchant_id,note,status,created_at").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("merchant_profiles").select("id,business_name").eq("approval_status", "approved").order("business_name"),
+      supabase.rpc("current_app_role"),
     ]);
 
     if (p.error) throw p.error;
-    setProfile(p.data);
+    if (roleResult.error) throw roleResult.error;
+    setProfile({
+      ...p.data,
+      role: roleResult.data || p.data.role,
+    });
     setName(p.data.full_name || "");
     setPhone(p.data.phone || "");
     setCaptain(c.data);
