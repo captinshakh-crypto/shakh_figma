@@ -375,10 +375,10 @@ export type Database = {
           captain_user_id: string | null
           currency: string
           customer_id: string
-          delivery_address: string | null
+          delivery_address: string
           delivery_fee_iqd: number
           delivery_notes: string | null
-          delivery_phone: string | null
+          delivery_phone: string
           id: string
           idempotency_key: string | null
           merchant_commission_iqd: number
@@ -399,10 +399,10 @@ export type Database = {
           captain_user_id?: string | null
           currency?: string
           customer_id: string
-          delivery_address?: string | null
+          delivery_address: string
           delivery_fee_iqd: number
           delivery_notes?: string | null
-          delivery_phone?: string | null
+          delivery_phone: string
           id?: string
           idempotency_key?: string | null
           merchant_commission_iqd?: number
@@ -423,10 +423,10 @@ export type Database = {
           captain_user_id?: string | null
           currency?: string
           customer_id?: string
-          delivery_address?: string | null
+          delivery_address?: string
           delivery_fee_iqd?: number
           delivery_notes?: string | null
-          delivery_phone?: string | null
+          delivery_phone?: string
           id?: string
           idempotency_key?: string | null
           merchant_commission_iqd?: number
