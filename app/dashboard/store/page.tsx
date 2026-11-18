@@ -89,7 +89,7 @@ type Product = {
   category_key: string;
   image_path: string | null;
   is_available: boolean;
-  approval_status: "pending" | "approved" | "rejected";
+  approval_status: string;
   rejection_reason: string | null;
   created_at: string;
 };
