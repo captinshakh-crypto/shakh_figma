@@ -358,7 +358,7 @@ export default function StorePage() {
         </header>
 
         {message && <p role="status" className="mt-5 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">{message}</p>}
-        {!isAdmin && merchant?.approval_status === "approved" && walletBalance < 5000 && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">بۆ زیادکردن یان دەستکاریکردنی کاڵا، دەبێت جزدانەکەت لانیکەم ٥,٠٠٠ د.ع بێت. باڵانسی ئێستا: {walletBalance.toLocaleString("en-US")} د.ع. <Link href="/dashboard/wallet" className="font-black underline">پڕکردنەوەی جزدان</Link></div>}
+        {!isAdmin && merchant?.approval_status === "approved" && walletBalance <= 0 && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">بۆ پۆستکردن یان دەستکاریکردنی کاڵا، جزدانەکەت نابێت بەتاڵ بێت. باڵانسی ئێستا: {walletBalance.toLocaleString("en-US")} د.ع. <Link href="/dashboard/wallet" className="font-black underline">پڕکردنەوەی جزدان</Link></div>}
 
         {role === "customer" && !merchant && (
           <section className="mt-6 rounded-2xl bg-white p-6 shadow-soft">
@@ -427,7 +427,7 @@ export default function StorePage() {
                   {editing?.image_path && !image && <small className="mt-1 block text-slate-500">وێنەی ئێستا دەمێنێتەوە؛ بۆ گۆڕینی، وێنەی نوێ هەڵبژێرە.</small>}
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  <button disabled={saving || !form.title.trim() || !form.price || (!isAdmin && walletBalance < 5000)} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
+                  <button disabled={saving || !form.title.trim() || !form.price || (!isAdmin && walletBalance <= 0)} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
                     <Save size={17}/>{saving ? "پاشەکەوت دەکرێت..." : editing ? "پاشەکەوتکردنی گۆڕانکاری" : "زیادکردنی کاڵا"}
                   </button>
                   {editing && <button type="button" onClick={resetProductForm} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 font-bold text-slate-700"><X size={17}/> هەڵوەشاندنەوە</button>}
