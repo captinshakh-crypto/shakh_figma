@@ -114,13 +114,14 @@ begin
   if not public.is_super_admin() then raise exception 'not_authorized'; end if;
   if p_period not in ('hour','day','week','month') then raise exception 'invalid_period'; end if;
   return query
-  select date_trunc(p_period,o.placed_at at time zone 'Asia/Baghdad') at time zone 'Asia/Baghdad',
+  select date_trunc(p_period,o.settled_at at time zone 'Asia/Baghdad') at time zone 'Asia/Baghdad',
     count(*)::bigint,count(*) filter(where o.status='delivered')::bigint,
-    coalesce(sum(o.subtotal_iqd) filter(where o.status='delivered'),0)::bigint,
-    coalesce(sum(o.merchant_commission_iqd) filter(where o.status='delivered'),0)::bigint,
-    coalesce(sum(o.platform_delivery_share_iqd) filter(where o.status='delivered'),0)::bigint
+    coalesce(sum(o.subtotal_iqd),0)::bigint,
+    coalesce(sum(o.merchant_commission_iqd),0)::bigint,
+    coalesce(sum(o.platform_delivery_share_iqd),0)::bigint
   from public.orders o
-  where o.placed_at>=now()-case p_period when 'hour' then interval '24 hours' when 'day' then interval '30 days' when 'week' then interval '12 weeks' else interval '12 months' end
+  where o.status='delivered' and o.settled_at is not null
+    and o.settled_at>=now()-case p_period when 'hour' then interval '24 hours' when 'day' then interval '30 days' when 'week' then interval '12 weeks' else interval '12 months' end
   group by 1 order by 1;
 end; $$;
 revoke all on function public.admin_sales_chart(text) from public;
