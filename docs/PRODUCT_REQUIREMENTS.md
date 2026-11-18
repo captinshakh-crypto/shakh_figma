@@ -62,6 +62,8 @@
 - Initial order state is `placed`. Merchant transitions are `placed -> accepted/rejected -> preparing -> ready_for_pickup`; customer cancellation is allowed only while `placed`. Super-admin can cancel before captain pickup.
 - Only the super-admin assigns a captain to a `ready_for_pickup` order. SHAKH captains can serve all stores; merchant captains are restricted to their linked merchant. The assigned captain transitions `assigned -> picked_up -> delivered`.
 - Every state transition is stored in `order_status_history`, visible only to the order customer, assigned captain, owning merchant, or super-admin. The order and history tables are added to the Supabase Realtime publication for live tracking.
+- Live captain GPS sharing is opt-in: a captain starts or stops it manually from the active-delivery screen. Location updates are sent no more frequently than every 20 seconds, and the latest point is readable only by the order customer, assigned captain, owning merchant, or super-admin. Sharing ends and the latest GPS point is deleted when the order is delivered, cancelled, rejected, or the captain leaves the delivery screen.
+- Customers, merchants, captains, and super-admins can see the latest captain marker on an OpenStreetMap embed while the order is assigned or picked up. Browser GPS requires location permission and an active foreground page; this web implementation does not promise background tracking or turn-by-turn routing.
 - Rejecting an order or cancelling it before pickup restores reserved stock in the same database transaction. Delivered orders are settled separately through the existing idempotent settlement process.
 
 ## Security and reliability

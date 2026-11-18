@@ -321,6 +321,48 @@ export type Database = {
           },
         ]
       }
+      order_live_locations: {
+        Row: {
+          accuracy_m: number | null
+          captain_user_id: string
+          latitude: number
+          longitude: number
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          captain_user_id: string
+          latitude: number
+          longitude: number
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          captain_user_id?: string
+          latitude?: number
+          longitude?: number
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_live_locations_captain_user_id_fkey"
+            columns: ["captain_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_live_locations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_status_history: {
         Row: {
           actor_role: Database["public"]["Enums"]["app_role"]
@@ -894,6 +936,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      clear_captain_live_location: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
       create_order: {
         Args: {
           p_items: Json
@@ -996,6 +1042,15 @@ export type Database = {
       }
       settle_delivered_order: {
         Args: { p_order_id: string }
+        Returns: undefined
+      }
+      update_captain_live_location: {
+        Args: {
+          p_accuracy_m?: number
+          p_latitude: number
+          p_longitude: number
+          p_order_id: string
+        }
         Returns: undefined
       }
       update_my_profile: {

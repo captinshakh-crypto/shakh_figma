@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import OrderLiveMap from "@/components/order-live-map";
 import { createClient } from "@/lib/supabase/client";
 import { MapPin, Phone, Package, Clock3, CheckCircle2, XCircle, Truck, RefreshCw } from "lucide-react";
 
@@ -33,6 +34,8 @@ type OrderItem = {
   unit_price_iqd: number;
   line_total_iqd: number;
 };
+
+type LiveLocation = { order_id: string; latitude: number; longitude: number; accuracy_m: number | null; updated_at: string };
 
 type History = {
   id: string;
@@ -73,6 +76,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [history, setHistory] = useState<History[]>([]);
+  const [liveLocations, setLiveLocations] = useState<Record<string, LiveLocation>>({});
   const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({});
   const [role, setRole] = useState("");
@@ -121,22 +125,25 @@ export default function OrdersPage() {
     const zoneIds = [...new Set(rows.map((order) => order.service_zone_id).filter((id): id is string => !!id))];
 
     if (orderIds.length === 0) {
-      setItems([]); setHistory([]); setMerchantNames({}); setZoneNames({}); setLoading(false); return;
+      setItems([]); setHistory([]); setLiveLocations({}); setMerchantNames({}); setZoneNames({}); setLoading(false); return;
     }
 
-    const [itemResult, historyResult, merchantResult, zoneResult] = await Promise.all([
+    const [itemResult, historyResult, merchantResult, zoneResult, locationResult] = await Promise.all([
       supabase.from("order_items").select("id,order_id,product_title_snapshot,quantity,unit_price_iqd,line_total_iqd").in("order_id", orderIds),
       supabase.from("order_status_history").select("id,order_id,from_status,to_status,actor_role,note,created_at").in("order_id", orderIds).order("created_at"),
       merchantIds.length ? supabase.from("merchant_profiles").select("id,business_name").in("id", merchantIds) : Promise.resolve({ data: [], error: null }),
       zoneIds.length ? supabase.from("service_zones").select("id,name").in("id", zoneIds) : Promise.resolve({ data: [], error: null }),
+      supabase.from("order_live_locations").select("order_id,latitude,longitude,accuracy_m,updated_at").in("order_id", orderIds),
     ]);
     if (itemResult.error) throw itemResult.error;
     if (historyResult.error) throw historyResult.error;
     if (merchantResult.error) throw merchantResult.error;
     if (zoneResult.error) throw zoneResult.error;
+    if (locationResult.error) throw locationResult.error;
 
     setItems(itemResult.data || []);
     setHistory(historyResult.data || []);
+    setLiveLocations(Object.fromEntries((locationResult.data || []).map((location) => [location.order_id, { ...location, order_id: location.order_id }])));
     setMerchantNames(Object.fromEntries((merchantResult.data || []).map((merchant) => [merchant.id, merchant.business_name])));
     setZoneNames(Object.fromEntries((zoneResult.data || []).map((zone) => [zone.id, zone.name])));
     setLoading(false);
@@ -152,6 +159,9 @@ export default function OrdersPage() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "order_status_history" }, () => {
         if (active) void load().catch(() => setMessage("نوێکردنەوەی مێژووی داواکاری سەرکەوتوو نەبوو."));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_live_locations" }, () => {
+        if (active) void load().catch(() => setMessage("نوێکردنەوەی شوێنی کپتن سەرکەوتوو نەبوو."));
       })
       .subscribe();
     return () => {
@@ -243,6 +253,15 @@ export default function OrdersPage() {
                         {order.delivery_phone && <div className="flex items-center gap-2"><Phone size={16} className="text-shakh-blue"/><a href={`tel:${order.delivery_phone}`} dir="ltr">{order.delivery_phone}</a></div>}
                         {order.delivery_notes && <p className="text-slate-600">تێبینی: {order.delivery_notes}</p>}
                       </div>
+                      {["assigned", "picked_up"].includes(order.status) && (
+                        <div className="mt-4">
+                          {liveLocations[order.id] ? (
+                            <OrderLiveMap latitude={liveLocations[order.id].latitude} longitude={liveLocations[order.id].longitude} accuracyM={liveLocations[order.id].accuracy_m} updatedAt={liveLocations[order.id].updated_at}/>
+                          ) : (
+                            <p className="rounded-xl border border-dashed border-slate-300 p-3 text-sm text-slate-500">کپتن هێشتا شوێنکەوتنی GPS چالاک نەکردووە.</p>
+                          )}
+                        </div>
+                      )}
 
                       <h3 className="mt-5 flex items-center gap-2 font-black"><Clock3 size={17}/> مێژووی داواکاری</h3>
                       <ol className="mt-3 space-y-3 border-r-2 border-slate-200 pr-4">

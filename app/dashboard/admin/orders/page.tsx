@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import OrderLiveMap from "@/components/order-live-map";
 import { createClient } from "@/lib/supabase/client";
 import { MapPin, Phone, Package, Clock3, RefreshCw, Truck } from "lucide-react";
 
@@ -20,6 +21,7 @@ type Order = {
 
 type Item = { id: string; order_id: string; product_title_snapshot: string; quantity: number; line_total_iqd: number };
 type Event = { id: string; order_id: string; to_status: string; created_at: string };
+type LiveLocation = { order_id: string; latitude: number; longitude: number; accuracy_m: number | null; updated_at: string };
 
 const labels: Record<string, string> = {
   placed: "نێردرا",
@@ -37,6 +39,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [liveLocations, setLiveLocations] = useState<Record<string, LiveLocation>>({});
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
@@ -56,15 +59,18 @@ export default function AdminOrdersPage() {
     const rows = (data || []) as Order[];
     setOrders(rows);
     const ids = rows.map((row) => row.id);
-    if (!ids.length) { setItems([]); setEvents([]); setLoading(false); return; }
-    const [itemsResult, historyResult] = await Promise.all([
+    if (!ids.length) { setItems([]); setEvents([]); setLiveLocations({}); setLoading(false); return; }
+    const [itemsResult, historyResult, locationResult] = await Promise.all([
       supabase.from("order_items").select("id,order_id,product_title_snapshot,quantity,line_total_iqd").in("order_id", ids),
       supabase.from("order_status_history").select("id,order_id,to_status,created_at").in("order_id", ids).order("created_at"),
+      supabase.from("order_live_locations").select("order_id,latitude,longitude,accuracy_m,updated_at").in("order_id", ids),
     ]);
     if (itemsResult.error) throw itemsResult.error;
     if (historyResult.error) throw historyResult.error;
+    if (locationResult.error) throw locationResult.error;
     setItems(itemsResult.data || []);
     setEvents(historyResult.data || []);
+    setLiveLocations(Object.fromEntries((locationResult.data || []).map((location) => [location.order_id, { ...location, order_id: location.order_id }])));
     setLoading(false);
   }, []);
 
@@ -78,6 +84,9 @@ export default function AdminOrdersPage() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "order_status_history" }, () => {
         if (active) void load().catch(() => setMessage("نوێکردنەوەی مێژوو سەرکەوتوو نەبوو."));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_live_locations" }, () => {
+        if (active) void load().catch(() => setMessage("نوێکردنەوەی شوێنی کپتن سەرکەوتوو نەبوو."));
       }).subscribe();
     return () => { active = false; void supabase.removeChannel(channel); };
   }, [load]);
@@ -124,6 +133,11 @@ export default function AdminOrdersPage() {
                         {order.delivery_phone && <p className="mt-2 flex items-center gap-2 text-sm"><Phone size={15} className="text-shakh-blue"/><a href={`tel:${order.delivery_phone}`} dir="ltr">{order.delivery_phone}</a></p>}
                         {order.delivery_notes && <p className="mt-2 text-sm text-slate-600">تێبینی: {order.delivery_notes}</p>}
                       </div>
+                      {liveLocations[order.id] && (
+                        <div className="mt-4">
+                          <OrderLiveMap latitude={liveLocations[order.id].latitude} longitude={liveLocations[order.id].longitude} accuracyM={liveLocations[order.id].accuracy_m} updatedAt={liveLocations[order.id].updated_at}/>
+                        </div>
+                      )}
                       <h2 className="mt-4 flex items-center gap-2 font-black"><Package size={17}/> کاڵاکان</h2>
                       <div className="mt-2 divide-y rounded-xl border">
                         {orderItems.map((item) => <div key={item.id} className="flex justify-between gap-3 p-3 text-sm"><span>{item.product_title_snapshot} × {item.quantity}</span><b>{item.line_total_iqd.toLocaleString("en-US")} د.ع</b></div>)}
