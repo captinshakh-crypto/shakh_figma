@@ -2,6 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
+  const safeRedirect = (path: string) => {
+    const redirect = NextResponse.redirect(new URL(path, request.url));
+    redirect.headers.set("Cache-Control", "no-store, max-age=0");
+    redirect.headers.set("Referrer-Policy", "no-referrer");
+    return redirect;
+  };
+
   const requestUrl = new URL(request.url);
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type");
@@ -11,16 +18,12 @@ export async function GET(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!tokenHash || type !== "recovery" || !supabaseUrl || !supabaseKey) {
-    return NextResponse.redirect(
-      new URL("/reset-password?error=missing_token", request.url)
-    );
+    return safeRedirect("/reset-password?error=missing_token");
   }
 
   // A token hash is self-contained: unlike a PKCE auth code, it does not
   // depend on the browser/device that requested the recovery email.
-  const response = NextResponse.redirect(
-    new URL("/reset-password?verified=1", request.url)
-  );
+  const response = safeRedirect("/reset-password?verified=1");
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
@@ -48,9 +51,7 @@ export async function GET(request: NextRequest) {
       status: error.status,
       message: error.message,
     });
-    return NextResponse.redirect(
-      new URL("/reset-password?error=verification", request.url)
-    );
+    return safeRedirect("/reset-password?error=verification");
   }
 
   return response;
