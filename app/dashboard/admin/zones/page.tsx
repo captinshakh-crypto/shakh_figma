@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Pencil, Plus, Save, X } from "lucide-react";
 
@@ -81,7 +81,7 @@ export default function ZonesPage() {
     setForm(initialForm);
   }
 
-  async function save(event: React.FormEvent<HTMLFormElement>) {
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isSplitValid) {
       setMessage("کۆی بەشی شاخ و کپتن دەبێت یەکسان بێت بە کرێی گەیاندن.");
