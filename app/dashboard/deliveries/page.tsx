@@ -21,7 +21,7 @@ type Order = {
   settled_at: string | null;
 };
 
-type Item = { id: string; order_id: string; product_title_snapshot: string; quantity: number; line_total_iqd: number };
+type Item = { id: string; order_id: string; product_title_snapshot: string; quantity: number; line_total_iqd: number; merchant_commission_per_unit_snapshot_iqd: number; merchant_commission_line_snapshot_iqd: number };
 type Event = { id: string; order_id: string; to_status: string; created_at: string };
 type LiveLocation = { order_id: string; latitude: number; longitude: number; accuracy_m: number | null; updated_at: string };
 
@@ -71,7 +71,7 @@ export default function DeliveriesPage() {
     if (!ids.length) { setItems([]); setEvents([]); setLiveLocations({}); setLoading(false); return; }
 
     const [itemResult, eventResult, locationResult, merchantResult] = await Promise.all([
-      supabase.from("order_items").select("id,order_id,product_title_snapshot,quantity,line_total_iqd").in("order_id", ids),
+      supabase.from("order_items").select("id,order_id,product_title_snapshot,quantity,line_total_iqd,merchant_commission_per_unit_snapshot_iqd,merchant_commission_line_snapshot_iqd").in("order_id", ids),
       supabase.from("order_status_history").select("id,order_id,to_status,created_at").in("order_id", ids).order("created_at"),
       supabase.from("order_live_locations").select("order_id,latitude,longitude,accuracy_m,updated_at").in("order_id", ids),
       merchantIds.length ? supabase.from("merchant_profiles").select("id,address").in("id", merchantIds) : Promise.resolve({ data: [], error: null }),
@@ -263,7 +263,7 @@ export default function DeliveriesPage() {
                       </div>
                       <h2 className="mt-4 flex items-center gap-2 font-black"><Package size={17}/> کاڵاکان</h2>
                       <div className="mt-2 divide-y rounded-xl border">
-                        {orderItems.map((item) => <div key={item.id} className="flex justify-between gap-3 p-3 text-sm"><span>{item.product_title_snapshot} × {item.quantity}</span><b>{item.line_total_iqd.toLocaleString("en-US")} د.ع</b></div>)}
+                        {orderItems.map((item) => <div key={item.id} className="flex justify-between gap-3 p-3 text-sm"><span>{item.product_title_snapshot} × {item.quantity}</span><div className="text-right"><b>{item.line_total_iqd.toLocaleString("en-US")} د.ع</b>{item.merchant_commission_line_snapshot_iqd>0&&<p className="mt-1 text-xs text-orange-700">کۆمسیۆن: {item.merchant_commission_line_snapshot_iqd.toLocaleString("en-US")} د.ع</p>}</div></div>)}
                       </div>
                       <div className="mt-4">
                         <h3 className="flex items-center gap-2 text-sm font-black"><Clock3 size={16}/> مێژووی گەیاندن</h3>
