@@ -837,6 +837,7 @@ export type Database = {
           created_at: string
           id: string
           note: string | null
+          receipt_path: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["record_status"]
@@ -847,6 +848,7 @@ export type Database = {
           created_at?: string
           id?: string
           note?: string | null
+          receipt_path?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["record_status"]
@@ -857,6 +859,7 @@ export type Database = {
           created_at?: string
           id?: string
           note?: string | null
+          receipt_path?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["record_status"]
@@ -1032,7 +1035,7 @@ export type Database = {
         Returns: string
       }
       request_wallet_topup: {
-        Args: { p_amount_iqd: number; p_note?: string }
+        Args: { p_amount_iqd: number; p_note?: string; p_receipt_path?: string }
         Returns: string
       }
       review_captain_application: {
