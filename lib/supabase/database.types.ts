@@ -278,6 +278,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          cost_price_snapshot_iqd: number | null
           id: string
           line_total_iqd: number
           order_id: string
@@ -287,6 +288,7 @@ export type Database = {
           unit_price_iqd: number
         }
         Insert: {
+          cost_price_snapshot_iqd?: number | null
           id?: string
           line_total_iqd: number
           order_id: string
@@ -296,6 +298,7 @@ export type Database = {
           unit_price_iqd: number
         }
         Update: {
+          cost_price_snapshot_iqd?: number | null
           id?: string
           line_total_iqd?: number
           order_id?: string
@@ -608,6 +611,7 @@ export type Database = {
       products: {
         Row: {
           category_key: string
+          cost_price_iqd: number | null
           created_at: string
           description: string | null
           id: string
@@ -623,6 +627,7 @@ export type Database = {
         }
         Insert: {
           category_key: string
+          cost_price_iqd?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -638,6 +643,7 @@ export type Database = {
         }
         Update: {
           category_key?: string
+          cost_price_iqd?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -935,6 +941,16 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      admin_shakh_store_profit: {
+        Args: never
+        Returns: {
+          delivered_orders: number
+          gross_profit_iqd: number
+          purchase_cost_iqd: number
+          sales_iqd: number
+          units_sold: number
+        }[]
       }
       clear_captain_live_location: {
         Args: { p_order_id: string }
