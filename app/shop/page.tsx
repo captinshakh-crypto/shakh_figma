@@ -78,10 +78,13 @@ export default function ShopPage() {
     return () => { active = false; };
   }, []);
 
-  const merchantMap = useMemo(() => new Map(merchants.map((merchant) => [merchant.id, merchant])), [merchants]);
+  const merchantMap = useMemo(
+    () => Object.fromEntries(merchants.map((merchant) => [merchant.id, merchant])) as Record<string, Merchant>,
+    [merchants]
+  );
 
   const typeForProduct = (product: Product) =>
-    product.is_shakh_store ? "shakh_store" : merchantMap.get(product.merchant_id || "")?.merchant_type || "all";
+    product.is_shakh_store ? "shakh_store" : merchantMap[product.merchant_id || ""]?.merchant_type || "all";
 
   const categories = useMemo(() => {
     const keys = [...new Set(products
