@@ -321,13 +321,64 @@ export type Database = {
           },
         ]
       }
+      order_status_history: {
+        Row: {
+          actor_role: Database["public"]["Enums"]["app_role"]
+          changed_by: string | null
+          created_at: string
+          from_status: string | null
+          id: string
+          note: string | null
+          order_id: string
+          to_status: string
+        }
+        Insert: {
+          actor_role: Database["public"]["Enums"]["app_role"]
+          changed_by?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          order_id: string
+          to_status: string
+        }
+        Update: {
+          actor_role?: Database["public"]["Enums"]["app_role"]
+          changed_by?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          order_id?: string
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           captain_delivery_share_iqd: number
           captain_user_id: string | null
           currency: string
           customer_id: string
+          delivery_address: string | null
           delivery_fee_iqd: number
+          delivery_notes: string | null
+          delivery_phone: string | null
           id: string
           idempotency_key: string | null
           merchant_commission_iqd: number
@@ -348,7 +399,10 @@ export type Database = {
           captain_user_id?: string | null
           currency?: string
           customer_id: string
+          delivery_address?: string | null
           delivery_fee_iqd: number
+          delivery_notes?: string | null
+          delivery_phone?: string | null
           id?: string
           idempotency_key?: string | null
           merchant_commission_iqd?: number
@@ -369,7 +423,10 @@ export type Database = {
           captain_user_id?: string | null
           currency?: string
           customer_id?: string
+          delivery_address?: string | null
           delivery_fee_iqd?: number
+          delivery_notes?: string | null
+          delivery_phone?: string | null
           id?: string
           idempotency_key?: string | null
           merchant_commission_iqd?: number
@@ -847,8 +904,35 @@ export type Database = {
         }
         Returns: string
       }
+      create_order_v2: {
+        Args: {
+          p_delivery_address: string
+          p_delivery_notes?: string
+          p_delivery_phone: string
+          p_idempotency_key?: string
+          p_items: Json
+          p_merchant_id: string
+          p_reward_amount_iqd?: number
+          p_reward_campaign_id?: string
+          p_service_zone_id: string
+        }
+        Returns: string
+      }
       create_shakh_store_order: {
         Args: {
+          p_items: Json
+          p_reward_amount_iqd?: number
+          p_reward_campaign_id?: string
+          p_service_zone_id: string
+        }
+        Returns: string
+      }
+      create_shakh_store_order_v2: {
+        Args: {
+          p_delivery_address: string
+          p_delivery_notes?: string
+          p_delivery_phone: string
+          p_idempotency_key?: string
           p_items: Json
           p_reward_amount_iqd?: number
           p_reward_campaign_id?: string
