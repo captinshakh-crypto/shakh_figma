@@ -429,7 +429,7 @@ export default function StorePage() {
                       {units.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
                     </select>
                   </label>
-                  <label className="block text-sm font-bold">کۆمسیۆنی شێر و خەڵات بۆ هەر دانە (د.ع)
+                  <label className="block text-sm font-bold">خەڵاتی خاوەن لینک بۆ هەر دانە (د.ع)
                     <input type="number" min="0" step="1" value={form.referralCommission} onChange={(event) => setForm((old) => ({ ...old, referralCommission: event.target.value }))} placeholder="بۆ نموونە: ٥٠٠" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                   </label>
                   <label className="block text-sm font-bold">بڕی کۆگا (بەتاڵ = بێ سنوور)
