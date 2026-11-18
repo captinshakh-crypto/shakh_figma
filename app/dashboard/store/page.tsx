@@ -39,11 +39,14 @@ const categorySets: Record<string, { value: string; label: string }[]> = {
     { value: "spices", label: "سپیاتی و بەهارات" },
   ],
   grocery: [
+    { value: "tomatoes", label: "تەماتە" },
+    { value: "cucumbers", label: "خیار" },
+    { value: "vegetables", label: "سەوزەوات" },
+    { value: "fruits", label: "میوە" },
+    { value: "leafy_greens", label: "سەوزەی گەڵادار" },
+    { value: "herbs", label: "سەوزە و گیا بەهاراتییەکان" },
     { value: "staples", label: "پێداویستی بنەڕەتی" },
-    { value: "snacks", label: "خواردنی سووک" },
-    { value: "beverages", label: "خواردنەوە" },
-    { value: "household", label: "پێداویستی ماڵ" },
-    { value: "personal_care", label: "چاودێری کەسی" },
+    { value: "other", label: "هی تر" },
   ],
   super_admin: [
     { value: "general", label: "گشتی" },
