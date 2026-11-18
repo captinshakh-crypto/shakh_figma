@@ -13,6 +13,7 @@ type CartItem = {
   unit?: string;
   stock_quantity?: number | null;
   is_shakh_store?: boolean;
+  referral_campaign_id?: string | null;
 };
 
 type ProductSnapshot = {
@@ -27,7 +28,6 @@ type ProductSnapshot = {
 };
 
 type Zone = { id: string; name: string; delivery_fee_iqd: number };
-type Campaign = { id: string; title: string; reward_amount_iqd: number };
 
 const unitLabels: Record<string, string> = {
   piece: "دانە", kg: "کیلۆگرام", g: "گرام", liter: "لیتر", pack: "پاکەت", box: "کارتۆن",
@@ -37,8 +37,6 @@ export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [zone, setZone] = useState("");
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [campaign, setCampaign] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryPhone, setDeliveryPhone] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
@@ -104,15 +102,13 @@ export default function CartPage() {
         setCartVerified(true);
       }
 
-      const [{ data: { user } }, zoneResult, campaignResult] = await Promise.all([
+      const [{ data: { user } }, zoneResult] = await Promise.all([
         supabase.auth.getUser(),
         supabase.from("service_zones").select("id,name,delivery_fee_iqd").eq("is_active", true).order("name"),
-        supabase.from("reward_campaigns").select("id,title,reward_amount_iqd").eq("is_active", true),
       ]);
       if (!active) return;
       setZones(zoneResult.data || []);
       if (zoneResult.data?.[0]) setZone(zoneResult.data[0].id);
-      setCampaigns(campaignResult.data || []);
       if (user) {
         const { data: profile } = await supabase.from("profiles").select("phone").eq("id", user.id).maybeSingle();
         if (active && profile?.phone) setDeliveryPhone(profile.phone);
@@ -134,9 +130,11 @@ export default function CartPage() {
     : items[0]?.merchant_id || null;
   const mixed = storeIds.length > 1;
   const subtotal = items.reduce((total, item) => total + item.price_iqd * item.quantity, 0);
-  const selectedCampaign = campaigns.find((item) => item.id === campaign);
+  const referralIds = [...new Set(items.map((item) => item.referral_campaign_id).filter((id): id is string => !!id))];
+  const referralCampaignId = referralIds.length === 1 ? referralIds[0] : null;
+  const mixedReferrals = referralIds.length > 1;
   const deliveryFee = zones.find((item) => item.id === zone)?.delivery_fee_iqd || 0;
-  const total = subtotal + deliveryFee + (selectedCampaign?.reward_amount_iqd || 0);
+  const total = subtotal + deliveryFee;
 
   function persist(next: CartItem[]) {
     setItems(next);
@@ -158,6 +156,7 @@ export default function CartPage() {
     event.preventDefault();
     if (!items.length || !zone || !cartVerified) return;
     if (mixed) { setMessage("سەبەتەکەت کاڵای زیاتر لە یەک فرۆشیاری تێدایە. تکایە هەر جار لە یەک فرۆشگا داوا بکە."); return; }
+    if (mixedReferrals) { setMessage("کاڵاکانی سەبەتەکەت بە چەند لینکی شێر و خەڵات زیاد کراون؛ تکایە تەنها یەک لینکی شێر و خەڵات بەکاربهێنە."); return; }
     if (storeIds.length !== 1) { setMessage("تکایە لە یەک فرۆشگا داواکاری بکە."); return; }
     if (deliveryAddress.trim().length < 8) { setMessage("ناونیشانی تەواوی گەیاندن بنووسە."); return; }
     if (deliveryPhone.replace(/\D/g, "").length < 7) { setMessage("ژمارەی تەلەفۆنی دروست بنووسە."); return; }
@@ -180,8 +179,8 @@ export default function CartPage() {
         p_delivery_address: deliveryAddress.trim(),
         p_delivery_phone: deliveryPhone.trim(),
         p_delivery_notes: deliveryNotes.trim(),
-        p_reward_campaign_id: campaign || undefined,
-        p_reward_amount_iqd: selectedCampaign?.reward_amount_iqd || 0,
+        p_reward_campaign_id: referralCampaignId || undefined,
+        p_reward_amount_iqd: 0,
         p_idempotency_key: key,
       };
 
@@ -263,19 +262,13 @@ export default function CartPage() {
                   <option value="">زۆن هەڵبژێرە</option>
                   {zones.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.delivery_fee_iqd.toLocaleString("en-US")} د.ع</option>)}
                 </select>
-                <label className="mt-4 block text-sm font-bold">شێرو خەلات (ئارەزوومەندانە)
-                  <select value={campaign} onChange={(event) => setCampaign(event.target.value)} className="mt-2 w-full rounded-xl border p-3">
-                    <option value="">بێ شێرو خەلات</option>
-                    {campaigns.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.reward_amount_iqd.toLocaleString("en-US")} د.ع</option>)}
-                  </select>
-                </label>
+                <p className="mt-4 rounded-xl bg-purple-50 p-3 text-sm text-purple-800">{referralCampaignId ? "لینکی شێر و خەڵات چالاکە؛ کۆمسیۆنی دیاریکراوی دوکان لە جزدانی دوکاندار کەم دەکرێتەوە و بۆ خاوەن لینک تۆمار دەکرێت." : "شێر و خەڵات تەنها لە ڕێگەی لینکی تایبەتی خاوەن لینکەوە کار دەکات؛ هیچ بڕێکی زیادە لە کڕیار وەرناگیرێت."}</p>
                 <div className="mt-4 rounded-xl bg-shakh-mist p-4">
                   <div className="flex justify-between text-sm"><span>کۆی کاڵاکان</span><b>{subtotal.toLocaleString("en-US")} د.ع</b></div>
                   <div className="mt-2 flex justify-between text-sm"><span>گەیاندن</span><b>{deliveryFee.toLocaleString("en-US")} د.ع</b></div>
-                  {selectedCampaign && <div className="mt-2 flex justify-between text-sm"><span>شێرو خەلات: {selectedCampaign.title}</span><b>{selectedCampaign.reward_amount_iqd.toLocaleString("en-US")} د.ع</b></div>}
                   <div className="mt-3 flex justify-between border-t pt-3 font-black"><span>کۆی گشتی</span><span>{total.toLocaleString("en-US")} د.ع</span></div>
                 </div>
-                <button type="submit" disabled={busy || !zone || mixed || !cartVerified} className="mt-4 w-full rounded-xl bg-shakh-orange px-4 py-3 font-bold text-white disabled:opacity-50">
+                <button type="submit" disabled={busy || !zone || mixed || mixedReferrals || !cartVerified} className="mt-4 w-full rounded-xl bg-shakh-orange px-4 py-3 font-bold text-white disabled:opacity-50">
                   {busy ? "تکایە چاوەڕێ بکە..." : !cartVerified ? "پشکنینی نرخ و کۆگا..." : "پشتڕاستکردنەوە و ناردنی داواکاری"}
                 </button>
               </section>
