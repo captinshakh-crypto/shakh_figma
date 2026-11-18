@@ -957,6 +957,7 @@ export type Database = {
           day: string
           merchant_type: string
           order_count: number
+          delivered_order_count: number
           sales_iqd: number
           merchant_commission_iqd: number
           platform_delivery_commission_iqd: number
