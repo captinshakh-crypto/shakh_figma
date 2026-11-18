@@ -323,6 +323,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          captain_delivery_share_iqd: number
           captain_user_id: string | null
           currency: string
           customer_id: string
@@ -343,6 +344,7 @@ export type Database = {
           total_iqd: number | null
         }
         Insert: {
+          captain_delivery_share_iqd?: number
           captain_user_id?: string | null
           currency?: string
           customer_id: string
@@ -363,6 +365,7 @@ export type Database = {
           total_iqd?: number | null
         }
         Update: {
+          captain_delivery_share_iqd?: number
           captain_user_id?: string | null
           currency?: string
           customer_id?: string
@@ -632,28 +635,34 @@ export type Database = {
       }
       service_zones: {
         Row: {
+          captain_delivery_share_iqd: number
           created_at: string
           delivery_fee_iqd: number
           description: string | null
           id: string
           is_active: boolean
           name: string
+          shakh_delivery_share_iqd: number
         }
         Insert: {
+          captain_delivery_share_iqd: number
           created_at?: string
           delivery_fee_iqd?: number
           description?: string | null
           id?: string
           is_active?: boolean
           name: string
+          shakh_delivery_share_iqd: number
         }
         Update: {
+          captain_delivery_share_iqd?: number
           created_at?: string
           delivery_fee_iqd?: number
           description?: string | null
           id?: string
           is_active?: boolean
           name?: string
+          shakh_delivery_share_iqd?: number
         }
         Relationships: []
       }
@@ -808,6 +817,18 @@ export type Database = {
       admin_review_merchant: {
         Args: { p_approve: boolean; p_merchant_id: string }
         Returns: undefined
+      }
+      admin_save_service_zone: {
+        Args: {
+          p_captain_share_iqd?: number
+          p_delivery_fee_iqd?: number
+          p_description?: string
+          p_is_active?: boolean
+          p_name?: string
+          p_shakh_share_iqd?: number
+          p_zone_id?: string
+        }
+        Returns: string
       }
       admin_set_user_role: {
         Args: {
