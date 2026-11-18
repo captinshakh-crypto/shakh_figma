@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type CartItem = {
@@ -154,7 +154,7 @@ export default function CartPage() {
     persist(next);
   }
 
-  async function checkout(event: React.FormEvent<HTMLFormElement>) {
+  async function checkout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!items.length || !zone || !cartVerified) return;
     if (mixed) { setMessage("سەبەتەکەت کاڵای زیاتر لە یەک فرۆشیاری تێدایە. تکایە هەر جار لە یەک فرۆشگا داوا بکە."); return; }
