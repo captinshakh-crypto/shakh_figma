@@ -198,7 +198,7 @@ export default function CartPage() {
         p_delivery_address: deliveryAddress.trim(),
         p_delivery_phone: deliveryPhone.trim(),
         p_delivery_notes: deliveryNotes.trim(),
-        p_reward_campaign_id: referralCampaignId || null,
+        p_reward_campaign_id: referralCampaignId || undefined,
         p_idempotency_key: key,
       });
       if (error) throw error;
