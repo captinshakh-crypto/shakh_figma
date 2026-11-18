@@ -117,7 +117,7 @@ export default function CartPage() {
 
   const storeIds = Array.from(new Set(items.map((item) => item.is_shakh_store || item.merchant_id === null ? "shakh_store" : item.merchant_id)));
   const merchantId = items[0]?.is_shakh_store || items[0]?.merchant_id === null ? null : items[0]?.merchant_id || null;
-  const mixed = merchantIds.length > 1;
+  const mixed = storeIds.length > 1;
   const subtotal = items.reduce((total, item) => total + item.price_iqd * item.quantity, 0);
   const selectedCampaign = campaigns.find((item) => item.id === campaign);
   const deliveryFee = zones.find((item) => item.id === zone)?.delivery_fee_iqd || 0;
