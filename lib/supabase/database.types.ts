@@ -288,6 +288,7 @@ export type Database = {
           product_id: string | null
           product_title_snapshot: string
           quantity: number
+          referral_commission_snapshot_iqd: number
           unit_price_iqd: number
         }
         Insert: {
@@ -298,6 +299,7 @@ export type Database = {
           product_id?: string | null
           product_title_snapshot: string
           quantity: number
+          referral_commission_snapshot_iqd?: number
           unit_price_iqd: number
         }
         Update: {
@@ -308,6 +310,7 @@ export type Database = {
           product_id?: string | null
           product_title_snapshot?: string
           quantity?: number
+          referral_commission_snapshot_iqd?: number
           unit_price_iqd?: number
         }
         Relationships: [
@@ -623,6 +626,7 @@ export type Database = {
           is_shakh_store: boolean
           merchant_id: string | null
           price_iqd: number
+          referral_commission_iqd: number
           stock_quantity: number | null
           title: string
           unit: string
@@ -639,6 +643,7 @@ export type Database = {
           is_shakh_store?: boolean
           merchant_id?: string | null
           price_iqd: number
+          referral_commission_iqd?: number
           stock_quantity?: number | null
           title: string
           unit?: string
@@ -655,6 +660,7 @@ export type Database = {
           is_shakh_store?: boolean
           merchant_id?: string | null
           price_iqd?: number
+          referral_commission_iqd?: number
           stock_quantity?: number | null
           title?: string
           unit?: string
@@ -719,7 +725,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           owner_user_id: string
-          reward_amount_iqd: number
+          reward_amount_iqd?: number
           title: string
         }
         Update: {
