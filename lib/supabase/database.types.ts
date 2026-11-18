@@ -923,6 +923,10 @@ export type Database = {
         Args: { p_captain_user_id: string; p_order_id: string }
         Returns: undefined
       }
+      claim_available_delivery: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
       admin_credit_own_wallet: {
         Args: { p_amount_iqd: number; p_note?: string }
         Returns: undefined
