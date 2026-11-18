@@ -45,6 +45,15 @@
 - Reward owners may request a cash payout through the platform admin. Requests can specify FastPay or FIB as the requested payout channel. Actual cash transfer is manual and must only be marked paid by an authorized admin after off-platform payment is verified.
 - Top-up approval, commissions, rewards, delivery settlement, and payout processing must be idempotent and auditable; prevent duplicate settlement and negative balances unless explicitly configured.
 
+## Product catalog and inventory
+- Each merchant manages only its own catalog; the super-admin exclusively manages SHAKH Store products.
+- Product records include name, description, category, integer IQD price, sale unit, optional stock quantity, image, and availability.
+- Supported merchant catalog types are supermarket, restaurant, butcher/poultry, and grocery, with category choices relevant to each store type.
+- A blank stock quantity means inventory is not tracked; zero stock prevents adding the product to a cart. Negative stock is rejected by the database.
+- New prices and stock values appear in the public shop and are refreshed in the cart before checkout. The checkout RPC revalidates product availability and stock and uses database prices.
+- Product updates refresh the updated_at timestamp. Product images are limited to JPG, PNG, or WebP and 5 MB in the product-images bucket.
+- Existing order item title and price snapshots remain unchanged when the catalog is edited later.
+
 ## Order lifecycle
 - draft/cart -> placed -> accepted/rejected by merchant -> preparing -> ready_for_pickup -> assigned -> picked_up -> delivered; cancellation/refund paths are separately permissioned and audited.
 - Orders may contain items from multiple merchants only if checkout explicitly supports split sub-orders; otherwise checkout must enforce one merchant per order in the first release.
