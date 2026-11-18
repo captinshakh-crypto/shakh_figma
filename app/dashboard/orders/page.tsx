@@ -89,10 +89,16 @@ export default function OrdersPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = "/login"; return; }
 
-    const { data: profile, error: profileError } = await supabase.from("profiles")
-      .select("role").eq("id", user.id).single();
-    if (profileError) throw profileError;
-    const currentRole = profile.role || "";
+    const [profileResult, roleResult] = await Promise.all([
+      supabase.from("profiles").select("role").eq("id", user.id).single(),
+      supabase.rpc("current_app_role"),
+    ]);
+    if (profileResult.error) throw profileResult.error;
+    // Use the same authoritative role resolver as the dashboard. A stale
+    // profiles.role must not make a merchant load the customer-only order list.
+    const currentRole = roleResult.error
+      ? profileResult.data?.role || ""
+      : roleResult.data || profileResult.data?.role || "";
     setRole(currentRole);
 
     let query = supabase.from("orders").select(
