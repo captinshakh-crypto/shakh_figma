@@ -7,11 +7,17 @@ export async function GET(request: NextRequest) {
   const flowId = requestUrl.searchParams.get("sb_flow_id");
   const requestedNext = requestUrl.searchParams.get("next") ?? "/dashboard";
   const next = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/dashboard";
+  const recovery = next === "/reset-password";
+  const failureUrl = recovery
+    ? new URL("/reset-password?error=verification", request.url)
+    : new URL("/login?auth_error=verification", request.url);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!code || !supabaseUrl || !supabaseKey) {
-    return NextResponse.redirect(new URL("/login?auth_error=callback", request.url));
+    return NextResponse.redirect(
+      recovery ? new URL("/reset-password?error=missing_code", request.url) : new URL("/login?auth_error=callback", request.url)
+    );
   }
 
   const response = NextResponse.redirect(new URL(next, request.url));
@@ -33,6 +39,14 @@ export async function GET(request: NextRequest) {
     code,
     flowId ? { flowId } : undefined
   );
-  if (error) return NextResponse.redirect(new URL("/login?auth_error=verification", request.url));
+  if (error) {
+    // Keep the user in the recovery flow and log only diagnostic metadata.
+    console.error("[auth/callback] PKCE code exchange failed", {
+      code: error.code,
+      status: error.status,
+      message: error.message,
+    });
+    return NextResponse.redirect(failureUrl);
+  }
   return response;
 }
