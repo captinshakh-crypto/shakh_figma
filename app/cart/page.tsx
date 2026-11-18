@@ -12,6 +12,7 @@ type CartItem = {
   quantity: number;
   unit?: string;
   stock_quantity?: number | null;
+  is_shakh_store?: boolean;
 };
 
 type ProductSnapshot = {
@@ -22,6 +23,7 @@ type ProductSnapshot = {
   unit: string;
   stock_quantity: number | null;
   is_available: boolean;
+  is_shakh_store: boolean;
 };
 
 type Zone = { id: string; name: string; delivery_fee_iqd: number };
@@ -52,7 +54,7 @@ export default function CartPage() {
       if (saved.length > 0) {
         const ids = [...new Set(saved.map((item) => item.product_id))];
         const { data, error } = await supabase.from("products")
-          .select("id,title,price_iqd,merchant_id,unit,stock_quantity,is_available")
+          .select("id,title,price_iqd,merchant_id,unit,stock_quantity,is_available,is_shakh_store")
           .in("id", ids);
 
         if (!active) return;
@@ -83,6 +85,7 @@ export default function CartPage() {
               merchant_id: product.merchant_id,
               unit: product.unit,
               stock_quantity: product.stock_quantity,
+              is_shakh_store: product.is_shakh_store,
               quantity,
             }];
           });
@@ -112,7 +115,8 @@ export default function CartPage() {
     return () => { active = false; };
   }, []);
 
-  const merchantIds = Array.from(new Set(items.map((item) => item.merchant_id)));
+  const storeIds = Array.from(new Set(items.map((item) => item.is_shakh_store || item.merchant_id === null ? "shakh_store" : item.merchant_id)));
+  const merchantId = items[0]?.is_shakh_store || items[0]?.merchant_id === null ? null : items[0]?.merchant_id || null;
   const mixed = merchantIds.length > 1;
   const subtotal = items.reduce((total, item) => total + item.price_iqd * item.quantity, 0);
   const selectedCampaign = campaigns.find((item) => item.id === campaign);
@@ -137,9 +141,8 @@ export default function CartPage() {
 
   async function checkout() {
     if (!items.length || !zone || !cartVerified) return;
-    const merchantId = merchantIds[0];
     if (mixed) { setMessage("سەبەتەکەت کاڵای زیاتر لە یەک فرۆشیاری تێدایە. تکایە هەر جار لە یەک فرۆشیار داوا بکە."); return; }
-    if (merchantIds.length !== 1 || !merchantId) { setMessage("تکایە لە یەک فرۆشگا داواکاری بکە."); return; }
+    if (storeIds.length !== 1) { setMessage("تکایە لە یەک فرۆشگا داواکاری بکە."); return; }
 
     setBusy(true);
     try {
