@@ -1051,14 +1051,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      set_commission_setting: {
-        Args: {
-          p_commission_rate_bps: number
-          p_merchant_type: Database["public"]["Enums"]["app_role"]
-          p_platform_delivery_share_iqd: number
-        }
-        Returns: undefined
-      }
       set_fixed_commission_setting: {
         Args: {
           p_fixed_commission_per_unit_iqd: number
