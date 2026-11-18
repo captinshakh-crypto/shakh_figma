@@ -2,6 +2,16 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // Auth PKCE verifiers are stored in cookies. Keep every auth request on the
+  // apex host so a recovery started on www and completed on the apex cannot
+  // lose its verifier cookie across hosts.
+  if (request.nextUrl.hostname.toLowerCase() === "www.daim-post.online") {
+    const canonicalUrl = request.nextUrl.clone();
+    canonicalUrl.hostname = "daim-post.online";
+    canonicalUrl.protocol = "https:";
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.next({ request });
