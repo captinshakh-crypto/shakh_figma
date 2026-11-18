@@ -89,7 +89,7 @@ export default function OrdersPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = "/login"; return; }
 
-    const [profileResult, roleResult, merchantResult] = await Promise.all([
+    const [profileResult, roleResult, merchantProfileResult] = await Promise.all([
       supabase.from("profiles").select("role").eq("id", user.id).single(),
       supabase.rpc("current_app_role"),
       supabase.from("merchant_profiles")
@@ -97,13 +97,13 @@ export default function OrdersPage() {
         .eq("user_id", user.id).maybeSingle(),
     ]);
     if (profileResult.error) throw profileResult.error;
-    if (merchantResult.error) throw merchantResult.error;
+    if (merchantProfileResult.error) throw merchantProfileResult.error;
     // Use the dashboard role resolver, and prefer an approved merchant profile
     // when an older account still carries the customer role.
     const resolvedRole = roleResult.error
       ? profileResult.data?.role || ""
       : roleResult.data || profileResult.data?.role || "";
-    const merchant = merchantResult.data;
+    const merchant = merchantProfileResult.data;
     const currentRole = merchant?.approval_status === "approved"
       && ["supermarket", "restaurant", "butcher_poultry", "grocery"].includes(merchant.merchant_type)
       && !["super_admin", "captain"].includes(resolvedRole)
