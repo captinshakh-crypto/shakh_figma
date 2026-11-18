@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-type Product={id:string;merchant_id:string|null;title:string;description:string|null;price_iqd:number;category_key:string;image_path:string|null;is_available:boolean;approval_status:"pending"|"approved"|"rejected";rejection_reason:string|null;created_at:string};
+type Product={id:string;merchant_id:string|null;title:string;description:string|null;price_iqd:number;category_key:string;image_path:string|null;is_available:boolean;approval_status:string;rejection_reason:string|null;created_at:string};
 type Merchant={id:string;business_name:string};
 export default function AdminMerchantPostsPage(){
  const [products,setProducts]=useState<Product[]>([]);const [merchants,setMerchants]=useState<Record<string,string>>({});const [loading,setLoading]=useState(true);const [saving,setSaving]=useState<string|null>(null);const [error,setError]=useState("");const [search,setSearch]=useState("");const [filter,setFilter]=useState("pending");
