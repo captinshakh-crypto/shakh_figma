@@ -165,6 +165,7 @@ export type Database = {
       commission_settings: {
         Row: {
           commission_rate_bps: number
+          fixed_commission_per_unit_iqd: number
           merchant_type: Database["public"]["Enums"]["app_role"]
           platform_delivery_share_iqd: number
           updated_at: string
@@ -172,6 +173,7 @@ export type Database = {
         }
         Insert: {
           commission_rate_bps?: number
+          fixed_commission_per_unit_iqd?: number
           merchant_type: Database["public"]["Enums"]["app_role"]
           platform_delivery_share_iqd?: number
           updated_at?: string
@@ -179,6 +181,7 @@ export type Database = {
         }
         Update: {
           commission_rate_bps?: number
+          fixed_commission_per_unit_iqd?: number
           merchant_type?: Database["public"]["Enums"]["app_role"]
           platform_delivery_share_iqd?: number
           updated_at?: string
@@ -1053,6 +1056,13 @@ export type Database = {
           p_commission_rate_bps: number
           p_merchant_type: Database["public"]["Enums"]["app_role"]
           p_platform_delivery_share_iqd: number
+        }
+        Returns: undefined
+      }
+      set_fixed_commission_setting: {
+        Args: {
+          p_fixed_commission_per_unit_iqd: number
+          p_merchant_type: Database["public"]["Enums"]["app_role"]
         }
         Returns: undefined
       }
