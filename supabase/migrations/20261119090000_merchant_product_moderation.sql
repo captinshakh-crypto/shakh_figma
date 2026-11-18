@@ -50,7 +50,7 @@ begin
   set approval_status = case when p_approve then 'approved' else 'rejected' end,
       reviewed_at = now(), reviewed_by = auth.uid(),
       rejection_reason = case when p_approve then null else nullif(trim(p_rejection_reason),'') end,
-      is_available = case when p_approve then is_available else false end
+      is_available = case when p_approve then true else false end
   where id = p_product_id and is_shakh_store = false;
   if not found then raise exception 'merchant_product_not_found'; end if;
 end; $$;
