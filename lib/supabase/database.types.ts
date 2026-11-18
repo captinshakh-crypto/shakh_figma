@@ -284,6 +284,8 @@ export type Database = {
           cost_price_snapshot_iqd: number | null
           id: string
           line_total_iqd: number
+          merchant_commission_per_unit_snapshot_iqd: number
+          merchant_commission_line_snapshot_iqd: number
           order_id: string
           product_id: string | null
           product_title_snapshot: string
@@ -295,6 +297,8 @@ export type Database = {
           cost_price_snapshot_iqd?: number | null
           id?: string
           line_total_iqd: number
+          merchant_commission_per_unit_snapshot_iqd?: number
+          merchant_commission_line_snapshot_iqd?: number
           order_id: string
           product_id?: string | null
           product_title_snapshot: string
@@ -623,6 +627,7 @@ export type Database = {
           id: string
           image_path: string | null
           is_available: boolean
+          merchant_commission_per_unit_iqd: number
           approval_status: string
           reviewed_at: string | null
           reviewed_by: string | null
@@ -644,6 +649,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           is_available?: boolean
+          merchant_commission_per_unit_iqd?: number
           approval_status?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -947,7 +953,7 @@ export type Database = {
         Args: { p_admin_note?: string; p_request_id: string }
         Returns: undefined
       }
-      admin_review_product: {
+      admin_set_product_commission: { Args: { p_amount_iqd: number; p_product_id: string }; Returns: undefined }\n      admin_sales_chart: { Args: { p_period?: string }; Returns: { bucket_start: string; orders_count: number; delivered_count: number; sales_iqd: number; product_commission_iqd: number; delivery_platform_iqd: number }[] }\n      admin_review_product: {
         Args: { p_approve: boolean; p_product_id: string; p_rejection_reason?: string | null }
         Returns: undefined
       }
