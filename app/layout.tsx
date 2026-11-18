@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
+import NotificationsCenter from "@/components/notifications-center";
 
 const siteUrl = "https://daim-post.online";
 
@@ -45,6 +46,7 @@ export default function RootLayout({
     <html lang="ckb" dir="rtl">
       <body>
         <PwaRegister />
+        <NotificationsCenter />
         {children}
       </body>
     </html>
