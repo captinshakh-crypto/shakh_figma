@@ -659,6 +659,10 @@ export type Database = {
         }
         Update: {
           category_key?: string
+          approval_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rejection_reason?: string | null
           cost_price_iqd?: number | null
           created_at?: string
           description?: string | null
