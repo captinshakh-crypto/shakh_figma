@@ -8,6 +8,7 @@ type Topup={id:string;user_id:string;amount_iqd:number;created_at:string;note:st
 type Payout={id:string;requester_user_id:string;amount_iqd:number;payout_method:string;created_at:string};
 type Merchant={id:string;business_name:string;merchant_type:Enums<"app_role">;user_id:string;created_at:string};
 type Trend={day:string;merchant_type:string;order_count:number;delivered_order_count:number;sales_iqd:number;merchant_commission_iqd:number;platform_delivery_commission_iqd:number};
+type SalesBucket={bucket_start:string;orders_count:number;delivered_count:number;sales_iqd:number;product_commission_iqd:number;delivery_platform_iqd:number};
 const names:Record<string,string>={supermarket:"سوپەرمارکێت",restaurant:"چێشتخانە",butcher_poultry:"گۆشت و سپیاتی",grocery:"بەقالی"};
 export default function AdminPage(){
  const [ready,setReady]=useState(false);const [rows,setRows]=useState<Commission[]>([]);const [topups,setTopups]=useState<Topup[]>([]);const [topupReceipts,setTopupReceipts]=useState<Record<string,string>>({});const [payouts,setPayouts]=useState<Payout[]>([]);const [merchants,setMerchants]=useState<Merchant[]>([]);const [amount,setAmount]=useState("10000");const [message,setMessage]=useState("");const [profit,setProfit]=useState<{delivered_orders:number;units_sold:number;sales_iqd:number;purchase_cost_iqd:number;gross_profit_iqd:number}|null>(null);const [trend,setTrend]=useState<Trend[]>([]);const [period,setPeriod]=useState("day");const [salesBuckets,setSalesBuckets]=useState<SalesBucket[]>([]);
