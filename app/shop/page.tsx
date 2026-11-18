@@ -19,7 +19,7 @@ type Product = {
 };
 
 type Merchant = { id: string; business_name: string; merchant_type: string };
-type CartItem = { product_id: string; title: string; price_iqd: number; merchant_id: string | null; quantity: number; unit?: string };
+type CartItem = { product_id: string; title: string; price_iqd: number; merchant_id: string | null; quantity: number; unit?: string; referral_campaign_id?: string | null };
 
 const storeTypes = [
   { value: "all", label: "هەموو دوکانەکان" },
@@ -50,10 +50,15 @@ export default function ShopPage() {
   const [category, setCategory] = useState("all");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [referralCampaignId, setReferralCampaignId] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
     let active = true;
+    const urlReferral = new URLSearchParams(window.location.search).get("ref");
+    const savedReferral = urlReferral || localStorage.getItem("shakh-referral-campaign") || "";
+    if (urlReferral) localStorage.setItem("shakh-referral-campaign", urlReferral);
+    setReferralCampaignId(savedReferral);
     Promise.all([
       supabase.from("products")
         .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,stock_quantity,unit")
@@ -110,8 +115,11 @@ export default function ShopPage() {
     }
     try {
       const cart = JSON.parse(localStorage.getItem("shakh-cart") || "[]") as CartItem[];
+      const activeReferral = referralCampaignId || cart.find((item) => item.referral_campaign_id)?.referral_campaign_id || null;
+      const otherReferral = cart.find((item) => item.referral_campaign_id && item.referral_campaign_id !== activeReferral);
+      if (otherReferral) { setMessage("سەبەتەکەت بە لینکی شێر و خەڵاتێکی ترە؛ تکایە یەک لینک بەکاربهێنە."); return; }
       const existing = cart.find((item) => item.product_id === product.id);
-      if (existing) existing.quantity += 1;
+      if (existing) { existing.quantity += 1; if (activeReferral) existing.referral_campaign_id = activeReferral; }
       else cart.push({
         product_id: product.id,
         title: product.title,
@@ -119,6 +127,7 @@ export default function ShopPage() {
         merchant_id: product.merchant_id,
         quantity: 1,
         unit: product.unit,
+        referral_campaign_id: activeReferral,
       });
       localStorage.setItem("shakh-cart", JSON.stringify(cart));
       setCartCount(cart.reduce((total, item) => total + item.quantity, 0));
@@ -138,6 +147,7 @@ export default function ShopPage() {
           </Link>
         </header>
 
+        {referralCampaignId && <p className="mt-5 rounded-xl bg-purple-50 p-3 text-sm font-bold text-purple-800">لینکی شێر و خەڵات چالاکە؛ ئەگەر لەم لینکەوە بکڕیت، خەڵاتی دیاریکراوی کاڵا بۆ خاوەن لینک تۆمار دەکرێت.</p>}
         <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
           <div><p className="font-bold text-shakh-orange">بازاڕی شاخ</p><h1 className="mt-2 text-3xl font-black">کاڵاکان و فرۆشگاکان</h1></div>
           <label className="flex w-full max-w-sm items-center gap-2 rounded-xl border bg-white px-3">
