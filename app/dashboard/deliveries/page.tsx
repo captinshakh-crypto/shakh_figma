@@ -40,6 +40,7 @@ export default function DeliveriesPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [liveLocations, setLiveLocations] = useState<Record<string, LiveLocation>>({});
+  const [merchantAddresses, setMerchantAddresses] = useState<Record<string, string>>({});
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
   const [trackingMessage, setTrackingMessage] = useState("");
   const watchIdRef = useRef<number | null>(null);
@@ -65,17 +66,21 @@ export default function DeliveriesPage() {
     if (error) throw error;
     const rows = (data || []) as Order[];
     setOrders(rows);
+    const merchantIds = [...new Set(rows.map((row) => row.merchant_id).filter((id): id is string => !!id))];
     const ids = rows.map((row) => row.id);
     if (!ids.length) { setItems([]); setEvents([]); setLiveLocations({}); setLoading(false); return; }
 
-    const [itemResult, eventResult, locationResult] = await Promise.all([
+    const [itemResult, eventResult, locationResult, merchantResult] = await Promise.all([
       supabase.from("order_items").select("id,order_id,product_title_snapshot,quantity,line_total_iqd").in("order_id", ids),
       supabase.from("order_status_history").select("id,order_id,to_status,created_at").in("order_id", ids).order("created_at"),
       supabase.from("order_live_locations").select("order_id,latitude,longitude,accuracy_m,updated_at").in("order_id", ids),
+      merchantIds.length ? supabase.from("merchant_profiles").select("id,address").in("id", merchantIds) : Promise.resolve({ data: [], error: null }),
     ]);
     if (itemResult.error) throw itemResult.error;
     if (eventResult.error) throw eventResult.error;
     if (locationResult.error) throw locationResult.error;
+    if (merchantResult.error) throw merchantResult.error;
+    setMerchantAddresses(Object.fromEntries((merchantResult.data || []).map((merchant) => [merchant.id, merchant.address || ""])));
     setItems(itemResult.data || []);
     setEvents(eventResult.data || []);
     setLiveLocations(Object.fromEntries((locationResult.data || []).map((location) => [location.order_id, { ...location, order_id: location.order_id }])));
@@ -212,6 +217,10 @@ export default function DeliveriesPage() {
     await load();
   }
 
+  function wazeUrl(address: string | null | undefined) {
+    return address?.trim() ? `https://waze.com/ul?q=${encodeURIComponent(address.trim())}&navigate=yes` : null;
+  }
+
   async function settle(id: string) {
     setBusyId(id);
     const { error } = await createClient().rpc("settle_delivered_order", { p_order_id: id });
@@ -247,6 +256,8 @@ export default function DeliveriesPage() {
                     <div>
                       <div className="rounded-xl bg-slate-50 p-4">
                         <p className="flex items-start gap-2 text-sm"><MapPin size={17} className="mt-0.5 shrink-0 text-shakh-orange"/>{order.delivery_address || "ناونیشان تۆمار نەکراوە"}</p>
+                        {wazeUrl(order.delivery_address) && <a href={wazeUrl(order.delivery_address)!} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700"><Navigation size={16}/> ڕۆیشتن بۆ ناونیشانی کڕیار لە Waze</a>}
+                        {order.merchant_id && wazeUrl(merchantAddresses[order.merchant_id]) && <a href={wazeUrl(merchantAddresses[order.merchant_id])!} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700"><Navigation size={16}/> ڕۆیشتن بۆ دوکان لە Waze</a>}
                         {order.delivery_phone && <p className="mt-3 flex items-center gap-2 text-sm"><Phone size={16} className="text-shakh-blue"/><a href={`tel:${order.delivery_phone}`} dir="ltr" className="font-bold">{order.delivery_phone}</a></p>}
                         {order.delivery_notes && <p className="mt-3 text-sm text-slate-600">تێبینی کڕیار: {order.delivery_notes}</p>}
                       </div>
