@@ -623,6 +623,10 @@ export type Database = {
           id: string
           image_path: string | null
           is_available: boolean
+          approval_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          rejection_reason: string | null
           is_shakh_store: boolean
           merchant_id: string | null
           price_iqd: number
@@ -640,6 +644,10 @@ export type Database = {
           id?: string
           image_path?: string | null
           is_available?: boolean
+          approval_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rejection_reason?: string | null
           is_shakh_store?: boolean
           merchant_id?: string | null
           price_iqd: number
