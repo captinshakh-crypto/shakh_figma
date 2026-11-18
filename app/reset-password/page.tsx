@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordPage() {
-  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [ready, setReady] = useState<boolean | null>(null);
@@ -45,7 +43,7 @@ export default function ResetPasswordPage() {
   }, []);
 
   useEffect(() => {
-    const error = searchParams.get("error");
+    const error = new URLSearchParams(window.location.search).get("error");
     if (error) {
       setReady(false);
       setMessageError(true);
@@ -55,7 +53,7 @@ export default function ResetPasswordPage() {
           : "کۆدی لینکی گۆڕینی وشەی نهێنی نەیتوانی سێشن دروست بکات. تکایە لینکی نوێ داوا بکە."
       );
     }
-  }, [searchParams]);
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
