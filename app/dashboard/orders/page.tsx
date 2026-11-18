@@ -89,16 +89,26 @@ export default function OrdersPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = "/login"; return; }
 
-    const [profileResult, roleResult] = await Promise.all([
+    const [profileResult, roleResult, merchantResult] = await Promise.all([
       supabase.from("profiles").select("role").eq("id", user.id).single(),
       supabase.rpc("current_app_role"),
+      supabase.from("merchant_profiles")
+        .select("id,merchant_type,approval_status")
+        .eq("user_id", user.id).maybeSingle(),
     ]);
     if (profileResult.error) throw profileResult.error;
-    // Use the same authoritative role resolver as the dashboard. A stale
-    // profiles.role must not make a merchant load the customer-only order list.
-    const currentRole = roleResult.error
+    if (merchantResult.error) throw merchantResult.error;
+    // Use the dashboard role resolver, and prefer an approved merchant profile
+    // when an older account still carries the customer role.
+    const resolvedRole = roleResult.error
       ? profileResult.data?.role || ""
       : roleResult.data || profileResult.data?.role || "";
+    const merchant = merchantResult.data;
+    const currentRole = merchant?.approval_status === "approved"
+      && ["supermarket", "restaurant", "butcher_poultry", "grocery"].includes(merchant.merchant_type)
+      && !["super_admin", "captain"].includes(resolvedRole)
+        ? merchant.merchant_type
+        : resolvedRole;
     setRole(currentRole);
 
     let query = supabase.from("orders").select(
@@ -110,10 +120,7 @@ export default function OrdersPage() {
     } else if (currentRole === "captain") {
       query = query.eq("captain_user_id", user.id);
     } else if (["supermarket", "restaurant", "butcher_poultry", "grocery"].includes(currentRole)) {
-      const { data: merchant, error: merchantError } = await supabase.from("merchant_profiles")
-        .select("id").eq("user_id", user.id).maybeSingle();
-      if (merchantError) throw merchantError;
-      if (!merchant) {
+      if (!merchant || merchant.approval_status !== "approved") {
         setOrders([]); setItems([]); setHistory([]); setLoading(false); return;
       }
       query = query.eq("merchant_id", merchant.id);
