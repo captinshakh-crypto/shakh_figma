@@ -105,11 +105,6 @@ export default function DashboardPage() {
             <b className="mt-4 block">جزدان</b>
             <p className="mt-1 text-xl font-black">{balance.toLocaleString("en-US")} د.ع</p>
           </Link>
-          <Link href="/dashboard/rewards" className="rounded-2xl bg-white p-6 shadow-soft">
-            <Wallet className="text-shakh-orange"/>
-            <b className="mt-4 block">شێرو خەلات</b>
-            <p className="mt-1 text-sm text-slate-500">دروستکردن و بەڕێوەبردنی خەڵات</p>
-          </Link>
           <Link href="/dashboard/orders" className="rounded-2xl bg-white p-6 shadow-soft">
             <Package className="text-shakh-blue"/>
             <b className="mt-4 block">داواکارییەکان</b>
