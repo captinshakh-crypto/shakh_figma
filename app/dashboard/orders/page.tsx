@@ -142,7 +142,7 @@ export default function OrdersPage() {
     }
 
     const [itemResult, historyResult, merchantResult, zoneResult, locationResult] = await Promise.all([
-      supabase.from("order_items").select("id,order_id,product_title_snapshot,quantity,unit_price_iqd,line_total_iqd").in("order_id", orderIds),
+      supabase.from("order_items").select("id,order_id,product_title_snapshot,quantity,unit_price_iqd,line_total_iqd,merchant_commission_per_unit_snapshot_iqd,merchant_commission_line_snapshot_iqd").in("order_id", orderIds),
       supabase.from("order_status_history").select("id,order_id,from_status,to_status,actor_role,note,created_at").in("order_id", orderIds).order("created_at"),
       merchantIds.length ? supabase.from("merchant_profiles").select("id,business_name").in("id", merchantIds) : Promise.resolve({ data: [], error: null }),
       zoneIds.length ? supabase.from("service_zones").select("id,name").in("id", zoneIds) : Promise.resolve({ data: [], error: null }),
@@ -256,7 +256,7 @@ export default function OrdersPage() {
                         {orderItems.map((item) => (
                           <div key={item.id} className="flex justify-between gap-3 p-3 text-sm">
                             <span>{item.product_title_snapshot} × {item.quantity}</span>
-                            <b>{formatIQD(item.line_total_iqd)}</b>
+                            <div className="text-right"><b>{formatIQD(item.line_total_iqd)}</b>{role !== "customer" && item.merchant_commission_line_snapshot_iqd > 0 && <p className="mt-1 text-xs text-orange-700">کۆمسیۆن: {formatIQD(item.merchant_commission_line_snapshot_iqd)}</p>}</div>
                           </div>
                         ))}
                       </div>
