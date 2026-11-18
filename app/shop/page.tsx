@@ -94,7 +94,7 @@ export default function ShopPage() {
   }, [products, storeType, merchantMap]);
 
   const filtered = useMemo(() => products.filter((product) => {
-    const merchant = product.merchant_id ? merchantMap.get(product.merchant_id) : null;
+    const merchant = product.merchant_id ? merchantMap[product.merchant_id] : null;
     const storeName = product.is_shakh_store ? "SHAKH Store شاخ ستۆر" : merchant?.business_name || "";
     const matchesSearch = (product.title + " " + (product.description || "") + " " + storeName)
       .toLowerCase().includes(search.toLowerCase());
@@ -173,7 +173,7 @@ export default function ShopPage() {
         ) : (
           <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {filtered.map((product) => {
-              const merchant = product.merchant_id ? merchantMap.get(product.merchant_id) : null;
+              const merchant = product.merchant_id ? merchantMap[product.merchant_id] : null;
               const storeName = product.is_shakh_store ? "شاخ ستۆر" : merchant?.business_name || "فرۆشگا";
               const storeLabel = product.is_shakh_store ? "شاخ ستۆر" : typeLabels[merchant?.merchant_type || ""] || "فرۆشیار";
               const imageUrl = product.image_path
