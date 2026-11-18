@@ -281,7 +281,6 @@ export default function CartPage() {
                   <option value="">زۆن هەڵبژێرە</option>
                   {zones.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.delivery_fee_iqd.toLocaleString("en-US")} د.ع</option>)}
                 </select>
-                <p className="mt-4 rounded-xl bg-purple-50 p-3 text-sm text-purple-800">{referralCampaignId ? "لینکی شێر و خەڵات چالاکە؛ کۆمسیۆنی دیاریکراوی دوکان لە جزدانی دوکاندار کەم دەکرێتەوە و بۆ خاوەن لینک تۆمار دەکرێت." : "شێر و خەڵات تەنها لە ڕێگەی لینکی تایبەتی خاوەن لینکەوە کار دەکات؛ هیچ بڕێکی زیادە لە کڕیار وەرناگیرێت."}</p>
                 <div className="mt-4 rounded-xl bg-shakh-mist p-4">
                   <div className="flex justify-between text-sm"><span>کۆی کاڵاکان</span><b>{subtotal.toLocaleString("en-US")} د.ع</b></div>
                   <div className="mt-2 flex justify-between text-sm"><span>کۆی کرێی گەیاندن ({storeGroups.length} فرۆشگا)</span><b>{deliveryFee.toLocaleString("en-US")} د.ع</b></div>
