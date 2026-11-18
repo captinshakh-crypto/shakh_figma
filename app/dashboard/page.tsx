@@ -28,11 +28,19 @@ export default function DashboardPage() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { window.location.href = "/login"; return; }
-        const { data, error: profileError } = await supabase.from("profiles")
-          .select("full_name,role").eq("id", user.id).single();
-        if (profileError) throw profileError;
-        if (!active || !data) return;
-        setProfile(data);
+        const [profileResult, roleResult] = await Promise.all([
+          supabase.from("profiles").select("full_name,role").eq("id", user.id).single(),
+          supabase.rpc("current_app_role"),
+        ]);
+        if (profileResult.error) throw profileResult.error;
+        if (roleResult.error) throw roleResult.error;
+        if (!active || !profileResult.data) return;
+        // Read the role through the server-side SECURITY DEFINER helper as well
+        // as the profile row so the role badge never depends on stale client data.
+        setProfile({
+          ...profileResult.data,
+          role: roleResult.data || profileResult.data.role,
+        });
 
         const wallet = await supabase.from("wallets").select("balance_iqd").eq("user_id", user.id).maybeSingle();
         if (!active) return;
