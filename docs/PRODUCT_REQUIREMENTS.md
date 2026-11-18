@@ -56,7 +56,13 @@
 
 ## Order lifecycle
 - draft/cart -> placed -> accepted/rejected by merchant -> preparing -> ready_for_pickup -> assigned -> picked_up -> delivered; cancellation/refund paths are separately permissioned and audited.
-- Orders may contain items from multiple merchants only if checkout explicitly supports split sub-orders; otherwise checkout must enforce one merchant per order in the first release.
+- Checkout is limited to one merchant/store per order. SHAKH Store uses its own platform-owned checkout endpoint.
+- Every order requires a delivery address (8–500 characters) and contact phone number (7–20 digits); optional delivery notes are limited to 500 characters. These details are immutable snapshots on the order.
+- Checkout accepts prices and stock only from the database, reserves tracked stock within the transaction, and uses an idempotency key to prevent duplicate orders on retries.
+- Initial order state is `placed`. Merchant transitions are `placed -> accepted/rejected -> preparing -> ready_for_pickup`; customer cancellation is allowed only while `placed`. Super-admin can cancel before captain pickup.
+- Only the super-admin assigns a captain to a `ready_for_pickup` order. SHAKH captains can serve all stores; merchant captains are restricted to their linked merchant. The assigned captain transitions `assigned -> picked_up -> delivered`.
+- Every state transition is stored in `order_status_history`, visible only to the order customer, assigned captain, owning merchant, or super-admin. The order and history tables are added to the Supabase Realtime publication for live tracking.
+- Rejecting an order or cancelling it before pickup restores reserved stock in the same database transaction. Delivered orders are settled separately through the existing idempotent settlement process.
 
 ## Security and reliability
 - Enable RLS on all user/business data tables.
