@@ -968,6 +968,18 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: undefined
       }
+      create_multi_store_orders_v1: {
+        Args: {
+          p_delivery_address: string
+          p_delivery_notes?: string
+          p_delivery_phone: string
+          p_groups: Json
+          p_idempotency_key?: string
+          p_reward_campaign_id?: string
+          p_service_zone_id: string
+        }
+        Returns: string[]
+      }
       create_order: {
         Args: {
           p_items: Json
