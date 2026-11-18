@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 
 const labels: Record<string, string> = {
   super_admin: "سوپەر ئەدمین",
-  captain: "کپتن",
+  captain: "کاپتن",
   customer: "کڕیار",
   supermarket: "سوپەرمارکێت",
   restaurant: "چێشتخانە",
@@ -91,6 +91,8 @@ export default function DashboardPage() {
         </section>
 
         {error && <p className="mt-5 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
+
+        {profile && profile.role !== "customer" && profile.role !== "super_admin" && balance < 5000 && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">بۆ چالاکییەکانی دوکان و وەرگرتنی گەیاندن، جزدانەکەت دەبێت لانیکەم ٥,٠٠٠ د.ع بێت. باڵانسی ئێستا: {balance.toLocaleString("en-US")} د.ع. <Link href="/dashboard/wallet" className="font-black underline">پڕکردنەوەی جزدان</Link></div>}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Link href="/dashboard/profile" className="rounded-2xl border border-orange-100 bg-orange-50 p-6 shadow-soft">
