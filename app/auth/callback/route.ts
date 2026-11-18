@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const flowId = requestUrl.searchParams.get("sb_flow_id");
   const requestedNext = requestUrl.searchParams.get("next") ?? "/dashboard";
   const next = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/dashboard";
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -28,7 +29,10 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { error } = await supabase.auth.exchangeCodeForSession(
+    code,
+    flowId ? { flowId } : undefined
+  );
   if (error) return NextResponse.redirect(new URL("/login?auth_error=verification", request.url));
   return response;
 }
