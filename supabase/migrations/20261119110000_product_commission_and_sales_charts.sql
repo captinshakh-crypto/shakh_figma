@@ -5,6 +5,22 @@ alter table public.order_items
   add column if not exists merchant_commission_per_unit_snapshot_iqd bigint not null default 0,
   add column if not exists merchant_commission_line_snapshot_iqd bigint not null default 0;
 
+-- Product commission is configured by super admin only, never by the merchant owner.
+create or replace function public.protect_product_moderation_fields()
+returns trigger language plpgsql set search_path = public as $
+begin
+  if not public.is_super_admin() then
+    new.approval_status := old.approval_status;
+    new.reviewed_at := old.reviewed_at;
+    new.reviewed_by := old.reviewed_by;
+    new.rejection_reason := old.rejection_reason;
+    new.is_shakh_store := old.is_shakh_store;
+    new.merchant_id := old.merchant_id;
+    new.merchant_commission_per_unit_iqd := old.merchant_commission_per_unit_iqd;
+  end if;
+  return new;
+end; $;
+
 create or replace function public.snapshot_product_merchant_commission()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare v_rate bigint;
