@@ -211,8 +211,15 @@ export default function DeliveriesPage() {
   async function updateStatus(id: string, status: string) {
     setBusyId(id);
     const { error } = await createClient().rpc("update_order_status", { p_order_id: id, p_status: status });
-    setMessage(error?.message || "دۆخی گەیاندن نوێ کرایەوە.");
-    if (!error && status === "delivered" && trackingOrderRef.current === id) stopLocalTracking();
+    if (error) {
+      setMessage(error.message);
+    } else if (status === "delivered") {
+      if (trackingOrderRef.current === id) stopLocalTracking();
+      const { error: settlementError } = await createClient().rpc("settle_delivered_order", { p_order_id: id });
+      setMessage(settlementError ? "گەیاندن تەواو بوو؛ بەڵام داخستنی حساب پێویستی بە پشکنینە: " + settlementError.message : "گەیاندن تەواو بوو؛ لیستی فرۆشتن بۆ کپتن و خاوەنی پۆست تۆمار کرا و کۆمسیۆنی پۆستەکان لە جزدانی خاوەنەکە کەمکرایەوە.");
+    } else {
+      setMessage("دۆخی گەیاندن نوێ کرایەوە.");
+    }
     setBusyId("");
     await load();
   }
