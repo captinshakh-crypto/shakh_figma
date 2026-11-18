@@ -8,6 +8,7 @@ import { MapPin, Phone, Package, Clock3, Wallet, CheckCircle2, RefreshCw, Naviga
 
 type Order = {
   id: string;
+  merchant_id: string | null;
   status: string;
   delivery_fee_iqd: number;
   platform_delivery_share_iqd: number;
@@ -58,8 +59,8 @@ export default function DeliveriesPage() {
     if (profile?.role !== "captain") { window.location.href = "/dashboard"; return; }
 
     const { data, error } = await supabase.from("orders")
-      .select("id,status,delivery_fee_iqd,platform_delivery_share_iqd,captain_delivery_share_iqd,placed_at,delivery_address,delivery_phone,delivery_notes,total_iqd,settled_at")
-      .eq("captain_user_id", user.id)
+      .select("id,merchant_id,status,delivery_fee_iqd,platform_delivery_share_iqd,captain_delivery_share_iqd,placed_at,delivery_address,delivery_phone,delivery_notes,total_iqd,settled_at")
+      .or(`captain_user_id.eq.${user.id},and(status.eq.ready_for_pickup,captain_user_id.is.null)`)
       .order("placed_at", { ascending: false }).limit(100);
     if (error) throw error;
     const rows = (data || []) as Order[];
@@ -191,6 +192,17 @@ export default function DeliveriesPage() {
     setTrackingMessage(error ? "شوێنکەوتن لە ئامێرەکەت وەستا؛ نەتوانرا شوێنی پاشماوە لە سێرڤەر بسڕدرێتەوە." : "نیشاندانی شوێن وەستێنرا.");
   }
 
+  async function claimDelivery(id: string) {
+    setBusyId(id);
+    setMessage("");
+    const { error } = await createClient().rpc("claim_available_delivery", {
+      p_order_id: id,
+    });
+    setBusyId("");
+    setMessage(error?.message || "گەیاندنەکە بۆ تۆ دیاریکرا و کۆمسیۆنی ٢٠٪ لە جزدان کەمکرایەوە.");
+    await load();
+  }
+
   async function updateStatus(id: string, status: string) {
     setBusyId(id);
     const { error } = await createClient().rpc("update_order_status", { p_order_id: id, p_status: status });
@@ -253,6 +265,12 @@ export default function DeliveriesPage() {
                       <p className="text-xs text-slate-500">کرێی گەیاندن</p><b className="mt-1 block text-xl">{order.delivery_fee_iqd.toLocaleString("en-US")} د.ع</b>
                       <p className="mt-3 text-xs text-slate-500">بەشی کپتن</p><b className="mt-1 block text-lg text-shakh-blue">{order.captain_delivery_share_iqd.toLocaleString("en-US")} د.ع</b>
                       <p className="mt-3 text-xs text-slate-500">بەشی شاخ</p><b className="mt-1 block text-lg text-shakh-orange">{order.platform_delivery_share_iqd.toLocaleString("en-US")} د.ع</b>
+                      {order.status === "ready_for_pickup" && !("captain_user_id" in order) && null}
+                      {order.status === "ready_for_pickup" && (
+                        <button disabled={busyId === order.id} onClick={() => void claimDelivery(order.id)} className="mt-5 w-full rounded-xl bg-shakh-orange p-3 text-sm font-bold text-white disabled:opacity-50">
+                          {busyId === order.id ? "تکایە چاوەڕێ بکە..." : "وەرگرتنی ئەم گەیاندنە"}
+                        </button>
+                      )}
                       {order.status === "assigned" && <button disabled={busyId === order.id} onClick={() => void updateStatus(order.id, "picked_up")} className="mt-5 w-full rounded-xl bg-shakh-blue p-3 text-sm font-bold text-white disabled:opacity-50">{busyId === order.id ? "تکایە چاوەڕێ بکە..." : "وەرگرتنی داواکاری"}</button>}
                       {order.status === "picked_up" && <button disabled={busyId === order.id} onClick={() => void updateStatus(order.id, "delivered")} className="mt-5 w-full rounded-xl bg-green-600 p-3 text-sm font-bold text-white disabled:opacity-50">{busyId === order.id ? "تکایە چاوەڕێ بکە..." : "گەیاندن تەواو بوو"}</button>}
                       {["assigned", "picked_up"].includes(order.status) && (
