@@ -61,11 +61,13 @@ export default function CartPage() {
           setMessage("نەتوانرا نرخ و کۆگای نوێ پشتڕاست بکرێتەوە؛ تکایە پەیوەندی ئینتەرنێت بپشکنە و دووبارە هەوڵ بدەرەوە.");
           setCartVerified(false);
         } else {
-          const productMap = new Map((data || []).map((product) => [product.id, product as ProductSnapshot]));
+          const productMap: Record<string, ProductSnapshot> = Object.fromEntries(
+            (data || []).map((product) => [product.id, product as ProductSnapshot])
+          );
           let removed = 0;
           let adjusted = false;
           const refreshed = saved.flatMap((item) => {
-            const product = productMap.get(item.product_id);
+            const product = productMap[item.product_id];
             if (!product || !product.is_available || product.stock_quantity === 0) {
               removed += 1;
               return [];
