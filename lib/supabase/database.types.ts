@@ -953,8 +953,22 @@ export type Database = {
         Args: { p_admin_note?: string; p_request_id: string }
         Returns: undefined
       }
-      admin_set_product_commission: { Args: { p_amount_iqd: number; p_product_id: string }; Returns: undefined
-      admin_sales_chart: { Args: { p_period?: string }; Returns: { bucket_start: string; orders_count: number; delivered_count: number; sales_iqd: number; product_commission_iqd: number; delivery_platform_iqd: number }[] }\n      admin_review_product: {
+      admin_set_product_commission: {
+        Args: { p_amount_iqd: number; p_product_id: string }
+        Returns: undefined
+      }
+      admin_sales_chart: {
+        Args: { p_period?: string }
+        Returns: {
+          bucket_start: string
+          orders_count: number
+          delivered_count: number
+          sales_iqd: number
+          product_commission_iqd: number
+          delivery_platform_iqd: number
+        }[]
+      }
+      admin_review_product: {
         Args: { p_approve: boolean; p_product_id: string; p_rejection_reason?: string | null }
         Returns: undefined
       }
