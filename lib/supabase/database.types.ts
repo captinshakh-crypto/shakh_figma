@@ -947,6 +947,21 @@ export type Database = {
         Args: { p_admin_note?: string; p_request_id: string }
         Returns: undefined
       }
+      admin_review_product: {
+        Args: { p_approve: boolean; p_product_id: string; p_rejection_reason?: string | null }
+        Returns: undefined
+      }
+      admin_commission_trend: {
+        Args: { p_days?: number }
+        Returns: {
+          day: string
+          merchant_type: string
+          order_count: number
+          sales_iqd: number
+          merchant_commission_iqd: number
+          platform_delivery_commission_iqd: number
+        }[]
+      }
       admin_review_merchant: {
         Args: { p_approve: boolean; p_merchant_id: string }
         Returns: undefined
