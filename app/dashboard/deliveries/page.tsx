@@ -265,7 +265,6 @@ export default function DeliveriesPage() {
                       <p className="text-xs text-slate-500">کرێی گەیاندن</p><b className="mt-1 block text-xl">{order.delivery_fee_iqd.toLocaleString("en-US")} د.ع</b>
                       <p className="mt-3 text-xs text-slate-500">بەشی کپتن</p><b className="mt-1 block text-lg text-shakh-blue">{order.captain_delivery_share_iqd.toLocaleString("en-US")} د.ع</b>
                       <p className="mt-3 text-xs text-slate-500">بەشی شاخ</p><b className="mt-1 block text-lg text-shakh-orange">{order.platform_delivery_share_iqd.toLocaleString("en-US")} د.ع</b>
-                      {order.status === "ready_for_pickup" && !("captain_user_id" in order) && null}
                       {order.status === "ready_for_pickup" && (
                         <button disabled={busyId === order.id} onClick={() => void claimDelivery(order.id)} className="mt-5 w-full rounded-xl bg-shakh-orange p-3 text-sm font-bold text-white disabled:opacity-50">
                           {busyId === order.id ? "تکایە چاوەڕێ بکە..." : "وەرگرتنی ئەم گەیاندنە"}
