@@ -36,6 +36,7 @@ const unitLabels: Record<string, string> = {
 export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
+  const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
   const [zone, setZone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryPhone, setDeliveryPhone] = useState("");
@@ -95,6 +96,12 @@ export default function CartPage() {
           });
           setItems(refreshed);
           localStorage.setItem("shakh-cart", JSON.stringify(refreshed));
+          const merchantIds = [...new Set(refreshed.map((item) => item.merchant_id).filter((id): id is string => !!id))];
+          if (merchantIds.length > 0) {
+            const { data: merchantRows } = await supabase.from("merchant_profiles")
+              .select("id,business_name").in("id", merchantIds);
+            if (active) setMerchantNames(Object.fromEntries((merchantRows || []).map((merchant) => [merchant.id, merchant.business_name])));
+          }
           if (removed > 0 || adjusted) setMessage("هەندێک کاڵا یان بڕی کۆگا نوێکرایەوە؛ سەبەتەکەت نوێ کراوەتەوە.");
           setCartVerified(true);
         }
@@ -125,15 +132,25 @@ export default function CartPage() {
   const storeIds = Array.from(new Set(items.map((item) =>
     item.is_shakh_store || item.merchant_id === null ? "shakh_store" : item.merchant_id
   )));
-  const merchantId = items[0]?.is_shakh_store || items[0]?.merchant_id === null
-    ? null
-    : items[0]?.merchant_id || null;
-  const mixed = storeIds.length > 1;
+  const storeGroups = storeIds.map((storeId) => {
+    const groupItems = items.filter((item) =>
+      (item.is_shakh_store || item.merchant_id === null ? "shakh_store" : item.merchant_id) === storeId
+    );
+    const merchantId = storeId === "shakh_store" ? null : storeId;
+    return {
+      storeId,
+      merchantId,
+      storeName: storeId === "shakh_store" ? "شاخ ستۆر" : merchantNames[storeId] || "فرۆشگای هاوبەش",
+      items: groupItems,
+      subtotal: groupItems.reduce((sum, item) => sum + item.price_iqd * item.quantity, 0),
+    };
+  });
   const subtotal = items.reduce((total, item) => total + item.price_iqd * item.quantity, 0);
   const referralIds = [...new Set(items.map((item) => item.referral_campaign_id).filter((id): id is string => !!id))];
   const referralCampaignId = referralIds.length === 1 ? referralIds[0] : null;
   const mixedReferrals = referralIds.length > 1;
-  const deliveryFee = zones.find((item) => item.id === zone)?.delivery_fee_iqd || 0;
+  const deliveryFeePerStore = zones.find((item) => item.id === zone)?.delivery_fee_iqd || 0;
+  const deliveryFee = deliveryFeePerStore * storeGroups.length;
   const total = subtotal + deliveryFee;
 
   function persist(next: CartItem[]) {
@@ -155,9 +172,8 @@ export default function CartPage() {
   async function checkout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!items.length || !zone || !cartVerified) return;
-    if (mixed) { setMessage("سەبەتەکەت کاڵای زیاتر لە یەک فرۆشیاری تێدایە. تکایە هەر جار لە یەک فرۆشگا داوا بکە."); return; }
+    if (storeGroups.length > 2) { setMessage("لە یەک Checkout ـدا تەنها دەتوانیت لە دوو فرۆشگا بکڕیت."); return; }
     if (mixedReferrals) { setMessage("کاڵاکانی سەبەتەکەت بە چەند لینکی شێر و خەڵات زیاد کراون؛ تکایە تەنها یەک لینکی شێر و خەڵات بەکاربهێنە."); return; }
-    if (storeIds.length !== 1) { setMessage("تکایە لە یەک فرۆشگا داواکاری بکە."); return; }
     if (deliveryAddress.trim().length < 8) { setMessage("ناونیشانی تەواوی گەیاندن بنووسە."); return; }
     if (deliveryPhone.replace(/\D/g, "").length < 7) { setMessage("ژمارەی تەلەفۆنی دروست بنووسە."); return; }
 
@@ -172,38 +188,29 @@ export default function CartPage() {
       setIdempotencyKey(key);
       localStorage.setItem("shakh-checkout-key", key);
 
-      const orderItems = items.map((item) => ({ product_id: item.product_id, quantity: item.quantity }));
-      const commonArgs = {
+      const groups = storeGroups.map((group) => ({
+        merchant_id: group.merchantId,
+        items: group.items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
+      }));
+      const { data, error } = await supabase.rpc("create_multi_store_orders_v1", {
         p_service_zone_id: zone,
-        p_items: orderItems,
+        p_groups: groups,
         p_delivery_address: deliveryAddress.trim(),
         p_delivery_phone: deliveryPhone.trim(),
         p_delivery_notes: deliveryNotes.trim(),
-        p_reward_campaign_id: referralCampaignId || undefined,
-        p_reward_amount_iqd: 0,
+        p_reward_campaign_id: referralCampaignId || null,
         p_idempotency_key: key,
-      };
-
-      let orderId: string;
-      if (storeIds[0] === "shakh_store") {
-        const { data, error } = await supabase.rpc("create_shakh_store_order_v2", commonArgs);
-        if (error) throw error;
-        orderId = data;
-      } else {
-        if (!merchantId) throw new Error("فرۆشگا دیاری نەکراوە.");
-        const { data, error } = await supabase.rpc("create_order_v2", {
-          ...commonArgs,
-          p_merchant_id: merchantId,
-        });
-        if (error) throw error;
-        orderId = data;
-      }
+      });
+      if (error) throw error;
+      const orderIds = (data || []) as string[];
+      if (orderIds.length !== storeGroups.length) throw new Error("ژمارەی ئۆردەرەکان لە وەڵامی سیستەمدا ناتەواوە.");
 
       localStorage.removeItem("shakh-cart");
       localStorage.removeItem("shakh-checkout-key");
       setIdempotencyKey("");
       setItems([]);
-      setMessage("داواکارییەکەت بە سەرکەوتوویی تۆمار کرا. ژمارەی داواکاری: " + orderId);
+      setMessage("هەموو داواکارییەکان بە سەرکەوتوویی تۆمار کران: " +
+        orderIds.map((orderId, index) => storeGroups[index]?.storeName + ": " + orderId).join(" · "));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "نەتوانرا داواکاری تۆمار بکرێت.");
     } finally {
@@ -223,23 +230,35 @@ export default function CartPage() {
           </div>
         ) : (
           <>
-            <section className="mt-6 rounded-2xl bg-white p-5 shadow-soft">
-              {items.map((item) => (
-                <div key={item.product_id} className="flex items-center justify-between gap-3 border-b py-3">
-                  <div className="min-w-0">
-                    <b>{item.title}</b>
-                    <p className="text-sm text-shakh-orange">{item.price_iqd.toLocaleString("en-US")} د.ع / {unitLabels[item.unit || "piece"] || item.unit}</p>
-                    {item.stock_quantity !== null && item.stock_quantity !== undefined && <p className="mt-1 text-xs text-slate-500">کۆگا: {item.stock_quantity.toLocaleString("en-US")}</p>}
+            <section className="mt-6 space-y-4">
+              {storeGroups.map((group) => (
+                <div key={group.storeId} className="rounded-2xl bg-white p-5 shadow-soft">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+                    <h2 className="font-black text-shakh-blue">{group.storeName}</h2>
+                    <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-shakh-orange">ئۆردەری سەربەخۆ</span>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button onClick={() => update(item.product_id, item.quantity - 1)} className="h-9 w-9 rounded-lg bg-slate-100">−</button>
-                    <b>{item.quantity}</b>
-                    <button disabled={item.stock_quantity !== null && item.stock_quantity !== undefined && item.quantity >= item.stock_quantity} onClick={() => update(item.product_id, item.quantity + 1)} className="h-9 w-9 rounded-lg bg-slate-100 disabled:opacity-40">+</button>
-                  </div>
+                  {group.items.map((item) => (
+                    <div key={item.product_id} className="flex items-center justify-between gap-3 border-b py-3">
+                      <div className="min-w-0">
+                        <b>{item.title}</b>
+                        <p className="text-sm text-shakh-orange">{item.price_iqd.toLocaleString("en-US")} د.ع / {unitLabels[item.unit || "piece"] || item.unit}</p>
+                        {item.stock_quantity !== null && item.stock_quantity !== undefined && <p className="mt-1 text-xs text-slate-500">کۆگا: {item.stock_quantity.toLocaleString("en-US")}</p>}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button type="button" onClick={() => update(item.product_id, item.quantity - 1)} className="h-9 w-9 rounded-lg bg-slate-100">−</button>
+                        <b>{item.quantity}</b>
+                        <button type="button" disabled={item.stock_quantity !== null && item.stock_quantity !== undefined && item.quantity >= item.stock_quantity} onClick={() => update(item.product_id, item.quantity + 1)} className="h-9 w-9 rounded-lg bg-slate-100 disabled:opacity-40">+</button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="mt-3 flex justify-between text-sm"><span>کۆی کاڵاکانی {group.storeName}</span><b>{group.subtotal.toLocaleString("en-US")} د.ع</b></div>
+                  <div className="mt-2 flex justify-between text-sm"><span>کرێی گەیاندنی ئەم فرۆشگایە</span><b>{deliveryFeePerStore.toLocaleString("en-US")} د.ع</b></div>
                 </div>
               ))}
-              <div className="flex justify-between pt-4 text-lg font-black"><span>کۆی کاڵاکان</span><span>{subtotal.toLocaleString("en-US")} د.ع</span></div>
-              <p className="mt-2 text-xs text-slate-400">نرخ و کۆگا پێش Checkout نوێ و پشتڕاست دەکرێنەوە.</p>
+              <div className="rounded-2xl bg-white p-5 shadow-soft">
+                <div className="flex justify-between text-lg font-black"><span>کۆی کاڵاکان</span><span>{subtotal.toLocaleString("en-US")} د.ع</span></div>
+                <p className="mt-2 text-xs text-slate-400">نرخ و کۆگا پێش Checkout نوێ و پشتڕاست دەکرێنەوە. بۆ هەر فرۆشگا ئۆردەر و کرێی گەیاندنی جیاواز هەژمار دەکرێت.</p>
+              </div>
             </section>
 
             <form onSubmit={checkout} className="mt-5 space-y-5">
@@ -265,10 +284,10 @@ export default function CartPage() {
                 <p className="mt-4 rounded-xl bg-purple-50 p-3 text-sm text-purple-800">{referralCampaignId ? "لینکی شێر و خەڵات چالاکە؛ کۆمسیۆنی دیاریکراوی دوکان لە جزدانی دوکاندار کەم دەکرێتەوە و بۆ خاوەن لینک تۆمار دەکرێت." : "شێر و خەڵات تەنها لە ڕێگەی لینکی تایبەتی خاوەن لینکەوە کار دەکات؛ هیچ بڕێکی زیادە لە کڕیار وەرناگیرێت."}</p>
                 <div className="mt-4 rounded-xl bg-shakh-mist p-4">
                   <div className="flex justify-between text-sm"><span>کۆی کاڵاکان</span><b>{subtotal.toLocaleString("en-US")} د.ع</b></div>
-                  <div className="mt-2 flex justify-between text-sm"><span>گەیاندن</span><b>{deliveryFee.toLocaleString("en-US")} د.ع</b></div>
+                  <div className="mt-2 flex justify-between text-sm"><span>کۆی کرێی گەیاندن ({storeGroups.length} فرۆشگا)</span><b>{deliveryFee.toLocaleString("en-US")} د.ع</b></div>
                   <div className="mt-3 flex justify-between border-t pt-3 font-black"><span>کۆی گشتی</span><span>{total.toLocaleString("en-US")} د.ع</span></div>
                 </div>
-                <button type="submit" disabled={busy || !zone || mixed || mixedReferrals || !cartVerified} className="mt-4 w-full rounded-xl bg-shakh-orange px-4 py-3 font-bold text-white disabled:opacity-50">
+                <button type="submit" disabled={busy || !zone || storeGroups.length > 2 || mixedReferrals || !cartVerified} className="mt-4 w-full rounded-xl bg-shakh-orange px-4 py-3 font-bold text-white disabled:opacity-50">
                   {busy ? "تکایە چاوەڕێ بکە..." : !cartVerified ? "پشکنینی نرخ و کۆگا..." : "پشتڕاستکردنەوە و ناردنی داواکاری"}
                 </button>
               </section>
