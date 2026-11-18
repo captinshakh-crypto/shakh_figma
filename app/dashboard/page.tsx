@@ -37,16 +37,17 @@ export default function DashboardPage() {
         if (!active || !profileResult.data) return;
         // Read the role through the server-side SECURITY DEFINER helper as well
         // as the profile row so the role badge never depends on stale client data.
+        const currentRole = roleResult.data || profileResult.data.role;
         setProfile({
           ...profileResult.data,
-          role: roleResult.data || profileResult.data.role,
+          role: currentRole,
         });
 
         const wallet = await supabase.from("wallets").select("balance_iqd").eq("user_id", user.id).maybeSingle();
         if (!active) return;
         setBalance(wallet.data?.balance_iqd || 0);
 
-        if (data.role === "captain") {
+        if (currentRole === "captain") {
           const { data: captain } = await supabase.from("captain_profiles")
             .select("captain_type,merchant_id").eq("user_id", user.id).maybeSingle();
           if (!active) return;
