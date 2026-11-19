@@ -15,8 +15,8 @@ export default function NotificationsCenter() {
   const audioRef = useRef<AudioContext | null>(null);
   const knownIds = useRef<Set<string>>(new Set());
 
-  const playSound = useCallback(async () => {
-    if (!soundOn) return;
+  const playSound = useCallback(async (force = false) => {
+    if (!soundOn && !force) return;
     try {
       const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioContextClass) return;
@@ -108,7 +108,7 @@ export default function NotificationsCenter() {
           await context.resume();
         }
       } catch { /* The user can retry enabling sound. */ }
-      window.setTimeout(() => { void playSound(); }, 0);
+      await playSound(true);
     } else {
       setSoundOn(false);
     }
