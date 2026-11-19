@@ -29,7 +29,7 @@ type Captain = {
 type Item = { id: string; order_id: string; product_title_snapshot: string; quantity: number };
 
 const captainTypeLabel = (captain: Captain) =>
-  captain.captain_type === "shakh" ? "کپتنی شاخ" : "کپتنی تایبەت بە دوکان";
+  captain.captain_type === "shakh" ? "کاپتنی شاخ" : "کاپتنی تایبەت بە دوکان";
 
 export default function CaptainsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -104,7 +104,7 @@ export default function CaptainsPage() {
       p_captain_user_id: captainId,
     });
     setBusyId("");
-    setMessage(error?.message || "کپتن بۆ ئەم داواکارییە دیاریکرا و ئاگادار کرا.");
+    setMessage(error?.message || "کاپتن بۆ ئەم داواکارییە دیاریکرا و ئاگادار کرا.");
     if (!error) await load();
   }
 
@@ -113,7 +113,7 @@ export default function CaptainsPage() {
       <div className="mx-auto max-w-5xl">
         <Link href="/dashboard/admin" className="font-bold text-shakh-blue">← سوپەر ئەدمین</Link>
         <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-          <div><h1 className="text-3xl font-black">دیاریکردنی کپتن</h1><p className="mt-2 text-sm text-slate-500">کپتنی شاخ بۆ هەموو دوکانەکانە؛ کپتنی تایبەت تەنها بۆ دوکانی خۆیەتی.</p></div>
+          <div><h1 className="text-3xl font-black">دیاریکردنی کاپتن</h1><p className="mt-2 text-sm text-slate-500">کاپتنی شاخ بۆ هەموو دوکانەکانە؛ کاپتنی تایبەت تەنها بۆ دوکانی خۆیەتی.</p></div>
           <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-sm font-bold"><RefreshCw size={15}/> نوێکردنەوە</button>
         </div>
         {message && <p role="status" className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">{message}</p>}
@@ -128,7 +128,7 @@ export default function CaptainsPage() {
             <article key={order.id} className="mt-5 overflow-hidden rounded-2xl bg-white shadow-soft">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b p-5">
                 <div><p className="text-xs text-slate-400">داواکاری</p><b className="font-mono">{order.id.slice(0, 8).toUpperCase()}</b></div>
-                <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-bold text-orange-700">ئامادەی وەرگرتنی کپتنە</span>
+                <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-bold text-orange-700">ئامادەی وەرگرتنی کاپتنە</span>
               </div>
               <div className="grid gap-4 p-5 md:grid-cols-[1fr_280px]">
                 <div>
@@ -146,9 +146,9 @@ export default function CaptainsPage() {
                   <p className="mt-4 text-sm text-slate-500">کۆی کاڵا: {order.subtotal_iqd.toLocaleString("en-US")} د.ع · گەیاندن: {order.delivery_fee_iqd.toLocaleString("en-US")} د.ع</p>
                 </div>
                 <aside className="rounded-xl bg-shakh-mist p-4">
-                  <p className="font-black">کپتنی شیاو هەڵبژێرە</p>
+                  <p className="font-black">کاپتنی شیاو هەڵبژێرە</p>
                   <select disabled={busyId === order.id || eligible.length === 0} defaultValue="" onChange={(event) => void assign(order.id, event.target.value)} className="mt-3 w-full rounded-xl border bg-white p-3 text-sm">
-                    <option value="">کپتن هەڵبژێرە</option>
+                    <option value="">کاپتن هەڵبژێرە</option>
                     {eligible.map((captain) => (
                       <option key={captain.user_id} value={captain.user_id}>
                         {captain.full_name || captain.email || captain.user_id} — {captainTypeLabel(captain)}
@@ -156,7 +156,7 @@ export default function CaptainsPage() {
                     ))}
                   </select>
                   {busyId === order.id && <p className="mt-2 text-xs text-slate-500">دیاریکردن...</p>}
-                  {eligible.length === 0 && <p className="mt-2 text-sm text-amber-700">کپتنێکی چالاک و شیاو بۆ ئەم دوکانە نییە.</p>}
+                  {eligible.length === 0 && <p className="mt-2 text-sm text-amber-700">کاپتنێکی چالاک و شیاو بۆ ئەم دوکانە نییە.</p>}
                 </aside>
               </div>
             </article>
