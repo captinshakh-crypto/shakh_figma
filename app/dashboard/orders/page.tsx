@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import OrderLiveMap from "@/components/order-live-map";
 import { createClient } from "@/lib/supabase/client";
-import { MapPin, Phone, Package, Clock3, CheckCircle2, XCircle, Truck, RefreshCw } from "lucide-react";
+import { MapPin, Phone, Package, Clock3, CheckCircle2, XCircle, Truck, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 
 type Order = {
   id: string;
@@ -85,6 +85,7 @@ export default function OrdersPage() {
   const [busyId, setBusyId] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showOrders, setShowOrders] = useState(false);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -235,7 +236,13 @@ export default function OrdersPage() {
         {loading ? <p className="mt-6 text-slate-500">بارکردنی داواکارییەکان...</p> : orders.length === 0 ? (
           <div className="mt-6 rounded-2xl bg-white p-10 text-center text-slate-500">هێشتا هیچ داواکارییەک نییە.</div>
         ) : (
-          <div className="mt-6 space-y-5">
+          <div className="mt-6">
+            <button type="button" onClick={() => setShowOrders((shown) => !shown)} aria-expanded={showOrders}
+              className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 text-right shadow-soft transition hover:border-shakh-blue">
+              <span><span className="block font-black">{showOrders ? "شاردنەوەی داواکارییەکان" : "پیشاندانی هەموو داواکارییەکان"}</span><span className="mt-1 block text-xs text-slate-500">{orders.length.toLocaleString("ckb-IQ")} داواکاری تۆمارکراوە</span></span>
+              {showOrders ? <ChevronUp size={20} className="shrink-0 text-shakh-blue"/> : <ChevronDown size={20} className="shrink-0 text-shakh-blue"/>}
+            </button>
+            {showOrders && <div className="mt-4 space-y-5">
             {orders.map((order) => {
               const orderItems = items.filter((item) => item.order_id === order.id);
               const events = history.filter((entry) => entry.order_id === order.id);
@@ -316,6 +323,7 @@ export default function OrdersPage() {
                 </article>
               );
             })}
+            </div>}
           </div>
         )}
       </div>
