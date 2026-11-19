@@ -957,6 +957,14 @@ export type Database = {
         Args: { p_amount_iqd: number; p_product_id: string }
         Returns: undefined
       }
+      admin_platform_revenue_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          revenue_type: string
+          transactions_count: number
+          total_iqd: number
+        }[]
+      }
       admin_sales_chart: {
         Args: { p_period?: string }
         Returns: {
