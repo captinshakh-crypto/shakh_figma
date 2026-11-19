@@ -54,9 +54,9 @@ const statusLabels: Record<string, string> = {
   accepted: "لە لایەن دوکانەوە پەسەند کرا",
   rejected: "داواکاری ڕەتکرایەوە",
   preparing: "دوکان ئامادەی دەکات",
-  ready_for_pickup: "ئامادەی وەرگرتنی کپتنە",
-  assigned: "کپتن دیاریکرا",
-  picked_up: "کپتن داواکارییەکەی وەرگرت",
+  ready_for_pickup: "ئامادەی وەرگرتنی کاپتنە",
+  assigned: "کاپتن دیاریکرا",
+  picked_up: "کاپتن داواکارییەکەی وەرگرت",
   delivered: "گەیەنرا",
   cancelled: "هەڵوەشێنرایەوە",
 };
@@ -177,7 +177,7 @@ export default function OrdersPage() {
         if (active) void load().catch(() => setMessage("نوێکردنەوەی مێژووی داواکاری سەرکەوتوو نەبوو."));
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "order_live_locations" }, () => {
-        if (active) void load().catch(() => setMessage("نوێکردنەوەی شوێنی کپتن سەرکەوتوو نەبوو."));
+        if (active) void load().catch(() => setMessage("نوێکردنەوەی شوێنی کاپتن سەرکەوتوو نەبوو."));
       })
       .subscribe();
     return () => {
@@ -281,21 +281,24 @@ export default function OrdersPage() {
                           {liveLocations[order.id] ? (
                             <OrderLiveMap latitude={liveLocations[order.id].latitude} longitude={liveLocations[order.id].longitude} accuracyM={liveLocations[order.id].accuracy_m} updatedAt={liveLocations[order.id].updated_at}/>
                           ) : (
-                            <p className="rounded-xl border border-dashed border-slate-300 p-3 text-sm text-slate-500">کپتن هێشتا شوێنکەوتنی GPS چالاک نەکردووە.</p>
+                            <p className="rounded-xl border border-dashed border-slate-300 p-3 text-sm text-slate-500">کاپتن هێشتا شوێنکەوتنی GPS چالاک نەکردووە.</p>
                           )}
                         </div>
                       )}
 
                       <h3 className="mt-5 flex items-center gap-2 font-black"><Clock3 size={17}/> مێژووی داواکاری</h3>
-                      <ol className="mt-3 space-y-3 border-r-2 border-slate-200 pr-4">
-                        {events.map((event) => (
-                          <li key={event.id} className="relative">
-                            <span className="absolute -right-[21px] top-1 h-3 w-3 rounded-full bg-shakh-orange ring-4 ring-white"/>
-                            <p className="text-sm font-bold">{statusLabels[event.to_status] || event.to_status}</p>
-                            <p className="mt-0.5 text-xs text-slate-400">{new Date(event.created_at).toLocaleString("ckb-IQ")}</p>
-                          </li>
+                      <div className="mt-3 overflow-hidden rounded-xl border border-slate-100 divide-y divide-slate-100">
+                        {[...events].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((event, index) => (
+                          <div key={event.id} className="flex items-start gap-3 p-3">
+                            <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${index === 0 ? "bg-shakh-orange" : "bg-slate-300"}`}/>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-bold">{statusLabels[event.to_status] || event.to_status}</p>
+                              <p className="mt-1 text-xs text-slate-400">{new Date(event.created_at).toLocaleString("ckb-IQ")}</p>
+                            </div>
+                            {index === 0 && <span className="rounded-full bg-orange-50 px-2 py-1 text-[10px] font-bold text-orange-700">نوێترین</span>}
+                          </div>
                         ))}
-                      </ol>
+                      </div>
                     </div>
 
                     <aside className="rounded-xl bg-shakh-mist p-4">
@@ -317,7 +320,7 @@ export default function OrdersPage() {
                         </div>
                       )}
                       {role === "captain" && order.status === "delivered" && !order.settled_at && <p className="mt-3 text-xs text-amber-700">بۆ داخستنی حساب، بەشی گەیاندن بکەرەوە.</p>}
-                      {role === "super_admin" && order.status === "ready_for_pickup" && <Link href="/dashboard/admin/captains" className="mt-4 block rounded-xl bg-shakh-orange px-3 py-2.5 text-center text-sm font-bold text-white"><Truck size={15} className="mr-1 inline"/> دیاریکردنی کپتن</Link>}
+                      {role === "super_admin" && order.status === "ready_for_pickup" && <Link href="/dashboard/admin/captains" className="mt-4 block rounded-xl bg-shakh-orange px-3 py-2.5 text-center text-sm font-bold text-white"><Truck size={15} className="mr-1 inline"/> دیاریکردنی کاپتن</Link>}
                     </aside>
                   </div>
                 </article>
