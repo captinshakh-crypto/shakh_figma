@@ -28,8 +28,8 @@ const labels: Record<string, string> = {
   accepted: "پەسەندکرا",
   rejected: "ڕەتکرایەوە",
   preparing: "ئامادە دەکرێت",
-  ready_for_pickup: "ئامادەی کپتنە",
-  assigned: "کپتن دیاریکرا",
+  ready_for_pickup: "ئامادەی کاپتنە",
+  assigned: "کاپتن دیاریکرا",
   picked_up: "وەرگیرا",
   delivered: "گەیەنرا",
   cancelled: "هەڵوەشێنرایەوە",
@@ -86,7 +86,7 @@ export default function AdminOrdersPage() {
         if (active) void load().catch(() => setMessage("نوێکردنەوەی مێژوو سەرکەوتوو نەبوو."));
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "order_live_locations" }, () => {
-        if (active) void load().catch(() => setMessage("نوێکردنەوەی شوێنی کپتن سەرکەوتوو نەبوو."));
+        if (active) void load().catch(() => setMessage("نوێکردنەوەی شوێنی کاپتن سەرکەوتوو نەبوو."));
       }).subscribe();
     return () => { active = false; void supabase.removeChannel(channel); };
   }, [load]);
@@ -144,8 +144,13 @@ export default function AdminOrdersPage() {
                       </div>
                       <div className="mt-4">
                         <h3 className="flex items-center gap-2 text-sm font-black"><Clock3 size={16}/> مێژووی دۆخ</h3>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {orderEvents.map((event) => <span key={event.id} className="rounded-lg bg-slate-50 px-2 py-1 text-xs">{labels[event.to_status] || event.to_status} · {new Date(event.created_at).toLocaleTimeString("ckb-IQ")}</span>)}
+                        <div className="mt-2 overflow-hidden rounded-xl border border-slate-100 divide-y divide-slate-100">
+                          {[...orderEvents].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((event, index) => (
+                            <div key={event.id} className="flex items-center justify-between gap-3 p-3">
+                              <div><p className="text-sm font-bold">{labels[event.to_status] || event.to_status}</p><p className="mt-1 text-xs text-slate-400">{new Date(event.created_at).toLocaleString("ckb-IQ")}</p></div>
+                              {index === 0 && <span className="rounded-full bg-orange-50 px-2 py-1 text-[10px] font-bold text-orange-700">نوێترین</span>}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -156,7 +161,7 @@ export default function AdminOrdersPage() {
                       <div className="mt-4 space-y-2">
                         {actions.map((action) => <button key={action} disabled={busyId === order.id} onClick={() => void change(order.id, action)} className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold disabled:opacity-50 ${["rejected","cancelled"].includes(action) ? "bg-red-50 text-red-700" : "bg-shakh-blue text-white"}`}>{busyId === order.id ? "تکایە چاوەڕێ بکە..." : labels[action]}</button>)}
                       </div>
-                      {order.status === "ready_for_pickup" && <Link href="/dashboard/admin/captains" className="mt-3 block rounded-xl bg-shakh-orange px-3 py-2.5 text-center text-sm font-bold text-white"><Truck size={15} className="mr-1 inline"/> دیاریکردنی کپتن</Link>}
+                      {order.status === "ready_for_pickup" && <Link href="/dashboard/admin/captains" className="mt-3 block rounded-xl bg-shakh-orange px-3 py-2.5 text-center text-sm font-bold text-white"><Truck size={15} className="mr-1 inline"/> دیاریکردنی کاپتن</Link>}
                       {order.settled_at && <p className="mt-3 text-xs font-bold text-green-700">حساب داخراوەتەوە</p>}
                     </aside>
                   </div>
