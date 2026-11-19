@@ -315,7 +315,7 @@ export default function StorePage() {
         await supabase.storage.from("product-images").remove([editing.image_path]);
       }
 
-      setMessage(editing ? "کاڵاکە بە سەرکەوتوویی نوێکرایەوە." : "کاڵای نوێ زیاد کرا.");
+      setMessage(editing ? "کاڵاکە نوێکرایەوە." : isAdmin ? "کاڵا بۆ شاخ ستۆر زیاد کرا." : "پۆستەکەت نێردرا بۆ سوپەر ئەدمین. تا دیاریکردنی کۆمسیۆن، ناچالاک و نادیار دەمێنێتەوە؛ ئاگادارکردنەوەش بۆت نێردرا.");
       resetProductForm();
       await load();
     } catch (error) {
@@ -372,6 +372,8 @@ export default function StorePage() {
         </header>
 
         {message && <p role="status" className="mt-5 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">{message}</p>}
+        {!isAdmin && merchant?.approval_status === "approved" && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><b>ڕێسای کۆمسیۆنی پۆست:</b> هەر پۆستێکی نوێ تا سوپەر ئەدمین کۆمسیۆنی هەر دانەیەکی دیاری نەکات، ناچالاک و نادیار دەمێنێتەوە. دوای دیاریکردنی کۆمسیۆن، پۆستەکە چالاک دەبێت. کۆمسیۆن لە کاتی فرۆشتن و تەواوبوونی گەیاندن لە جزدان کەم دەکرێتەوە.</div>}
+
         {!isAdmin && merchant?.approval_status === "approved" && walletBalance <= 0 && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">بۆ پۆستکردن یان دەستکاریکردنی کاڵا، جزدانەکەت نابێت بەتاڵ بێت. باڵانسی ئێستا: {walletBalance.toLocaleString("en-US")} د.ع. <Link href="/dashboard/wallet" className="font-black underline">پڕکردنەوەی جزدان</Link></div>}
 
         {role === "customer" && !merchant && (
