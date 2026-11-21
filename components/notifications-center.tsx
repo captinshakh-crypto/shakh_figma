@@ -161,24 +161,25 @@ export default function NotificationsCenter() {
   }
 
   async function disablePush() {
-    if (!userId || pushBusy) return;
-    if (!pushBusy) {
-      setPushBusy(true);
-      setPushMessage("");
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-          await createClient().from("push_subscriptions").delete().eq("endpoint", subscription.endpoint).eq("user_id", userId);
-          await subscription.unsubscribe();
-        }
-        setPushState("off");
-        setPushMessage("ئاگادارکردنەوەی Push ناچالاک کرا.");
-      } catch (error) {
-        setPushMessage(error instanceof Error ? error.message : "ناچالاککردنی Push سەرکەوتوو نەبوو.");
-      } finally {
-        setPushBusy(false);
+    const uid = userId;
+    if (!uid || pushBusy) return;
+    setPushBusy(true);
+    setPushMessage("");
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        const { error } = await createClient().from("push_subscriptions").delete()
+          .eq("endpoint", subscription.endpoint).eq("user_id", uid);
+        if (error) throw error;
+        await subscription.unsubscribe();
       }
+      setPushState("off");
+      setPushMessage("ئاگادارکردنەوەی Push ناچالاک کرا.");
+    } catch (error) {
+      setPushMessage(error instanceof Error ? error.message : "ناچالاککردنی Push سەرکەوتوو نەبوو.");
+    } finally {
+      setPushBusy(false);
     }
   }
 
