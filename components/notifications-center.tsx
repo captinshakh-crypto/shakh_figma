@@ -161,6 +161,7 @@ export default function NotificationsCenter() {
   }
 
   async function disablePush() {
+    if (!userId || pushBusy) return;
     if (!pushBusy) {
       setPushBusy(true);
       setPushMessage("");
