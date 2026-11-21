@@ -6,12 +6,31 @@ import { createClient } from "@/lib/supabase/client";
 
 type Notice = { id: string; title: string; body: string; kind: string; created_at: string; read_at: string | null };
 
+function urlBase64ToUint8Array(value: string): Uint8Array {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  const output = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+  return output;
+}
+
+function arrayBufferToBase64(value: ArrayBuffer): string {
+  const bytes = new Uint8Array(value);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return window.btoa(binary);
+}
+
 export default function NotificationsCenter() {
   const [userId, setUserId] = useState<string | null>(null);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [open, setOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
   const [ready, setReady] = useState(false);
+  const [pushState, setPushState] = useState<"unsupported" | "off" | "on" | "denied">("off");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMessage, setPushMessage] = useState("");
   const audioRef = useRef<AudioContext | null>(null);
   const knownIds = useRef<Set<string>>(new Set());
 
@@ -85,6 +104,83 @@ export default function NotificationsCenter() {
     return () => { void supabase.removeChannel(channel); };
   }, [userId, playSound]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      setPushState("unsupported");
+      return;
+    }
+    if (Notification.permission === "denied") setPushState("denied");
+    else if (Notification.permission === "granted") {
+      void navigator.serviceWorker.ready.then((registration) =>
+        registration.pushManager.getSubscription().then((subscription) => setPushState(subscription ? "on" : "off"))
+      );
+    } else setPushState("off");
+  }, []);
+
+  async function enablePush() {
+    if (!userId || pushBusy) return;
+    setPushBusy(true);
+    setPushMessage("");
+    try {
+      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!publicKey) throw new Error("کلیلی گشتی Push لە Vercel دانەنراوە.");
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        setPushState("unsupported");
+        throw new Error("ئەم وێبگەڕە Push Notification پشتگیری ناکات.");
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setPushState(permission === "denied" ? "denied" : "off");
+        throw new Error("مۆڵەتی ئاگادارکردنەوەت ڕەتکردەوە یان هێشتا ڕێگەی پێ نەداوە.");
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+      });
+      const p256dh = subscription.getKey("p256dh");
+      const auth = subscription.getKey("auth");
+      if (!p256dh || !auth) throw new Error("زانیاری پاراستنی Push لە وێبگەڕەکە نەدۆزرایەوە.");
+      const { error } = await createClient().from("push_subscriptions").upsert({
+        user_id: userId,
+        endpoint: subscription.endpoint,
+        p256dh: arrayBufferToBase64(p256dh),
+        auth: arrayBufferToBase64(auth),
+        user_agent: navigator.userAgent,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "endpoint" });
+      if (error) throw error;
+      setPushState("on");
+      setPushMessage("ئاگادارکردنەوەی Push چالاک کرا.");
+    } catch (error) {
+      setPushMessage(error instanceof Error ? error.message : "چالاککردنی Push سەرکەوتوو نەبوو.");
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  async function disablePush() {
+    if (!pushBusy) {
+      setPushBusy(true);
+      setPushMessage("");
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          await createClient().from("push_subscriptions").delete().eq("endpoint", subscription.endpoint).eq("user_id", userId);
+          await subscription.unsubscribe();
+        }
+        setPushState("off");
+        setPushMessage("ئاگادارکردنەوەی Push ناچالاک کرا.");
+      } catch (error) {
+        setPushMessage(error instanceof Error ? error.message : "ناچالاککردنی Push سەرکەوتوو نەبوو.");
+      } finally {
+        setPushBusy(false);
+      }
+    }
+  }
+
   async function markRead(id: string) {
     const now = new Date().toISOString();
     setNotices((current) => current.map((item) => item.id === id ? { ...item, read_at: now } : item));
@@ -136,6 +232,20 @@ export default function NotificationsCenter() {
             <div className="flex items-center justify-between px-4 py-2">
               <span className="text-xs text-slate-500">{soundOn ? "دەنگ چالاکە" : "بۆ دەنگ، دوگمەی دەنگ چالاک بکە"}</span>
               <button onClick={() => void markAllRead()} disabled={!unread} className="flex items-center gap-1 text-xs font-bold text-shakh-blue disabled:opacity-40"><CheckCheck size={14}/> خوێندنەوەی هەموو</button>
+            </div>
+            <div className="border-t bg-slate-50 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <b className="text-xs">ئاگادارکردنەوە لە کاتی داخستنی ئەپ</b>
+                  <p className="mt-1 text-[11px] text-slate-500">{pushState === "on" ? "Push چالاکە" : pushState === "denied" ? "مۆڵەتی وێبگەڕ ڕەتکراوەتەوە" : pushState === "unsupported" ? "ئەم وێبگەڕە پشتگیری ناکات" : "بۆ وەرگرتنی ئاگاداری، چالاکی بکە"}</p>
+                </div>
+                {pushState === "on" ? (
+                  <button onClick={() => void disablePush()} disabled={pushBusy} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold disabled:opacity-50">{pushBusy ? "..." : "ناچالاککردن"}</button>
+                ) : (
+                  <button onClick={() => void enablePush()} disabled={pushBusy || pushState === "unsupported" || pushState === "denied"} className="rounded-lg bg-shakh-blue px-3 py-2 text-xs font-bold text-white disabled:opacity-50">{pushBusy ? "..." : "چالاککردن"}</button>
+                )}
+              </div>
+              {pushMessage && <p role="status" className="mt-2 text-xs text-slate-600">{pushMessage}</p>}
             </div>
             <div className="max-h-[60vh] overflow-y-auto">
               {notices.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">هیچ ئاگادارییەک نییە.</p> : notices.map((item) => (
