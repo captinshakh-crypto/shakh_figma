@@ -15,7 +15,9 @@ begin
       check (
         (delivery_latitude is null and delivery_longitude is null)
         or (
-          delivery_latitude between -90 and 90
+          delivery_latitude is not null
+          and delivery_longitude is not null
+          and delivery_latitude between -90 and 90
           and delivery_longitude between -180 and 180
         )
       );
