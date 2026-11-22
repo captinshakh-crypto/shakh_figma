@@ -23,6 +23,8 @@ type Order = {
   delivery_address: string | null;
   delivery_phone: string | null;
   delivery_notes: string | null;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
   settled_at: string | null;
 };
 
@@ -112,7 +114,7 @@ export default function OrdersPage() {
     setRole(currentRole);
 
     let query = supabase.from("orders").select(
-      "id,customer_id,merchant_id,captain_user_id,service_zone_id,status,subtotal_iqd,delivery_fee_iqd,platform_delivery_share_iqd,captain_delivery_share_iqd,total_iqd,reward_amount_iqd,placed_at,delivery_address,delivery_phone,delivery_notes,settled_at"
+      "id,customer_id,merchant_id,captain_user_id,service_zone_id,status,subtotal_iqd,delivery_fee_iqd,platform_delivery_share_iqd,captain_delivery_share_iqd,total_iqd,reward_amount_iqd,placed_at,delivery_address,delivery_phone,delivery_notes,delivery_latitude,delivery_longitude,settled_at"
     ).order("placed_at", { ascending: false }).limit(100);
 
     if (currentRole === "customer") {
@@ -276,7 +278,7 @@ export default function OrdersPage() {
                       {["assigned", "picked_up"].includes(order.status) && (
                         <div className="mt-4">
                           {liveLocations[order.id] ? (
-                            <OrderLiveMap latitude={liveLocations[order.id].latitude} longitude={liveLocations[order.id].longitude} accuracyM={liveLocations[order.id].accuracy_m} updatedAt={liveLocations[order.id].updated_at} deliveryAddress={order.delivery_address}/>
+                            <OrderLiveMap latitude={liveLocations[order.id].latitude} longitude={liveLocations[order.id].longitude} accuracyM={liveLocations[order.id].accuracy_m} updatedAt={liveLocations[order.id].updated_at} deliveryAddress={order.delivery_address} deliveryLatitude={order.delivery_latitude} deliveryLongitude={order.delivery_longitude}/>
                           ) : (
                             <p className="rounded-xl border border-dashed border-slate-300 p-3 text-sm text-slate-500">کاپتن هێشتا شوێنکەوتنی GPS چالاک نەکردووە.</p>
                           )}
