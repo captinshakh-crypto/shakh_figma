@@ -276,7 +276,7 @@ export default function OrdersPage() {
                       {["assigned", "picked_up"].includes(order.status) && (
                         <div className="mt-4">
                           {liveLocations[order.id] ? (
-                            <OrderLiveMap latitude={liveLocations[order.id].latitude} longitude={liveLocations[order.id].longitude} accuracyM={liveLocations[order.id].accuracy_m} updatedAt={liveLocations[order.id].updated_at}/>
+                            <OrderLiveMap latitude={liveLocations[order.id].latitude} longitude={liveLocations[order.id].longitude} accuracyM={liveLocations[order.id].accuracy_m} updatedAt={liveLocations[order.id].updated_at} deliveryAddress={order.delivery_address}/>
                           ) : (
                             <p className="rounded-xl border border-dashed border-slate-300 p-3 text-sm text-slate-500">کاپتن هێشتا شوێنکەوتنی GPS چالاک نەکردووە.</p>
                           )}
