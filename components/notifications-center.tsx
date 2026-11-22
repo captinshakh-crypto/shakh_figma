@@ -28,6 +28,8 @@ export default function NotificationsCenter() {
   const [open, setOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [realtimeState, setRealtimeState] = useState<"connecting" | "connected" | "error">("connecting");
   const [pushState, setPushState] = useState<"unsupported" | "off" | "on" | "denied">("off");
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMessage, setPushMessage] = useState("");
@@ -62,20 +64,39 @@ export default function NotificationsCenter() {
     const { data, error } = await supabase.from("notifications")
       .select("id,title,body,kind,created_at,read_at")
       .eq("user_id", uid).order("created_at", { ascending: false }).limit(30);
-    if (error) return;
+    if (error) {
+      setLoadError("نەتوانرا ئاگادارییەکان باربکرێن. پەیوەندی ئینتەرنێت و مۆڵەتی هەژمارەکەت بپشکنە.");
+      setReady(true);
+      return;
+    }
     const rows = (data || []) as Notice[];
     rows.forEach((row) => knownIds.current.add(row.id));
     setNotices(rows);
+    setLoadError("");
     setReady(true);
   }, []);
 
   useEffect(() => {
     let active = true;
     const supabase = createClient();
-    void supabase.auth.getUser().then(({ data }) => {
-      if (!active || !data.user) return;
+    void supabase.auth.getUser().then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        setLoadError("پشکنینی هەژمار سەرکەوتوو نەبوو. تکایە دووبارە بچۆ ژوورەوە.");
+        setReady(true);
+        return;
+      }
+      if (!data.user) {
+        setUserId(null);
+        setReady(true);
+        return;
+      }
       setUserId(data.user.id);
       void load(data.user.id);
+    }).catch(() => {
+      if (!active) return;
+      setLoadError("پەیوەندی بە خزمەتگوزاری ئاگادارکردنەوە نەکرا.");
+      setReady(true);
     });
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
@@ -83,7 +104,8 @@ export default function NotificationsCenter() {
       setUserId(uid);
       setNotices([]);
       knownIds.current.clear();
-      setReady(false);
+      setLoadError("");
+      setReady(!uid);
       if (uid) void load(uid);
     });
     return () => { active = false; authListener.subscription.unsubscribe(); };
@@ -100,7 +122,11 @@ export default function NotificationsCenter() {
         setNotices((current) => [row, ...current].slice(0, 30));
         void playSound();
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setRealtimeState("connected");
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setRealtimeState("error");
+        else setRealtimeState("connecting");
+      });
     return () => { void supabase.removeChannel(channel); };
   }, [userId, playSound]);
 
@@ -114,9 +140,36 @@ export default function NotificationsCenter() {
     else if (Notification.permission === "granted") {
       void navigator.serviceWorker.ready.then((registration) =>
         registration.pushManager.getSubscription().then((subscription) => setPushState(subscription ? "on" : "off"))
-      );
+      ).catch(() => setPushState("off"));
     } else setPushState("off");
   }, []);
+
+  // Re-sync an already granted browser subscription to the signed-in user's database row.
+  // This repairs missing rows without asking the user to grant permission again.
+  useEffect(() => {
+    if (!userId || typeof window === "undefined" || !("serviceWorker" in navigator) ||
+        !("PushManager" in window) || !("Notification" in window) || Notification.permission !== "granted") return;
+    let active = true;
+    void navigator.serviceWorker.ready.then(async (registration) => {
+      const subscription = await registration.pushManager.getSubscription();
+      if (!active || !subscription) return;
+      const p256dh = subscription.getKey("p256dh");
+      const auth = subscription.getKey("auth");
+      if (!p256dh || !auth) return;
+      const { error } = await createClient().from("push_subscriptions").upsert({
+        user_id: userId,
+        endpoint: subscription.endpoint,
+        p256dh: arrayBufferToBase64(p256dh),
+        auth: arrayBufferToBase64(auth),
+        user_agent: navigator.userAgent,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "endpoint" });
+      if (active && !error) setPushState("on");
+    }).catch(() => {
+      if (active) setPushMessage("تۆمارکردنی Push لەم ئامێرەدا سەرکەوتوو نەبوو.");
+    });
+    return () => { active = false; };
+  }, [userId]);
 
   async function enablePush() {
     if (!userId || pushBusy) return;
@@ -232,7 +285,10 @@ export default function NotificationsCenter() {
               </div>
             </header>
             <div className="flex items-center justify-between px-4 py-2">
-              <span className="text-xs text-slate-500">{soundOn ? "دەنگ چالاکە" : "بۆ دەنگ، دوگمەی دەنگ چالاک بکە"}</span>
+              <span className="text-xs text-slate-500">
+                {realtimeState === "connected" ? "پەیوەندی ڕاستەوخۆ چالاکە" : realtimeState === "error" ? "پەیوەندی ڕاستەوخۆ پچڕاوە" : "پەیوەندی ڕاستەوخۆ دەبەسترێت"}
+                {" · "}{soundOn ? "دەنگ چالاکە" : "بۆ دەنگ، دوگمەی دەنگ چالاک بکە"}
+              </span>
               <button onClick={() => void markAllRead()} disabled={!unread} className="flex items-center gap-1 text-xs font-bold text-shakh-blue disabled:opacity-40"><CheckCheck size={14}/> خوێندنەوەی هەموو</button>
             </div>
             <div className="border-t bg-slate-50 px-4 py-3">
@@ -250,7 +306,10 @@ export default function NotificationsCenter() {
               {pushMessage && <p role="status" className="mt-2 text-xs text-slate-600">{pushMessage}</p>}
             </div>
             <div className="max-h-[60vh] overflow-y-auto">
-              {notices.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">هیچ ئاگادارییەک نییە.</p> : notices.map((item) => (
+              {loadError && <div role="alert" className="border-t bg-red-50 px-4 py-3 text-xs text-red-700">{loadError}
+                <button onClick={() => { setReady(false); setLoadError(""); if (userId) void load(userId); }} className="mr-2 font-bold underline">دووبارە هەوڵبدەوە</button>
+              </div>}
+              {notices.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">{loadError ? "ئێستا ئاگادارییەکان بەردەست نین." : "هیچ ئاگادارییەک نییە."}</p> : notices.map((item) => (
                 <button key={item.id} onClick={() => { if (!item.read_at) void markRead(item.id); }} className={"block w-full border-t px-4 py-3 text-right hover:bg-slate-50 " + (item.read_at ? "bg-white" : "bg-orange-50/70")}>
                   <div className="flex items-start justify-between gap-3"><b className="text-sm">{item.title}</b>{!item.read_at && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-shakh-orange"/>}</div>
                   <p className="mt-1 text-sm text-slate-600">{item.body}</p>
