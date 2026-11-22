@@ -36,8 +36,14 @@ self.addEventListener("push", (event) => {
     body: typeof payload.body === "string" ? payload.body : "ئاگادارییەکی نوێت هەیە",
     icon: "/icon.svg",
     badge: "/icon.svg",
-    tag: typeof payload.tag === "string" ? payload.tag : "shakh-notification",
-    data: { url: typeof payload.url === "string" ? payload.url : "/" },
+    tag: typeof payload.tag === "string"
+      ? payload.tag
+      : (typeof payload.notification_id === "string" ? "shakh-" + payload.notification_id : "shakh-notification"),
+    renotify: true,
+    data: {
+      url: typeof payload.url === "string" ? payload.url : "/",
+      notificationId: typeof payload.notification_id === "string" ? payload.notification_id : null,
+    },
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
