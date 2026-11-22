@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { CheckCircle2, LocateFixed, MapPin } from "lucide-react";
 
 type CartItem = {
   product_id: string;
@@ -41,6 +42,8 @@ export default function CartPage() {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryPhone, setDeliveryPhone] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
+  const [deliveryCoordinates, setDeliveryCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [cartVerified, setCartVerified] = useState(false);
@@ -169,6 +172,29 @@ export default function CartPage() {
     persist(next);
   }
 
+  function captureDeliveryLocation() {
+    if (!navigator.geolocation) {
+      setMessage("ئەم وێبگەڕە GPS پشتگیری ناکات. تکایە لە مۆبایل یان وێبگەڕێکی نوێتر هەوڵ بدەرەوە.");
+      return;
+    }
+    setLocating(true);
+    setMessage("");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setDeliveryCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        setLocating(false);
+        setMessage("شوێنی GPS وەک شوێنی گەیاندن تۆمار کرا.");
+      },
+      (error) => {
+        setLocating(false);
+        setMessage(error.code === error.PERMISSION_DENIED
+          ? "مۆڵەتی GPS ڕەتکرایەوە. لە ڕێکخستنەکانی وێبگەڕ مۆڵەتی شوێن چالاک بکە."
+          : "نەتوانرا شوێنی GPS وەربگیرێت. دڵنیابە GPS چالاکە و دووبارە هەوڵ بدەرەوە.");
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
   async function checkout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!items.length || !zone || !cartVerified) return;
@@ -192,7 +218,7 @@ export default function CartPage() {
         merchant_id: group.merchantId,
         items: group.items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
       }));
-      const { data, error } = await supabase.rpc("create_multi_store_orders_v1", {
+      const { data, error } = await supabase.rpc("create_multi_store_orders_with_location_v1", {
         p_service_zone_id: zone,
         p_groups: groups,
         p_delivery_address: deliveryAddress.trim(),
@@ -200,6 +226,8 @@ export default function CartPage() {
         p_delivery_notes: deliveryNotes.trim(),
         p_reward_campaign_id: referralCampaignId || undefined,
         p_idempotency_key: key,
+        p_delivery_latitude: deliveryCoordinates?.latitude ?? null,
+        p_delivery_longitude: deliveryCoordinates?.longitude ?? null,
       });
       if (error) throw error;
       const orderIds = (data || []) as string[];
@@ -267,6 +295,19 @@ export default function CartPage() {
                 <label className="mt-4 block text-sm font-bold">ناونیشانی تەواوی گەیاندن
                   <textarea required minLength={8} maxLength={500} rows={3} value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} placeholder="شار، گەڕەک، شەقام، کوڵان و ژمارەی خانوو..." className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                 </label>
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 rounded-lg bg-orange-100 p-2 text-shakh-orange"><MapPin size={18}/></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold">شوێنی وردی گەیاندن لەسەر نەخشە</p>
+                      <p className="mt-1 text-xs leading-6 text-slate-500">لە شوێنی گەیاندن بوەستە و GPS چالاک بکە؛ ئەم خاڵە بۆ ڕێگای کاپتن و Waze بەکاردێت.</p>
+                      {deliveryCoordinates && <p className="mt-2 flex items-center gap-1 text-xs font-bold text-emerald-700"><CheckCircle2 size={14}/> شوێن تۆمار کرا · {deliveryCoordinates.latitude.toFixed(5)}, {deliveryCoordinates.longitude.toFixed(5)}</p>}
+                    </div>
+                  </div>
+                  <button type="button" onClick={captureDeliveryLocation} disabled={locating} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-shakh-blue px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+                    <LocateFixed size={17}/>{locating ? "وەرگرتنی شوێن..." : deliveryCoordinates ? "نوێکردنەوەی شوێنی گەیاندن" : "دیاریکردنی شوێنی گەیاندن بە GPS"}
+                  </button>
+                </div>
                 <label className="mt-4 block text-sm font-bold">ژمارەی تەلەفۆن بۆ پەیوەندی
                   <input required type="tel" minLength={7} maxLength={24} value={deliveryPhone} onChange={(event) => setDeliveryPhone(event.target.value)} placeholder="07xxxxxxxxx" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                 </label>
