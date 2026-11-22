@@ -15,6 +15,13 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -26,6 +33,7 @@ Deno.serve(async (req: Request) => {
   const subject = Deno.env.get("VAPID_SUBJECT");
 
   if (!supabaseUrl || !serviceKey || !publicKey || !privateKey || !subject) {
+    console.error("Push service configuration is incomplete");
     return json({ error: "Push service is not configured" }, 500);
   }
 
@@ -33,11 +41,18 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
+  // pg_net sends the project's legacy service_role JWT as Authorization: Bearer
+  // for database-originated requests. Verify it directly; never trust the
+  // presence of an Authorization header alone.
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const bearerToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+  const isDatabaseWebhook = constantTimeEqual(bearerToken, serviceKey);
+
+  // Keep the Vault-backed custom header as a backwards-compatible path.
   const suppliedWebhookSecret = req.headers.get("x-shakh-push-auth")?.trim() ?? "";
-  let isTrustedWebhook = false;
-  // Validate the webhook against the single source of truth in Supabase Vault.
-  // This avoids drift between a duplicated Edge Function secret and the database secret.
-  if (suppliedWebhookSecret) {
+  let isTrustedWebhook = isDatabaseWebhook;
+
+  if (!isTrustedWebhook && suppliedWebhookSecret) {
     const { data: secretValid, error: secretCheckError } = await supabase.rpc(
       "verify_push_webhook_secret",
       { p_candidate: suppliedWebhookSecret },
@@ -51,20 +66,18 @@ Deno.serve(async (req: Request) => {
 
   let userId: string | null = null;
   if (!isTrustedWebhook) {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Unauthorized" }, 401);
-    const token = authHeader.replace(/^Bearer\s+/i, "");
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (!bearerToken) return json({ error: "Unauthorized" }, 401);
+    const { data: userData, error: userError } = await supabase.auth.getUser(bearerToken);
     if (userError || !userData.user) return json({ error: "Unauthorized" }, 401);
     userId = userData.user.id;
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", userId)
       .maybeSingle();
 
-    if (!profile || profile.role !== "super_admin") {
+    if (profileError || !profile || profile.role !== "super_admin") {
       return json({ error: "Forbidden" }, 403);
     }
   }
@@ -114,15 +127,16 @@ Deno.serve(async (req: Request) => {
   const expired: string[] = [];
   for (const item of subscriptions) {
     try {
-      await webpush.sendNotification({
-        endpoint: item.endpoint,
-        keys: { p256dh: item.p256dh, auth: item.auth },
-      }, message);
+      await webpush.sendNotification(
+        { endpoint: item.endpoint, keys: { p256dh: item.p256dh, auth: item.auth } },
+        message,
+      );
       sent++;
     } catch (error) {
       failed++;
       const status = (error as { statusCode?: number }).statusCode;
       if (status === 404 || status === 410) expired.push(item.id);
+      else console.error("Push delivery failed:", status ?? "unknown");
     }
   }
 
