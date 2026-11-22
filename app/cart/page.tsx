@@ -28,7 +28,13 @@ type ProductSnapshot = {
   is_shakh_store: boolean;
 };
 
-type Zone = { id: string; name: string; delivery_fee_iqd: number };
+type ZoneBoundary = { type: "Polygon"; coordinates: [number, number][][] };
+type Zone = { id: string; name: string; delivery_fee_iqd: number; boundary_geojson: ZoneBoundary | null };
+function pointInsideZone(boundary: ZoneBoundary, latitude: number, longitude: number) {
+ const ring=boundary.coordinates?.[0]; if(!ring||ring.length<4)return false; let inside=false;
+ for(let i=0,j=ring.length-1;i<ring.length;j=i++){const [xi,yi]=ring[i];const [xj,yj]=ring[j];const crosses=(yi>latitude)!==(yj>latitude)&&longitude<((xj-xi)*(latitude-yi))/(yj-yi)+xi;if(crosses)inside=!inside;}
+ return inside;
+}
 
 const unitLabels: Record<string, string> = {
   piece: "دانە", kg: "کیلۆگرام", g: "گرام", liter: "لیتر", pack: "پاکەت", box: "کارتۆن",
@@ -42,7 +48,7 @@ export default function CartPage() {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryPhone, setDeliveryPhone] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
-  const [deliveryCoordinates, setDeliveryCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [deliveryCoordinates, setDeliveryCoordinates] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -114,10 +120,10 @@ export default function CartPage() {
 
       const [{ data: { user } }, zoneResult] = await Promise.all([
         supabase.auth.getUser(),
-        supabase.from("service_zones").select("id,name,delivery_fee_iqd").eq("is_active", true).order("name"),
+        supabase.from("service_zones").select("id,name,delivery_fee_iqd,boundary_geojson").eq("is_active", true).order("name"),
       ]);
       if (!active) return;
-      setZones(zoneResult.data || []);
+      setZones((zoneResult.data || []) as unknown as Zone[]);
       if (zoneResult.data?.[0]) setZone(zoneResult.data[0].id);
       if (user) {
         const { data: profile } = await supabase.from("profiles").select("phone").eq("id", user.id).maybeSingle();
@@ -181,9 +187,12 @@ export default function CartPage() {
     setMessage("");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setDeliveryCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-        setLocating(false);
-        setMessage("شوێنی GPS وەک شوێنی گەیاندن تۆمار کرا.");
+        const coordinates={latitude:position.coords.latitude,longitude:position.coords.longitude,accuracy:position.coords.accuracy};
+        setDeliveryCoordinates(coordinates); setLocating(false);
+        const selectedZone=zones.find((item)=>item.id===zone);
+        if(!selectedZone?.boundary_geojson)setMessage("سنووری نەخشەی ئەم زۆنە هێشتا دیاری نەکراوە؛ تکایە پەیوەندی بە سوپەر ئەدمینەوە بکە.");
+        else if(!pointInsideZone(selectedZone.boundary_geojson,coordinates.latitude,coordinates.longitude))setMessage("گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ ئەم شوێنە لە دەرەوەی زۆنی هەڵبژێردراوە.");
+        else setMessage("شوێنی GPS تۆمار کرا و لە ناو زۆنی گەیاندنە.");
       },
       (error) => {
         setLocating(false);
@@ -202,6 +211,10 @@ export default function CartPage() {
     if (mixedReferrals) { setMessage("کاڵاکانی سەبەتەکەت بە چەند لینکی شێر و خەڵات زیاد کراون؛ تکایە تەنها یەک لینکی شێر و خەڵات بەکاربهێنە."); return; }
     if (deliveryAddress.trim().length < 8) { setMessage("ناونیشانی تەواوی گەیاندن بنووسە."); return; }
     if (deliveryPhone.replace(/\D/g, "").length < 7) { setMessage("ژمارەی تەلەفۆنی دروست بنووسە."); return; }
+    const selectedZone=zones.find((item)=>item.id===zone);
+    if(!deliveryCoordinates){setMessage("پێویستە سەرەتا بە دوکمەی «گەیاندنی شوێنی کڕیار بە GPS» شوێنی خۆت دیاری بکەیت.");return;}
+    if(!selectedZone?.boundary_geojson){setMessage("سنووری نەخشەی ئەم زۆنە دیاری نەکراوە؛ لەم زۆنەدا ئۆردەر وەرناگیرێت تا سنوورەکە دیاری بکرێت.");return;}
+    if(!pointInsideZone(selectedZone.boundary_geojson,deliveryCoordinates.latitude,deliveryCoordinates.longitude)){setMessage("گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ شوێنی GPS لە دەرەوەی زۆنی هەڵبژێردراوە.");return;}
 
     setBusy(true);
     setMessage("");
@@ -301,11 +314,12 @@ export default function CartPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold">شوێنی وردی گەیاندن لەسەر نەخشە</p>
                       <p className="mt-1 text-xs leading-6 text-slate-500">لە شوێنی گەیاندن بوەستە و GPS چالاک بکە؛ ئەم خاڵە بۆ ڕێگای کاپتن و Waze بەکاردێت.</p>
-                      {deliveryCoordinates && <p className="mt-2 flex items-center gap-1 text-xs font-bold text-emerald-700"><CheckCircle2 size={14}/> شوێن تۆمار کرا · {deliveryCoordinates.latitude.toFixed(5)}, {deliveryCoordinates.longitude.toFixed(5)}</p>}
+                      {deliveryCoordinates && <p className="mt-2 flex items-center gap-1 text-xs font-bold text-emerald-700"><CheckCircle2 size={14}/> GPS ±{Math.round(deliveryCoordinates.accuracy)} مەتر · {deliveryCoordinates.latitude.toFixed(5)}, {deliveryCoordinates.longitude.toFixed(5)}</p>}
                     </div>
                   </div>
+                  {deliveryCoordinates && <iframe title="شوێنی کڕیار لەسەر نەخشە" className="mt-3 h-56 w-full rounded-xl border-0" loading="lazy" src={`https://www.openstreetmap.org/export/embed.html?bbox=${deliveryCoordinates.longitude-0.006},${deliveryCoordinates.latitude-0.004},${deliveryCoordinates.longitude+0.006},${deliveryCoordinates.latitude+0.004}&layer=mapnik&marker=${deliveryCoordinates.latitude},${deliveryCoordinates.longitude}`} />}
                   <button type="button" onClick={captureDeliveryLocation} disabled={locating} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-shakh-blue px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-                    <LocateFixed size={17}/>{locating ? "وەرگرتنی شوێن..." : deliveryCoordinates ? "نوێکردنەوەی شوێنی گەیاندن" : "دیاریکردنی شوێنی گەیاندن بە GPS"}
+                    <LocateFixed size={17}/>{locating ? "وەرگرتنی شوێن..." : deliveryCoordinates ? "نوێکردنەوەی شوێنی گەیاندن بە GPS" : "گەیاندنی شوێنی کڕیار بە GPS"}
                   </button>
                 </div>
                 <label className="mt-4 block text-sm font-bold">ژمارەی تەلەفۆن بۆ پەیوەندی
@@ -318,10 +332,14 @@ export default function CartPage() {
 
               <section className="rounded-2xl bg-white p-5 shadow-soft">
                 <h2 className="font-black">زۆنی گەیاندن</h2>
-                <select required value={zone} onChange={(event) => setZone(event.target.value)} className="mt-3 w-full rounded-xl border p-3">
+                <select required value={zone} onChange={(event) => {
+                  const nextZoneId=event.target.value;setZone(nextZoneId);const nextZone=zones.find((item)=>item.id===nextZoneId);
+                  if(deliveryCoordinates){if(!nextZone?.boundary_geojson)setMessage("سنووری نەخشەی ئەم زۆنە دیاری نەکراوە.");else if(!pointInsideZone(nextZone.boundary_geojson,deliveryCoordinates.latitude,deliveryCoordinates.longitude))setMessage("گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ لە دەرەوەی ئەم زۆنەیە.");else setMessage("شوێنی GPS لە ناو زۆنی هەڵبژێردراوە.");}
+                }} className="mt-3 w-full rounded-xl border p-3">
                   <option value="">زۆن هەڵبژێرە</option>
                   {zones.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.delivery_fee_iqd.toLocaleString("en-US")} د.ع</option>)}
                 </select>
+                {(() => { const selected=zones.find((item)=>item.id===zone);return selected&&<p className={`mt-3 rounded-xl p-3 text-xs font-bold ${!selected.boundary_geojson?"bg-amber-50 text-amber-800":deliveryCoordinates&&pointInsideZone(selected.boundary_geojson,deliveryCoordinates.latitude,deliveryCoordinates.longitude)?"bg-emerald-50 text-emerald-800":"bg-rose-50 text-rose-800"}`}>{!selected.boundary_geojson?"سنووری ئەم زۆنە لەلایەن سوپەر ئەدمینەوە دیاری نەکراوە.":!deliveryCoordinates?"شوێنی GPS دیاری بکە تا سیستەم دڵنیایی لە ناو زۆنەکە بدات.":pointInsideZone(selected.boundary_geojson,deliveryCoordinates.latitude,deliveryCoordinates.longitude)?"شوێنی GPS لە ناو سنووری ئەم زۆنەیە.":"گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ دەرەوەی زۆنە."}</p>;})()}
                 <div className="mt-4 rounded-xl bg-shakh-mist p-4">
                   <div className="flex justify-between text-sm"><span>کۆی کاڵاکان</span><b>{subtotal.toLocaleString("en-US")} د.ع</b></div>
                   <div className="mt-2 flex justify-between text-sm"><span>کۆی کرێی گەیاندن ({storeGroups.length} فرۆشگا)</span><b>{deliveryFee.toLocaleString("en-US")} د.ع</b></div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Pencil, Plus, Save, X } from "lucide-react";
+import { ZoneBoundaryEditor, type ZoneBoundary } from "@/components/zone-boundary-editor";
 
 type Zone = {
   id: string;
@@ -13,6 +14,7 @@ type Zone = {
   shakh_delivery_share_iqd: number;
   captain_delivery_share_iqd: number;
   is_active: boolean;
+  boundary_geojson: ZoneBoundary | null;
 };
 
 const initialForm = {
@@ -31,6 +33,7 @@ export default function ZonesPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [boundary, setBoundary] = useState<ZoneBoundary | null>(null);
 
   const fee = Number(form.fee);
   const shakh = Number(form.shakh);
@@ -51,10 +54,10 @@ export default function ZonesPage() {
     if (profile?.role !== "super_admin") { window.location.href = "/dashboard"; return; }
 
     const { data, error } = await supabase.from("service_zones")
-      .select("id,name,description,delivery_fee_iqd,shakh_delivery_share_iqd,captain_delivery_share_iqd,is_active")
+      .select("id,name,description,delivery_fee_iqd,shakh_delivery_share_iqd,captain_delivery_share_iqd,is_active,boundary_geojson")
       .order("name");
     if (error) throw error;
-    setZones(data || []);
+    setZones((data || []) as unknown as Zone[]);
     setLoading(false);
   }
 
@@ -64,6 +67,7 @@ export default function ZonesPage() {
 
   function editZone(zone: Zone) {
     setEditingId(zone.id);
+    setBoundary(zone.boundary_geojson);
     setForm({
       name: zone.name,
       description: zone.description || "",
@@ -79,6 +83,7 @@ export default function ZonesPage() {
   function resetForm() {
     setEditingId(null);
     setForm(initialForm);
+    setBoundary(null);
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -98,10 +103,15 @@ export default function ZonesPage() {
         p_captain_share_iqd: captain,
         p_is_active: form.isActive,
       };
-      const { error } = editingId
-        ? await createClient().rpc("admin_save_service_zone", { ...args, p_zone_id: editingId })
-        : await createClient().rpc("admin_save_service_zone", args);
+      const supabase = createClient();
+      const { data: savedZoneId, error } = editingId
+        ? await supabase.rpc("admin_save_service_zone", { ...args, p_zone_id: editingId })
+        : await supabase.rpc("admin_save_service_zone", args);
       if (error) throw error;
+      const zoneId = editingId || savedZoneId;
+      if (!zoneId) throw new Error("ناسنامەی زۆن وەرنەگیرا.");
+      const { error: boundaryError } = await supabase.rpc("admin_save_service_zone_boundary", { p_zone_id: zoneId, p_boundary_geojson: boundary });
+      if (boundaryError) throw boundaryError;
       setMessage(editingId ? "زۆن و نرخەکانی نوێ کرانەوە." : "زۆنی نوێ زیاد کرا.");
       resetForm();
       await load();
@@ -184,6 +194,8 @@ export default function ZonesPage() {
               {!isSplitValid && <p className="mt-1">جیاوازی: {Number.isFinite(remaining) ? remaining.toLocaleString("en-US") : "—"} د.ع؛ کۆی دوو بەشەکە دەبێت کرێی گەیاندن بێت.</p>}
             </div>
 
+            <ZoneBoundaryEditor key={editingId || "new-zone"} initialValue={boundary} onChange={setBoundary} />
+
             <label className="flex items-center gap-3 text-sm font-bold">
               <input type="checkbox" checked={form.isActive} onChange={(event) => setForm((old) => ({ ...old, isActive: event.target.checked }))} className="h-4 w-4"/>
               ئەم زۆنە چالاک بێت و لە Checkout پیشان بدرێت
@@ -211,6 +223,7 @@ export default function ZonesPage() {
                     <span className={`rounded-full px-3 py-1 text-xs font-bold ${zone.is_active ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{zone.is_active ? "چالاک" : "ناچالاک"}</span>
                   </div>
                   {zone.description && <p className="mt-1 text-sm text-slate-500">{zone.description}</p>}
+                  <p className={`mt-2 text-xs font-bold ${zone.boundary_geojson ? "text-emerald-700" : "text-amber-700"}`}>{zone.boundary_geojson ? "سنووری نەخشە تۆمار کراوە" : "سنووری نەخشە دیاری نەکراوە — ئۆردەر وەرناگیرێت"}</p>
                 </div>
                 <div className="text-left">
                   <p className="text-xs text-slate-500">کرێی گەیاندن</p>

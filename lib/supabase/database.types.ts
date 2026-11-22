@@ -806,6 +806,7 @@ export type Database = {
       }
       service_zones: {
         Row: {
+          boundary_geojson: Json | null
           captain_delivery_share_iqd: number
           created_at: string
           delivery_fee_iqd: number
@@ -816,6 +817,7 @@ export type Database = {
           shakh_delivery_share_iqd: number
         }
         Insert: {
+          boundary_geojson?: Json | null
           captain_delivery_share_iqd: number
           created_at?: string
           delivery_fee_iqd?: number
@@ -826,6 +828,7 @@ export type Database = {
           shakh_delivery_share_iqd: number
         }
         Update: {
+          boundary_geojson?: Json | null
           captain_delivery_share_iqd?: number
           created_at?: string
           delivery_fee_iqd?: number
@@ -1033,6 +1036,10 @@ export type Database = {
       }
       admin_review_merchant: {
         Args: { p_approve: boolean; p_merchant_id: string }
+        Returns: undefined
+      }
+      admin_save_service_zone_boundary: {
+        Args: { p_boundary_geojson: Json | null; p_zone_id: string }
         Returns: undefined
       }
       admin_save_service_zone: {
