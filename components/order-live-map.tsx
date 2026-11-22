@@ -8,9 +8,10 @@ type Props = {
   longitude: number;
   accuracyM?: number | null;
   updatedAt: string;
+  deliveryAddress?: string | null;
 };
 
-export default function OrderLiveMap({ latitude, longitude, accuracyM, updatedAt }: Props) {
+export default function OrderLiveMap({ latitude, longitude, accuracyM, updatedAt, deliveryAddress }: Props) {
   const [stale, setStale] = useState(false);
 
   const mapUrl = useMemo(() => {
@@ -35,6 +36,9 @@ export default function OrderLiveMap({ latitude, longitude, accuracyM, updatedAt
   }, [updatedAt]);
 
   const openUrl = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`;
+  const wazeUrl = deliveryAddress?.trim()
+    ? `https://waze.com/ul?q=${encodeURIComponent(deliveryAddress.trim())}&navigate=yes`
+    : null;
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -80,9 +84,14 @@ export default function OrderLiveMap({ latitude, longitude, accuracyM, updatedAt
             </p>
           </div>
         </div>
-        <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-shakh-blue px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90">
-          <Navigation size={16}/> کردنەوەی نەخشە <ExternalLink size={13}/>
-        </a>
+        <div className="flex flex-wrap gap-2">
+          {wazeUrl && <a href={wazeUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-shakh-orange px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90">
+            <Navigation size={16}/> ڕێگای گەیاندن لە Waze <ExternalLink size={13}/>
+          </a>}
+          <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-shakh-blue px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90">
+            <MapPin size={16}/> کردنەوەی شوێن لە نەخشە <ExternalLink size={13}/>
+          </a>
+        </div>
       </div>
       <p className="border-t border-slate-100 px-4 py-2 text-[10px] text-slate-400">نەخشە: © OpenStreetMap contributors</p>
     </section>
