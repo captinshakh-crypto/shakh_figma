@@ -465,6 +465,8 @@ export type Database = {
           customer_id: string
           delivery_address: string
           delivery_fee_iqd: number
+          delivery_latitude: number | null
+          delivery_longitude: number | null
           delivery_notes: string | null
           delivery_phone: string
           id: string
@@ -489,6 +491,8 @@ export type Database = {
           customer_id: string
           delivery_address: string
           delivery_fee_iqd: number
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
           delivery_notes?: string | null
           delivery_phone: string
           id?: string
@@ -513,6 +517,8 @@ export type Database = {
           customer_id?: string
           delivery_address?: string
           delivery_fee_iqd?: number
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
           delivery_notes?: string | null
           delivery_phone?: string
           id?: string
@@ -1065,6 +1071,20 @@ export type Database = {
       create_multi_store_orders_v1: {
         Args: {
           p_delivery_address: string
+          p_delivery_notes?: string
+          p_delivery_phone: string
+          p_groups: Json
+          p_idempotency_key?: string
+          p_reward_campaign_id?: string
+          p_service_zone_id: string
+        }
+        Returns: string[]
+      }
+      create_multi_store_orders_with_location_v1: {
+        Args: {
+          p_delivery_address: string
+          p_delivery_latitude?: number | null
+          p_delivery_longitude?: number | null
           p_delivery_notes?: string
           p_delivery_phone: string
           p_groups: Json
