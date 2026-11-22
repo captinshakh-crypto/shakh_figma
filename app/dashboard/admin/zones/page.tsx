@@ -34,6 +34,7 @@ export default function ZonesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [boundary, setBoundary] = useState<ZoneBoundary | null>(null);
+  const [boundaryEditorVersion, setBoundaryEditorVersion] = useState(0);
 
   const fee = Number(form.fee);
   const shakh = Number(form.shakh);
@@ -67,6 +68,7 @@ export default function ZonesPage() {
 
   function editZone(zone: Zone) {
     setEditingId(zone.id);
+    setBoundaryEditorVersion((version) => version + 1);
     setBoundary(zone.boundary_geojson);
     setForm({
       name: zone.name,
@@ -84,6 +86,7 @@ export default function ZonesPage() {
     setEditingId(null);
     setForm(initialForm);
     setBoundary(null);
+    setBoundaryEditorVersion((version) => version + 1);
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -110,6 +113,7 @@ export default function ZonesPage() {
       if (error) throw error;
       const zoneId = editingId || savedZoneId;
       if (!zoneId) throw new Error("ناسنامەی زۆن وەرنەگیرا.");
+      setEditingId(zoneId);
       const { error: boundaryError } = await supabase.rpc("admin_save_service_zone_boundary", { p_zone_id: zoneId, p_boundary_geojson: boundary });
       if (boundaryError) throw boundaryError;
       setMessage(editingId ? "زۆن و نرخەکانی نوێ کرانەوە." : "زۆنی نوێ زیاد کرا.");
@@ -194,7 +198,7 @@ export default function ZonesPage() {
               {!isSplitValid && <p className="mt-1">جیاوازی: {Number.isFinite(remaining) ? remaining.toLocaleString("en-US") : "—"} د.ع؛ کۆی دوو بەشەکە دەبێت کرێی گەیاندن بێت.</p>}
             </div>
 
-            <ZoneBoundaryEditor key={editingId || "new-zone"} initialValue={boundary} onChange={setBoundary} />
+            <ZoneBoundaryEditor key={`${editingId || "new-zone"}-${boundaryEditorVersion}`} initialValue={boundary} onChange={setBoundary} />
 
             <label className="flex items-center gap-3 text-sm font-bold">
               <input type="checkbox" checked={form.isActive} onChange={(event) => setForm((old) => ({ ...old, isActive: event.target.checked }))} className="h-4 w-4"/>

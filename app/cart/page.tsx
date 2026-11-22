@@ -32,7 +32,7 @@ type ZoneBoundary = { type: "Polygon"; coordinates: [number, number][][] };
 type Zone = { id: string; name: string; delivery_fee_iqd: number; boundary_geojson: ZoneBoundary | null };
 function pointInsideZone(boundary: ZoneBoundary, latitude: number, longitude: number) {
  const ring=boundary.coordinates?.[0]; if(!ring||ring.length<4)return false; let inside=false;
- for(let i=0,j=ring.length-1;i<ring.length;j=i++){const [xi,yi]=ring[i];const [xj,yj]=ring[j];const crosses=(yi>latitude)!==(yj>latitude)&&longitude<((xj-xi)*(latitude-yi))/(yj-yi)+xi;if(crosses)inside=!inside;}
+ for(let i=0,j=ring.length-1;i<ring.length;j=i++){const [xi,yi]=ring[i];const [xj,yj]=ring[j];const cross=(longitude-xi)*(yj-yi)-(latitude-yi)*(xj-xi);if(Math.abs(cross)<1e-10&&longitude>=Math.min(xi,xj)&&longitude<=Math.max(xi,xj)&&latitude>=Math.min(yi,yj)&&latitude<=Math.max(yi,yj))return true;const crosses=(yi>latitude)!==(yj>latitude)&&longitude<((xj-xi)*(latitude-yi))/(yj-yi)+xi;if(crosses)inside=!inside;}
  return inside;
 }
 
