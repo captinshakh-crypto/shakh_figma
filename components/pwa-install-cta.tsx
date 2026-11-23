@@ -21,7 +21,8 @@ export default function PwaInstallCta({ compact = false }: { compact?: boolean }
       (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
     const standalone = window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-    setIsIOS(ios);
+    const safari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
+    setIsIOS(ios && safari);
     setInstalled(standalone);
 
     const onBeforeInstall = (event: Event) => {
