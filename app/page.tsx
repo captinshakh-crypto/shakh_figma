@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PwaInstallCta from "@/components/pwa-install-cta";
+import ShakhBrand from "@/components/shakh-brand";
 import { NotificationsHeaderBell } from "@/components/notifications-center";
 
 type Product = {
@@ -138,13 +139,7 @@ export default function HomePage() {
 
       <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <Link href="/" aria-label="SHAKH - سەرەتا" className="flex shrink-0 items-center gap-2.5">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-[#ff963c] to-[#ee6814] text-2xl font-black text-white shadow-lg shadow-orange-200">ش</span>
-            <span>
-              <b className="block text-lg font-black tracking-[0.14em] text-[#102f49]">SHAKH</b>
-              <small className="block text-[11px] font-medium text-slate-500">بازاڕ و گەیاندن</small>
-            </span>
-          </Link>
+          <ShakhBrand size="md" />
           <nav aria-label="ناڤی سەرەکی" className="flex items-center gap-2">
             <Link href="/shop" className="hidden rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-blue-50 hover:text-[#1769aa] sm:inline-flex">بازاڕ</Link>
             <NotificationsHeaderBell />
@@ -290,7 +285,7 @@ export default function HomePage() {
         </div>
         <div className="mt-8 flex flex-col items-center justify-between gap-5 rounded-3xl bg-[#102f49] px-6 py-8 text-center text-white sm:flex-row sm:px-9 sm:text-right">
           <div>
-            <p className="text-xs font-black text-[#ffb36f]">SHAKH MARKETPLACE</p>
+            <p className="text-xs font-black text-[#ffb36f]">SHAKH STORE</p>
             <h2 className="mt-2 text-xl font-black sm:text-2xl">ئامادەیت بازاڕەکە ببینیت؟</h2>
             <p className="mt-2 text-sm leading-7 text-blue-100">بەشەکان بگەڕێ و ئەوەی پێویستتە بدۆزەرەوە.</p>
           </div>
@@ -299,8 +294,8 @@ export default function HomePage() {
       </section>
 
       <footer className="border-t border-slate-200 bg-white px-4 py-8 text-center sm:px-6">
-        <Link href="/" className="font-black tracking-[0.2em] text-[#102f49]">SHAKH</Link>
-        <p className="mt-2 text-xs text-slate-500">شاخ · بازاڕ و گەیاندن</p>
+        <ShakhBrand size="md" className="mx-auto justify-center" />
+        <p className="mt-2 text-xs font-bold text-slate-500">بازاڕی ئۆنلاین و گەیاندن</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-5 text-xs font-bold text-slate-500">
           <Link href="/shop" className="hover:text-[#f47721]">بازاڕ</Link>
           <Link href="/cart" className="hover:text-[#f47721]">سەبەتە</Link>
