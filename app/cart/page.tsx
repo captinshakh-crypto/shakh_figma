@@ -55,6 +55,7 @@ export default function CartPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [cartVerified, setCartVerified] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState("");
 
   useEffect(() => {
@@ -125,6 +126,7 @@ export default function CartPage() {
         supabase.from("service_zones").select("id,name,delivery_fee_iqd,boundary_geojson").eq("is_active", true).order("name"),
       ]);
       if (!active) return;
+      setIsAuthenticated(Boolean(user));
       setZones((zoneResult.data || []) as unknown as Zone[]);
       if (zoneResult.data?.[0]) setZone(zoneResult.data[0].id);
       if (user) {
@@ -230,7 +232,10 @@ export default function CartPage() {
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { window.location.href = "/login"; return; }
+      if (!user) {
+        window.location.assign("/login?next=%2Fcart&intent=checkout");
+        return;
+      }
 
       const key = idempotencyKey || localStorage.getItem("shakh-checkout-key") || crypto.randomUUID();
       setIdempotencyKey(key);
@@ -313,6 +318,13 @@ export default function CartPage() {
               </div>
             </section>
 
+            {isAuthenticated === false && (
+              <section className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                <p className="text-sm font-bold text-blue-900">بینین و زیادکردنی کاڵا بۆ سەبەتە بەبێ هەژمارە.</p>
+                <p className="mt-1 text-sm leading-6 text-blue-800">بۆ ناردن و تۆمارکردنی داواکاری، پێویستە بچیتە ژوورەوە یان هەژماری نوێ دروست بکەیت. کاڵاکانی سەبەتەکەت دەمێننەوە.</p>
+                <Link href="/login?next=%2Fcart&intent=checkout" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-shakh-blue px-4 py-2 text-sm font-bold text-white">چوونەژوورەوە / دروستکردنی هەژمار</Link>
+              </section>
+            )}
             <form onSubmit={checkout} className="mt-5 space-y-5">
               <section className="rounded-2xl bg-white p-5 shadow-soft">
                 <h2 className="font-black">زانیاری گەیاندن</h2>
@@ -357,7 +369,7 @@ export default function CartPage() {
                   <div className="mt-3 flex justify-between border-t pt-3 font-black"><span>کۆی گشتی</span><span>{total.toLocaleString("en-US")} د.ع</span></div>
                 </div>
                 <button type="submit" disabled={busy || !zone || storeGroups.length > 2 || mixedReferrals || !cartVerified} className="mt-4 w-full rounded-xl bg-shakh-orange px-4 py-3 font-bold text-white disabled:opacity-50">
-                  {busy ? "تکایە چاوەڕێ بکە..." : !cartVerified ? "پشکنینی نرخ و کۆگا..." : "پشتڕاستکردنەوە و ناردنی داواکاری"}
+                  {busy ? "تکایە چاوەڕێ بکە..." : !cartVerified ? "پشکنینی نرخ و کۆگا..." : isAuthenticated === false ? "چوونەژوورەوە بۆ ناردنی داواکاری" : "پشتڕاستکردنەوە و ناردنی داواکاری"}
                 </button>
               </section>
             </form>
