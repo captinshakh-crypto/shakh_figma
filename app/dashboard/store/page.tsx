@@ -134,6 +134,7 @@ export default function StorePage() {
   const [role, setRole] = useState("");
   const [walletBalance, setWalletBalance] = useState(0);
   const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
   const [products, setProducts] = useState<Product[]>([]);
   const [business, setBusiness] = useState("");
   const [applicationType, setApplicationType] = useState<Enums<"app_role">>("restaurant");
@@ -190,9 +191,9 @@ export default function StorePage() {
       .select("id,merchant_id,is_shakh_store,title,description,price_iqd,cost_price_iqd,referral_commission_iqd,stock_quantity,unit,category_key,image_path,is_available,approval_status,rejection_reason,created_at")
       .order("created_at", { ascending: false });
 
-    if (currentRole === "super_admin") query = query.eq("is_shakh_store", true);
-    else if (merchant?.id) query = query.eq("merchant_id", merchant.id);
-    else {
+    // Super Admin must see every product post here, including merchant-owned posts.
+    if (currentRole !== "super_admin" && merchant?.id) query = query.eq("merchant_id", merchant.id);
+    else if (currentRole !== "super_admin") {
       const { data: ownerMerchant } = await supabase.from("merchant_profiles")
         .select("id,merchant_type,approval_status").eq("user_id", user.id).maybeSingle();
       if (!ownerMerchant || ownerMerchant.approval_status !== "approved" || ownerMerchant.merchant_type !== currentRole) {
@@ -205,7 +206,25 @@ export default function StorePage() {
 
     const { data, error } = await query;
     if (error) throw error;
-    setProducts(data || []);
+
+    const rows = data || [];
+    if (currentRole === "super_admin") {
+      const merchantIds = [...new Set(rows.map((product) => product.merchant_id).filter((id): id is string => Boolean(id)))];
+      if (merchantIds.length > 0) {
+        const { data: merchantRows, error: merchantNamesError } = await supabase
+          .from("merchant_profiles")
+          .select("id,business_name")
+          .in("id", merchantIds);
+        if (merchantNamesError) throw merchantNamesError;
+        setMerchantNames(Object.fromEntries((merchantRows || []).map((item) => [item.id, item.business_name])));
+      } else {
+        setMerchantNames({});
+      }
+    } else {
+      setMerchantNames({});
+    }
+
+    setProducts(rows);
     setLoading(false);
   }
 
@@ -480,8 +499,9 @@ export default function StorePage() {
         <header className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm font-bold text-shakh-orange">{isAdmin ? "SHAKH STORE" : merchant ? roleNames[merchant.merchant_type] : "بەڕێوەبردنی دوکان"}</p>
-            <h1 className="mt-1 text-3xl font-black">{isAdmin ? "بەڕێوەبردنی شاخ ستۆر" : merchant?.business_name || "بەشی فرۆشگاکەت"}</h1>
+            <h1 className="mt-1 text-3xl font-black">{isAdmin ? "بەڕێوەبردنی شاخ ستۆر و پۆستەکانی هەموو دوکانەکان" : merchant?.business_name || "بەشی فرۆشگاکەت"}</h1>
             <p className="mt-2 text-sm text-slate-500">کاڵا، نرخ، کۆگا، وێنە و بەردەستبوون بەڕێوەببە.</p>
+            {isAdmin && <p className="mt-2 rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">لەو بەشەدا هەموو پۆستەکانی شاخ ستۆر و هەموو دوکاندارەکان دەبینیت. پۆستی دوکاندارانی تر دەتوانیت بسڕیتەوە؛ دەستکاریکردنیان لە لای خاوەنی دوکانەکە دەمێنێتەوە.</p>}
             {!isAdmin && merchant && <p className="mt-2 text-sm text-slate-600">شوێنی دوکان: {merchant.address?.trim() || "شوێن تۆمار نەکراوە"}</p>}
           </div>
           {(isAdmin || merchant?.approval_status === "approved") && (
@@ -615,6 +635,7 @@ export default function StorePage() {
                               <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${product.approval_status === "pending" ? "bg-amber-50 text-amber-800" : product.approval_status === "rejected" ? "bg-red-50 text-red-700" : product.is_available && !outOfStock ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{product.approval_status === "pending" ? "چاوەڕوانی پەسەندکردن" : product.approval_status === "rejected" ? "ڕەفزکراو" : outOfStock ? "کۆگا تەواو بووە" : product.is_available ? "بەردەست" : "ناچالاک"}</span>
                             </div>
                             {isAdmin && <p className="mt-1 text-xs font-semibold text-slate-500">نرخی کڕین: {product.cost_price_iqd === null ? "تۆمار نەکراوە" : formatIQD(product.cost_price_iqd)} · قازانجی هەر دانە: {product.cost_price_iqd === null ? "—" : formatIQD(product.price_iqd - product.cost_price_iqd)}</p>}
+                            {isAdmin && !product.is_shakh_store && <p className="mt-1 rounded-lg bg-blue-50 px-2 py-1 text-xs font-bold text-blue-800">خاوەنی پۆست: {merchantNames[product.merchant_id || ""] || "دوکانداری نەناسراو"}</p>}
                             {product.referral_commission_iqd > 0
                               ? <p className="mt-1 rounded-lg bg-purple-50 px-2 py-1 text-xs font-black text-purple-800">خەڵاتی شێر بۆ هەر دانە: {formatIQD(product.referral_commission_iqd)}</p>
                               : <p className="mt-1 rounded-lg bg-slate-50 px-2 py-1 text-xs font-medium text-slate-500">ئەم کاڵایە بە شێوەی ئاسایی دەفرۆشرێت؛ شێر و خەڵاتی نییە.</p>}
@@ -624,11 +645,13 @@ export default function StorePage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2 border-t border-slate-100 p-3">
-                          {product.referral_commission_iqd > 0 && product.approval_status === "approved" && product.is_available && !outOfStock && (
+                          {(!isAdmin || product.is_shakh_store) && product.referral_commission_iqd > 0 && product.approval_status === "approved" && product.is_available && !outOfStock && (
                             <button disabled={saving} onClick={() => void shareProductReward(product)} className="inline-flex items-center gap-1 rounded-lg bg-purple-50 px-3 py-2 text-sm font-bold text-purple-800 disabled:opacity-50"><Share2 size={15}/> شێرکردنی پۆست و وەرگرتنی خەڵات</button>
                           )}
-                          <button disabled={saving} onClick={() => startEditing(product)} className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 disabled:opacity-50"><Pencil size={15}/> دەستکاری</button>
-                          <button disabled={saving} onClick={() => void toggleAvailability(product)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-50">{product.is_available ? <EyeOff size={15}/> : <Eye size={15}/>} {product.is_available ? "ناچالاککردن" : "بەردەستکردن"}</button>
+                          {(!isAdmin || product.is_shakh_store) && <>
+                            <button disabled={saving} onClick={() => startEditing(product)} className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 disabled:opacity-50"><Pencil size={15}/> دەستکاری</button>
+                            <button disabled={saving} onClick={() => void toggleAvailability(product)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-50">{product.is_available ? <EyeOff size={15}/> : <Eye size={15}/>} {product.is_available ? "ناچالاککردن" : "بەردەستکردن"}</button>
+                          </>}
                           <button disabled={saving} onClick={() => void removeProduct(product)} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50"><Trash2 size={15}/> سڕینەوەی یەکجاری</button>
                         </div>
                       </article>
