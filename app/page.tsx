@@ -107,8 +107,9 @@ export default function HomePage() {
       }
       setAuthLoading(true);
       const fallback: ProfileSummary = { full_name: getUserName(user), email: user.email ?? null, role: null };
-      void supabase.from("profiles").select("full_name,role").eq("id", user.id).maybeSingle()
-        .then(({ data }) => {
+      void Promise.resolve(
+        supabase.from("profiles").select("full_name,role").eq("id", user.id).maybeSingle()
+      ).then(({ data }) => {
           if (!active || currentRevision !== revision) return;
           setProfile({ full_name: data?.full_name || fallback.full_name, email: user.email ?? null, role: data?.role ?? null });
           setAuthLoading(false);
