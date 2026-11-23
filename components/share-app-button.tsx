@@ -5,12 +5,13 @@ import { Share2, Check, Copy } from "lucide-react";
 
 function getPublicShareUrl() {
   const current = new URL(window.location.href);
+  const canonicalOrigin = "https://www.daim-post.online";
   const privatePrefixes = ["/dashboard", "/cart", "/login", "/forgot-password", "/reset-password", "/auth"];
   const isPrivate = privatePrefixes.some((prefix) =>
     current.pathname === prefix || current.pathname.startsWith(prefix + "/")
   );
-  if (isPrivate) return current.origin + "/";
-  return current.origin + current.pathname + current.search;
+  if (isPrivate) return canonicalOrigin + "/";
+  return canonicalOrigin + current.pathname + current.search;
 }
 
 async function copyText(value: string) {
