@@ -165,6 +165,7 @@ export default function CartPage() {
   function persist(next: CartItem[]) {
     setItems(next);
     localStorage.setItem("shakh-cart", JSON.stringify(next));
+    window.dispatchEvent(new Event("shakh:cart-updated"));
   }
 
   function update(id: string, quantity: number) {
@@ -247,6 +248,7 @@ export default function CartPage() {
       if (orderIds.length !== storeGroups.length) throw new Error("ژمارەی ئۆردەرەکان لە وەڵامی سیستەمدا ناتەواوە.");
 
       localStorage.removeItem("shakh-cart");
+      window.dispatchEvent(new Event("shakh:cart-updated"));
       localStorage.removeItem("shakh-checkout-key");
       setIdempotencyKey("");
       setItems([]);
