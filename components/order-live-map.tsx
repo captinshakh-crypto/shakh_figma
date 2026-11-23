@@ -64,7 +64,7 @@ export default function OrderLiveMap({ latitude, longitude, accuracyM, updatedAt
   const start=[${latitude},${longitude}], end=[${deliveryLatitude},${deliveryLongitude}];
   const map=L.map('map',{scrollWheelZoom:false}).fitBounds([start,end],{padding:[28,28]});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
-  L.circleMarker(start,{radius:8,color:'#ffffff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(map).bindPopup('Captain');
+  L.circleMarker(start,{radius:8,color:'#ffffff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(map).bindPopup('کاپتن');
   L.circleMarker(end,{radius:8,color:'#ffffff',weight:3,fillColor:'#f97316',fillOpacity:1}).addTo(map).bindPopup('Delivery destination');
   const routeUrl='https://router.project-osrm.org/route/v1/driving/'+start[1]+','+start[0]+';'+end[1]+','+end[0]+'?overview=full&geometries=geojson';
   fetch(routeUrl).then(r=>{if(!r.ok)throw new Error('route');return r.json()}).then(data=>{
@@ -90,7 +90,7 @@ export default function OrderLiveMap({ latitude, longitude, accuracyM, updatedAt
             <MapPin size={19}/>
           </span>
           <div>
-            <h3 className="text-sm font-black text-slate-900">شوێنی زیندووی کپتن</h3>
+            <h3 className="text-sm font-black text-slate-900">شوێنی زیندووی کاپتن</h3>
             <p className="mt-0.5 text-[11px] text-slate-500">{hasDestination ? "ڕێگای کاپتن بۆ شوێنی کڕیار · OpenStreetMap" : "شوێنی زیندووی کاپتن · OpenStreetMap"}</p>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function OrderLiveMap({ latitude, longitude, accuracyM, updatedAt
           />
         ) : (
           <iframe
-            title="نەخشەی شوێنی زیندووی کپتن"
+            title="نەخشەی شوێنی زیندووی کاپتن"
             src={mapUrl}
             loading="lazy"
             referrerPolicy="strict-origin-when-cross-origin"

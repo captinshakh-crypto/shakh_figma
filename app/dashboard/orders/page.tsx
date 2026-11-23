@@ -26,6 +26,8 @@ type Order = {
   delivery_latitude: number | null;
   delivery_longitude: number | null;
   settled_at: string | null;
+  merchant_receipt_whatsapp_opened_at: string | null;
+  merchant_receipt_whatsapp_sent_at: string | null;
 };
 
 type OrderItem = {
@@ -83,7 +85,9 @@ export default function OrdersPage() {
   const [history, setHistory] = useState<History[]>([]);
   const [liveLocations, setLiveLocations] = useState<Record<string, LiveLocation>>({});
   const [merchantInfo, setMerchantInfo] = useState<Record<string, MerchantInfo>>({});
+  const [customerNames, setCustomerNames] = useState<Record<string, string>>({});
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({});
+  const [receiptBusyId, setReceiptBusyId] = useState("");
   const [role, setRole] = useState("");
   const [busyId, setBusyId] = useState("");
   const [message, setMessage] = useState("");
@@ -115,7 +119,7 @@ export default function OrdersPage() {
     setRole(currentRole);
 
     let query = supabase.from("orders").select(
-      "id,customer_id,merchant_id,captain_user_id,service_zone_id,status,subtotal_iqd,delivery_fee_iqd,platform_delivery_share_iqd,captain_delivery_share_iqd,total_iqd,reward_amount_iqd,placed_at,delivery_address,delivery_phone,delivery_notes,delivery_latitude,delivery_longitude,settled_at"
+      "id,customer_id,merchant_id,captain_user_id,service_zone_id,status,subtotal_iqd,delivery_fee_iqd,platform_delivery_share_iqd,captain_delivery_share_iqd,total_iqd,reward_amount_iqd,placed_at,delivery_address,delivery_phone,delivery_notes,delivery_latitude,delivery_longitude,settled_at,merchant_receipt_whatsapp_opened_at,merchant_receipt_whatsapp_sent_at"
     ).order("placed_at", { ascending: false }).limit(100);
 
     if (currentRole === "customer") {
@@ -159,13 +163,17 @@ export default function OrdersPage() {
 
     const merchantRows = merchantResult.data || [];
     const merchantUserIds = [...new Set(merchantRows.map((merchant) => merchant.user_id).filter((id): id is string => !!id))];
-    const merchantPhoneResult = merchantUserIds.length
-      ? await supabase.from("profiles").select("id,phone").in("id", merchantUserIds)
+    const customerIds = currentRole === "super_admin" ? rows.map((order) => order.customer_id) : [];
+    const profileIds = [...new Set([...merchantUserIds, ...customerIds])];
+    const contactProfilesResult = profileIds.length
+      ? await supabase.from("profiles").select("id,phone,full_name").in("id", profileIds)
       : { data: [], error: null };
-    if (merchantPhoneResult.error) throw merchantPhoneResult.error;
-    const phoneByUser = Object.fromEntries((merchantPhoneResult.data || []).map((profile) => [profile.id, profile.phone]));
+    if (contactProfilesResult.error) throw contactProfilesResult.error;
+    const phoneByUser = Object.fromEntries((contactProfilesResult.data || []).map((profile) => [profile.id, profile.phone]));
+    const nameByUser = Object.fromEntries((contactProfilesResult.data || []).map((profile) => [profile.id, profile.full_name || ""]));
     setItems(itemResult.data || []);
     setHistory(historyResult.data || []);
+    setCustomerNames(nameByUser);
     setLiveLocations(Object.fromEntries((locationResult.data || []).map((location) => [location.order_id, { ...location, order_id: location.order_id }])));
     setMerchantInfo(Object.fromEntries(merchantRows.map((merchant) => [merchant.id, {
       business_name: merchant.business_name,
@@ -210,37 +218,65 @@ export default function OrdersPage() {
     await load();
   }
 
-  function merchantReceiptWhatsAppUrl(order: Order, orderItems: OrderItem[]) {
+  function normalizeWhatsAppRecipient(phone: string | null | undefined): string | null {
+    const digits = (phone || "").replace(/\D/g, "");
+    if (!digits) return null;
+    if (digits.startsWith("00")) return digits.slice(2);
+    if (digits.startsWith("964")) return digits;
+    if (digits.startsWith("0")) return "964" + digits.slice(1);
+    if (digits.startsWith("7") && digits.length === 10) return "964" + digits;
+    return digits.length >= 8 && digits.length <= 15 ? digits : null;
+  }
+
+  function merchantReceipt(order: Order, orderItems: OrderItem[]) {
     if (!order.merchant_id) return null;
     const merchant = merchantInfo[order.merchant_id];
-    const rawPhone = merchant?.phone?.trim() || "";
-    const digits = rawPhone.replace(/\D/g, "");
-    const recipient = !digits ? "" : digits.startsWith("964") ? digits : digits.startsWith("0") ? "964" + digits.slice(1) : digits;
-    const total = order.total_iqd || order.subtotal_iqd + order.delivery_fee_iqd;
+    if (!merchant) return null;
+    const recipient = normalizeWhatsAppRecipient(merchant.phone);
+    const total = Number(order.total_iqd ?? order.subtotal_iqd + order.delivery_fee_iqd);
     const itemLines = orderItems.map((item) =>
-      `• ${item.product_title_snapshot} × ${Number(item.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} = ${formatIQD(item.line_total_iqd)}`
+      `• ${item.product_title_snapshot} × ${Number(item.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} | یەکە: ${formatIQD(item.unit_price_iqd)} | کۆ: ${formatIQD(item.line_total_iqd)}`
     );
     const receipt = [
-      "SHAKH STORE | وەسڵی داواکاری نوێ",
-      `ژمارەی ئۆردەر: ${order.id.toUpperCase()}`,
+      "SHAKH | وەسڵی ئۆردەری نوێ",
+      `ژمارەی ئۆردەر: #${order.id.toUpperCase()}`,
+      `ناوی کڕیار: ${customerNames[order.customer_id] || "ناوی کڕیار تۆمار نەکراوە"}`,
       `دوکان: ${merchant.business_name}`,
+      merchant.phone ? `ژمارەی دوکان: ${merchant.phone}` : "",
       merchant.address ? `شوێنی دوکان: ${merchant.address}` : "",
-      `کات: ${new Date(order.placed_at).toLocaleString("ckb-IQ")}`,
+      `کاتی تۆمارکردن: ${new Date(order.placed_at).toLocaleString("ckb-IQ")}`,
       "",
-      "کاڵاکان:",
-      ...itemLines,
+      "لیستی کاڵاکان:",
+      ...(itemLines.length ? itemLines : ["هیچ کاڵایەک نییە."]),
       "",
       `کۆی کاڵاکان: ${formatIQD(order.subtotal_iqd)}`,
       `کرێی گەیاندن: ${formatIQD(order.delivery_fee_iqd)}`,
-      `کۆی گشتی: ${formatIQD(total)}`,
+      `کۆی پارەی ئۆردەر: ${formatIQD(total)}`,
       "",
       `ژمارەی کڕیار: ${order.delivery_phone}`,
-      `ناونیشانی گەیاندن: ${order.delivery_address}`,
-      order.delivery_notes ? `تێبینی: ${order.delivery_notes}` : "",
+      `شوێنی گەیاندن: ${order.delivery_address}`,
+      order.delivery_notes ? `تێبینی کڕیار: ${order.delivery_notes}` : "",
       "",
-      "تکایە داواکارییەکە وەربگرە و بەپێی وردەکارییەکان ئامادەی بکە."
+      "تکایە ئۆردەرەکە پشکنین بکە و ئامادەکارییەکانی دەست پێ بکە.",
+      "سوپاس – Shakh",
     ].filter(Boolean).join("\n");
-    return `https://wa.me/${recipient}?text=${encodeURIComponent(receipt)}`;
+    return { recipient, message: receipt, url: recipient ? `https://wa.me/${recipient}?text=${encodeURIComponent(receipt)}` : null };
+  }
+
+  async function recordReceiptActivity(orderId: string, status: "opened" | "sent_confirmed") {
+    setReceiptBusyId(orderId);
+    const { error } = await createClient().rpc("admin_record_order_receipt_share", { p_order_id: orderId, p_status: status });
+    setReceiptBusyId("");
+    if (error) {
+      setMessage(error.message || "تۆمارکردنی دۆخی وەسڵ سەرکەوتوو نەبوو.");
+      return;
+    }
+    const timestamp = new Date().toISOString();
+    setOrders((current) => current.map((order) => order.id !== orderId ? order : {
+      ...order,
+      ...(status === "opened" ? { merchant_receipt_whatsapp_opened_at: timestamp } : { merchant_receipt_whatsapp_sent_at: timestamp }),
+    }));
+    setMessage(status === "opened" ? "کردنەوەی WhatsApp تۆمار کرا؛ ئەمە نیشانەی ناردنی پەیام نییە." : "پشتڕاستکردنەوەی ناردنی وەسڵ تۆمار کرا.");
   }
 
   function allowedActions(order: Order) {
@@ -353,11 +389,29 @@ export default function OrdersPage() {
                         <div className="flex justify-between"><span>گەیاندن</span><b>{formatIQD(order.delivery_fee_iqd)}</b></div>
                         <div className="flex justify-between border-t border-slate-200 pt-3 font-black"><span>کۆی گشتی</span><span>{formatIQD(order.total_iqd || order.subtotal_iqd + order.delivery_fee_iqd)}</span></div>
                       </div>
-                      {role === "super_admin" && order.merchant_id && (
-                        merchantReceiptWhatsAppUrl(order, orderItems)
-                          ? <a href={merchantReceiptWhatsAppUrl(order, orderItems)!} target="_blank" rel="noreferrer" className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-3 text-center text-sm font-bold text-white"><MessageCircle size={18}/> ناردنی وەسڵ بۆ دوکان بە واتسئاپ</a>
-                          : <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-6 text-amber-800">ژمارەی مۆبایلی خاوەنی دوکان لە پڕۆفایل تۆمار نەکراوە؛ واتسئاپ دەکرێتەوە بۆ ئەوەی چاتی دوکاندار لە پەیوەندییەکانت هەڵبژێریت.</p>
-                      )}
+                      {role === "super_admin" && order.merchant_id && (() => {
+                        const receipt = merchantReceipt(order, orderItems);
+                        return (
+                          <div className="mt-4 space-y-3 rounded-xl border border-green-100 bg-white p-3">
+                            <details className="rounded-lg bg-slate-50 p-3">
+                              <summary className="cursor-pointer text-sm font-bold text-slate-800">پێشبینینی وەسڵی تەواوی کڕین</summary>
+                              <pre dir="rtl" className="mt-3 whitespace-pre-wrap break-words text-xs leading-6 text-slate-700">{receipt?.message || "زانیاری وەسڵ بەردەست نییە."}</pre>
+                            </details>
+                            {receipt?.url ? (
+                              <a href={receipt.url} target="_blank" rel="noreferrer" onClick={() => void recordReceiptActivity(order.id, "opened")} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-3 text-center text-sm font-bold text-white"><MessageCircle size={18}/> کردنەوەی WhatsApp و ئامادەکردنی وەسڵ</a>
+                            ) : (
+                              <p role="alert" className="rounded-lg bg-amber-50 p-3 text-xs leading-6 text-amber-800">ژمارەی مۆبایلی دروستی دوکان لە پڕۆفایل نییە. ژمارەکە لە پڕۆفایلی خاوەن دوکان زیاد یان چاک بکەرەوە؛ هیچ لینکێکی بێ ژمارە دروست ناکرێت.</p>
+                            )}
+                            {order.merchant_receipt_whatsapp_opened_at && <p className="text-xs text-slate-500">WhatsApp کراوەتەوە: {new Date(order.merchant_receipt_whatsapp_opened_at).toLocaleString("ckb-IQ")}</p>}
+                            {order.merchant_receipt_whatsapp_sent_at ? (
+                              <p className="text-xs font-bold text-green-700">ناردن لەلایەن سوپەر ئەدمینەوە پشتڕاست کرا: {new Date(order.merchant_receipt_whatsapp_sent_at).toLocaleString("ckb-IQ")}</p>
+                            ) : order.merchant_receipt_whatsapp_opened_at ? (
+                              <button type="button" disabled={receiptBusyId === order.id} onClick={() => { if (window.confirm("دڵنیایت کە پەیامەکە لە WhatsApp بەڕاستی نێردراوە؟")) void recordReceiptActivity(order.id, "sent_confirmed"); }} className="min-h-11 w-full rounded-xl border border-green-200 px-3 py-2 text-sm font-bold text-green-800 disabled:opacity-50">پشتڕاستکردنەوەی ناردنی پەیام</button>
+                            ) : null}
+                            <p className="text-[11px] leading-5 text-slate-500">کردنەوەی WhatsApp بە تەنها ناردن پشتڕاست ناکاتەوە؛ تەنها دوای ناردنی دەستی پەیام، پشتڕاستکردنەوە بکە.</p>
+                          </div>
+                        );
+                      })()}
                       {order.settled_at && <p className="mt-3 flex items-center gap-2 text-xs font-bold text-green-700"><CheckCircle2 size={15}/> حساب داخراوەتەوە</p>}
                       {actions.length > 0 && (
                         <div className="mt-5 space-y-2">
