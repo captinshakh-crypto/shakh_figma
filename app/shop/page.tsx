@@ -20,7 +20,7 @@ type Product = {
   unit: string;
 };
 
-type Merchant = { id: string; business_name: string; merchant_type: string };
+type Merchant = { id: string; business_name: string; merchant_type: string; address: string | null };
 type CartItem = { product_id: string; title: string; price_iqd: number; merchant_id: string | null; quantity: number; unit?: string; referral_campaign_id?: string | null };
 
 const storeTypes = [
@@ -70,9 +70,9 @@ export default function ShopPage() {
     Promise.all([
       supabase.from("products")
         .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
-        .eq("is_available", true).order("created_at", { ascending: false }),
+        .eq("is_available", true).eq("approval_status", "approved").order("created_at", { ascending: false }),
       supabase.from("merchant_profiles")
-        .select("id,business_name,merchant_type").eq("approval_status", "approved"),
+        .select("id,business_name,merchant_type,address").eq("approval_status", "approved"),
     ]).then(([productResult, merchantResult]) => {
       if (!active) return;
       if (productResult.error || merchantResult.error) setMessage("نەتوانرا زانیاری بازاڕ باربکرێن.");
@@ -88,7 +88,39 @@ export default function ShopPage() {
       setCartCount(cart.reduce((total, item) => total + item.quantity, 0));
     } catch { setCartCount(0); }
 
-    return () => { active = false; };
+    const channel = supabase.channel("shakh-shop-product-visibility")
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => {
+        void supabase.from("products")
+          .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
+          .eq("is_available", true)
+          .eq("approval_status", "approved")
+          .order("created_at", { ascending: false })
+          .then(({ data, error }) => {
+            if (!active) return;
+            if (error) setMessage("نوێکردنەوەی دۆخی کاڵاکان سەرکەوتوو نەبوو.");
+            else setProducts(data || []);
+          });
+      }).subscribe();
+    const refreshProducts = () => {
+      void supabase.from("products")
+        .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
+        .eq("is_available", true)
+        .eq("approval_status", "approved")
+        .order("created_at", { ascending: false })
+        .then(({ data, error }) => {
+          if (!active) return;
+          if (error) setMessage("نوێکردنەوەی دۆخی کاڵاکان سەرکەوتوو نەبوو.");
+          else setProducts(data || []);
+        });
+    };
+    window.addEventListener("focus", refreshProducts);
+    window.addEventListener("pageshow", refreshProducts);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refreshProducts);
+      window.removeEventListener("pageshow", refreshProducts);
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -123,7 +155,7 @@ export default function ShopPage() {
   const filtered = useMemo(() => products.filter((product) => {
     const merchant = product.merchant_id ? merchantMap[product.merchant_id] : null;
     const storeName = product.is_shakh_store ? "SHAKH Store شاخ ستۆر" : merchant?.business_name || "";
-    const matchesSearch = (product.title + " " + (product.description || "") + " " + storeName)
+    const matchesSearch = (product.title + " " + (product.description || "") + " " + storeName + " " + (merchant?.address || ""))
       .toLowerCase().includes(search.toLowerCase());
     const matchesType = storeType === "all" || typeForProduct(product) === storeType;
     const matchesCategory = category === "all" || product.category_key === category;
@@ -211,35 +243,39 @@ export default function ShopPage() {
               const merchant = product.merchant_id ? merchantMap[product.merchant_id] : null;
               const storeName = product.is_shakh_store ? "شاخ ستۆر" : merchant?.business_name || "فرۆشگا";
               const storeLabel = product.is_shakh_store ? "شاخ ستۆر" : typeLabels[merchant?.merchant_type || ""] || "فرۆشیار";
+              const storeAddress = product.is_shakh_store ? "" : merchant?.address?.trim() || "";
               const imageUrl = product.image_path
                 ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
                 : null;
               const outOfStock = product.stock_quantity === 0;
 
               return (
-                <article key={product.id} className="overflow-hidden rounded-2xl bg-white shadow-soft">
-                  <div className="grid aspect-[4/3] place-items-center overflow-hidden bg-shakh-mist text-shakh-blue">
+                <article key={product.id} className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
+                  <div className="relative aspect-[4/3] w-full shrink-0 place-items-center overflow-hidden bg-shakh-mist text-shakh-blue">
                     {imageUrl ? <img src={imageUrl} alt={product.title} loading="lazy" className="h-full w-full object-cover"/> : <Store size={36}/>}
                   </div>
-                  <div className="p-4">
+                  <div className="flex flex-1 flex-col p-4">
                     <div className="flex flex-wrap items-center justify-between gap-1">
                       <span className="text-xs font-bold text-shakh-orange">{storeLabel}</span>
                       <span className="text-[11px] text-slate-400">{categoryLabels[product.category_key] || product.category_key}</span>
                     </div>
-                    <p className="mt-1 truncate text-xs text-slate-500">{storeName}</p>
-                    <h2 className="mt-1 font-bold">{product.title}</h2>
-                    {product.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>}
-                    {product.referral_commission_iqd > 0 && (
-                      <div className="mt-2 rounded-xl border border-purple-100 bg-gradient-to-l from-purple-50 to-orange-50 px-2.5 py-2 text-xs font-black text-purple-800">
-                        <span className="mr-1 inline-block">🎁</span>
-                        شێر بکە و {product.referral_commission_iqd.toLocaleString("en-US")} د.ع خەڵات وەربگرە / هەر دانە
-                      </div>
-                    )}
+                    <p className="mt-1 min-h-5 truncate text-xs text-slate-500">{storeName}</p>
+                    {storeAddress && <p className="mt-1 flex min-h-5 items-center gap-1 text-[11px] text-slate-500"><span aria-hidden="true">📍</span><span className="truncate">شوێنی دوکان: {storeAddress}</span></p> }
+                    <h2 className="mt-1 min-h-12 line-clamp-2 font-bold">{product.title}</h2>
+                    <p className="mt-1 min-h-9 line-clamp-2 text-xs text-slate-500">{product.description || "\u00a0"}</p>
+                    <div className="mt-2 flex min-h-[64px] items-center">
+                      {product.referral_commission_iqd > 0 && (
+                        <div className="w-full rounded-xl border border-purple-100 bg-gradient-to-l from-purple-50 to-orange-50 px-2.5 py-2 text-xs font-black leading-5 text-purple-800">
+                          <span className="mr-1 inline-block">🎁</span>
+                          شێر بکە و {product.referral_commission_iqd.toLocaleString("en-US")} د.ع خەڵات وەربگرە / هەر دانە
+                        </div>
+                      )}
+                    </div>
                     <p className="mt-3 font-black text-shakh-orange">{product.price_iqd.toLocaleString("en-US")} د.ع <small className="font-medium text-slate-500">/ {unitLabels[product.unit] || product.unit}</small></p>
                     <p className={`mt-1 text-xs ${outOfStock ? "text-red-600" : "text-green-700"}`}>
                       {outOfStock ? "کۆگا تەواو بووە" : product.stock_quantity === null ? "بەردەست" : `ماوە: ${product.stock_quantity.toLocaleString("en-US")} ${unitLabels[product.unit] || product.unit}`}
                     </p>
-                    <button disabled={outOfStock} onClick={() => add(product)} className="mt-4 w-full rounded-xl bg-shakh-blue px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
+                    <button disabled={outOfStock} onClick={() => add(product)} className="mt-auto h-12 w-full rounded-xl bg-shakh-blue px-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
                       {outOfStock ? "لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
                     </button>
                   </div>
