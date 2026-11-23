@@ -3,31 +3,32 @@ import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 import NotificationsCenter from "@/components/notifications-center";
 import MobileBottomNav from "@/components/mobile-bottom-nav";
+import ShareAppButton from "@/components/share-app-button";
 
 const siteUrl = "https://www.daim-post.online";
 const siteDescription =
-  "شاخ، بازاڕی ئۆنلاین و خزمەتگوزاری گەیاندن لە کوردستان؛ چێشتخانە، سوپەرمارکێت، گۆشت و سپیاتی و بەقالی لە یەک پلاتفۆرمدا.";
+  "شاخ ستۆر (SHAKH STORE)، بازاڕی ئۆنلاین و خزمەتگوزاری گەیاندن لە کوردستان؛ چێشتخانە، سوپەرمارکێت، گۆشت و سپیاتی و بەقالی لە یەک پلاتفۆرمدا.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "SHAKH | شاخ – بازاڕی ئۆنلاین و گەیاندن",
-    template: "%s | SHAKH",
+    default: "SHAKH STORE | شاخ ستۆر – بازاڕی ئۆنلاین و گەیاندن",
+    template: "%s | SHAKH STORE",
   },
   description: siteDescription,
-  applicationName: "SHAKH",
+  applicationName: "SHAKH STORE",
   alternates: { canonical: "/" },
   keywords: [
-    "SHAKH", "شاخ", "بازاڕی ئۆنلاین", "گەیاندن", "داواکاری خواردن",
+    "SHAKH STORE", "SHAKH", "شاخ ستۆر", "شاخ", "Shakh Store", "Shakh Stor", "بازاڕی ئۆنلاین", "گەیاندن", "داواکاری خواردن",
     "چێشتخانە", "سوپەرمارکێت", "گۆشت و سپیاتی", "بەقالی", "کوردستان", "عێراق",
-    "online marketplace", "food delivery Kurdistan", "Shakh app",
+    "online marketplace", "food delivery Kurdistan", "Shakh app", "online shopping Iraq", "food delivery Erbil",
   ],
   openGraph: {
     type: "website",
     locale: "ckb_IQ",
     url: siteUrl,
-    siteName: "SHAKH | شاخ",
-    title: "SHAKH | شاخ – بازاڕی ئۆنلاین و گەیاندن",
+    siteName: "SHAKH STORE | شاخ ستۆر",
+    title: "SHAKH STORE | شاخ ستۆر – بازاڕی ئۆنلاین و گەیاندن",
     description: siteDescription,
     images: [{
       url: "/opengraph-image",
@@ -44,7 +45,7 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "SHAKH", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "SHAKH STORE", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
@@ -59,8 +60,8 @@ const structuredData = {
     {
       "@type": "Organization",
       "@id": siteUrl + "#organization",
-      name: "SHAKH",
-      alternateName: "شاخ",
+      name: "SHAKH STORE",
+      alternateName: ["شاخ ستۆر", "SHAKH", "Shakh Store"],
       url: siteUrl,
       logo: siteUrl + "/icon",
       description: siteDescription,
@@ -69,7 +70,7 @@ const structuredData = {
       "@type": "WebSite",
       "@id": siteUrl + "#website",
       url: siteUrl,
-      name: "SHAKH | شاخ",
+      name: "SHAKH STORE | شاخ ستۆر",
       inLanguage: ["ckb-IQ", "ar", "en"],
       publisher: { "@id": siteUrl + "#organization" },
     },
@@ -102,6 +103,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
         {children}
+        <ShareAppButton />
         <MobileBottomNav />
       </body>
     </html>
