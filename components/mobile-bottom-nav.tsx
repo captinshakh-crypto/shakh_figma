@@ -61,7 +61,6 @@ export default function MobileBottomNav() {
       }
       void refreshUnread(uid);
     };
-    void supabase.auth.getUser().then(({ data }) => syncUser(data.user?.id || null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       syncUser(session?.user.id || null);
     });

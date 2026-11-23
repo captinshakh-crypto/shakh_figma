@@ -195,8 +195,27 @@ export default function OrdersPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "order_status_history" }, () => {
         if (active) void load().catch(() => setMessage("نوێکردنەوەی مێژووی داواکاری سەرکەوتوو نەبوو."));
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_live_locations" }, () => {
-        if (active) void load().catch(() => setMessage("نوێکردنەوەی شوێنی کاپتن سەرکەوتوو نەبوو."));
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_live_locations" }, (payload) => {
+        if (!active) return;
+        if (payload.eventType === "DELETE") {
+          const oldLocation = payload.old as Partial<LiveLocation>;
+          if (oldLocation.order_id) {
+            setLiveLocations((current) => {
+              const next = { ...current };
+              delete next[oldLocation.order_id!];
+              return next;
+            });
+          }
+          return;
+        }
+        const nextLocation = payload.new as LiveLocation;
+        if (!nextLocation.order_id ||
+            typeof nextLocation.latitude !== "number" ||
+            typeof nextLocation.longitude !== "number") return;
+        setLiveLocations((current) => ({
+          ...current,
+          [nextLocation.order_id]: nextLocation,
+        }));
       })
       .subscribe();
     return () => {

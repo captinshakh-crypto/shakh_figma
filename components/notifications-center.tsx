@@ -98,25 +98,6 @@ export default function NotificationsCenter() {
   useEffect(() => {
     let active = true;
     const supabase = createClient();
-    void supabase.auth.getUser().then(({ data, error }) => {
-      if (!active) return;
-      if (error) {
-        setLoadError("پشکنینی هەژمار سەرکەوتوو نەبوو. تکایە دووبارە بچۆ ژوورەوە.");
-        setReady(true);
-        return;
-      }
-      if (!data.user) {
-        setUserId(null);
-        setReady(true);
-        return;
-      }
-      setUserId(data.user.id);
-      void load(data.user.id);
-    }).catch(() => {
-      if (!active) return;
-      setLoadError("پەیوەندی بە خزمەتگوزاری ئاگادارکردنەوە نەکرا.");
-      setReady(true);
-    });
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       const uid = session?.user.id || null;
