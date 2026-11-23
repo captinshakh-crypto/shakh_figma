@@ -253,8 +253,8 @@ export default function StorePage() {
     }
     const costPrice = form.costPrice.trim() === "" ? null : Number(form.costPrice);
     const referralCommission = Number(form.referralCommission || 0);
-    if (!Number.isSafeInteger(referralCommission) || referralCommission <= 0) {
-      setMessage("پێویستە پێش پۆستکردن خەڵاتی شێر بۆ هەر دانە بە دینار دیاری بکەیت (١ د.ع یان زیاتر).");
+    if (!Number.isSafeInteger(referralCommission) || referralCommission < 0) {
+      setMessage("خەڵاتی شێر دەبێت سفر یان ژمارەیەکی تەواوی ئەرێنی بێت.");
       return;
     }
     if (isAdmin && (costPrice === null || !Number.isSafeInteger(costPrice) || costPrice < 0)) {
@@ -433,9 +433,9 @@ export default function StorePage() {
                       {units.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
                     </select>
                   </label>
-                  <label className="block text-sm font-black text-purple-800">خەڵاتی شێر و خەڵات بۆ هەر دانە (پێویستە)
-                    <input required type="number" min="1" step="1" value={form.referralCommission} onChange={(event) => setForm((old) => ({ ...old, referralCommission: event.target.value }))} placeholder="بۆ نموونە: ٥٠٠ د.ع" className="mt-2 w-full rounded-xl border-2 border-purple-200 bg-purple-50 p-3 text-base font-black text-purple-900 focus:border-purple-500 focus:outline-none"/>
-                    <small className="mt-2 block text-xs font-medium leading-6 text-slate-500">ئەم بڕە لە جزدانی دوکان پێشەکی تەرخان دەکرێت؛ کاتێک کڕیار بە لینکی شێرەوە بکڕێت و داواکارییەکە بگەیەنرێت، بۆ جزدانی خاوەن لینک زیاد دەکرێت.</small>
+                  <label className="block text-sm font-black text-purple-800">خەڵاتی شێر بۆ هەر دانە (ئارەزوومەندانە)
+                    <input type="number" min="0" step="1" value={form.referralCommission} onChange={(event) => setForm((old) => ({ ...old, referralCommission: event.target.value }))} placeholder="٠ = بێ خەڵات · نموونە: ٥٠٠ د.ع" className="mt-2 w-full rounded-xl border-2 border-purple-200 bg-purple-50 p-3 text-base font-black text-purple-900 focus:border-purple-500 focus:outline-none"/>
+                    <small className="mt-2 block text-xs font-medium leading-6 text-slate-500">٠ دابنێ ئەگەر ناتەوێت ئەم کاڵایە خەڵاتی شێری هەبێت. تەنها کاتێک بڕێکی زیاتر لە سفر دابنێیت، ئەم کاڵایە لە پرۆگرامی شێر و خەڵاتدا دەردەکەوێت؛ خەڵاتەکە دوای گەیاندنی داواکاری زیاد دەکرێت.</small>
                   </label>
                   <label className="block text-sm font-bold">بڕی کۆگا (بەتاڵ = بێ سنوور)
                     <input type="number" min="0" step="0.001" value={form.stock} onChange={(event) => setForm((old) => ({ ...old, stock: event.target.value }))} placeholder="بۆ نموونە: ٢٥" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
@@ -489,7 +489,7 @@ export default function StorePage() {
                             {isAdmin && <p className="mt-1 text-xs font-semibold text-slate-500">نرخی کڕین: {product.cost_price_iqd === null ? "تۆمار نەکراوە" : formatIQD(product.cost_price_iqd)} · قازانجی هەر دانە: {product.cost_price_iqd === null ? "—" : formatIQD(product.price_iqd - product.cost_price_iqd)}</p>}
                             {product.referral_commission_iqd > 0
                               ? <p className="mt-1 rounded-lg bg-purple-50 px-2 py-1 text-xs font-black text-purple-800">خەڵاتی شێر بۆ هەر دانە: {formatIQD(product.referral_commission_iqd)}</p>
-                              : <p className="mt-1 rounded-lg bg-rose-50 px-2 py-1 text-xs font-bold text-rose-700">خەڵاتی شێر دیاری نەکراوە؛ پێش دەستکاری/چالاککردن بڕێک دابنێ.</p>}
+                              : <p className="mt-1 rounded-lg bg-slate-50 px-2 py-1 text-xs font-medium text-slate-500">ئەم کاڵایە بە شێوەی ئاسایی دەفرۆشرێت؛ شێر و خەڵاتی نییە.</p>}
                             <p className="mt-1 text-lg font-black text-shakh-orange">{formatIQD(product.price_iqd)} <small className="text-xs font-medium text-slate-500">/ {units.find((unit) => unit.value === product.unit)?.label || product.unit}</small></p>
                             <p className="mt-1 text-sm text-slate-500">کۆگا: {product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}</p>
                             {product.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>}{product.rejection_reason && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">هۆکاری ڕەفز: {product.rejection_reason}</p>}
