@@ -1118,6 +1118,10 @@ export type Database = {
         Args: { p_amount_iqd: number; p_product_id: string }
         Returns: undefined
       }
+      admin_set_product_referral_reward: {
+        Args: { p_product_id: string; p_reward_iqd: number }
+        Returns: undefined
+      }
       admin_set_user_role: {
         Args: {
           p_role: Database["public"]["Enums"]["app_role"]
