@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 import NotificationsCenter from "@/components/notifications-center";
+import MobileBottomNav from "@/components/mobile-bottom-nav";
 
 const siteUrl = "https://www.daim-post.online";
 
@@ -30,6 +31,7 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon.svg", apple: "/icon.svg" },
   appleWebApp: { capable: true, title: "SHAKH", statusBarStyle: "default" },
 };
 
@@ -48,6 +50,7 @@ export default function RootLayout({
         <PwaRegister />
         <NotificationsCenter />
         {children}
+        <MobileBottomNav />
       </body>
     </html>
   );
