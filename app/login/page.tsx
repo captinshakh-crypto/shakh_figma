@@ -4,6 +4,12 @@ import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import ShakhBrand from "@/components/shakh-brand";
 
+function getPostAuthPath() {
+  if (typeof window === "undefined") return "/dashboard";
+  const requested = new URLSearchParams(window.location.search).get("next");
+  return requested === "/cart" ? "/cart" : "/dashboard";
+}
+
 export default function LoginPage() {
   const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [name,setName]=useState("");
   const [mode,setMode]=useState<"login"|"signup">("login"); const [message,setMessage]=useState(""); const [busy,setBusy]=useState(false); const [showRecoveryLink,setShowRecoveryLink]=useState(false);
@@ -20,7 +26,7 @@ export default function LoginPage() {
 
     try {
       void Promise.resolve(createClient().auth.getUser()).then(({ data }) => {
-        if (active && data.user) window.location.replace("/dashboard");
+        if (active && data.user) window.location.replace(getPostAuthPath());
       }).catch(() => {
         // Keep the sign-in form available when the session check is temporarily offline.
       });
@@ -35,7 +41,8 @@ export default function LoginPage() {
     e.preventDefault(); setBusy(true); setMessage(""); setShowRecoveryLink(false);
     try {
       const supabase=createClient();
-      const callback = "https://daim-post.online/auth/callback?next=/dashboard";
+      const nextPath = getPostAuthPath();
+      const callback = `https://daim-post.online/auth/callback?next=${encodeURIComponent(nextPath)}`;
       const cleanEmail = email.trim().toLowerCase();
       const result=mode==="login"
         ? await supabase.auth.signInWithPassword({email:cleanEmail,password})
@@ -52,9 +59,9 @@ export default function LoginPage() {
             : "دروستکردنی هەژمار سەرکەوتوو نەبوو. تکایە دواتر هەوڵ بدەرەوە.");
         }
       } else if(mode==="signup") {
-        if(result.data.session) window.location.replace("/dashboard");
+        if(result.data.session) window.location.replace(nextPath);
         else setMessage("هەژمارەکەت دروست کرا. تکایە ئیمەیڵەکەت بپشکنە و لینکی پشتڕاستکردنەوە بکەرەوە؛ دوای پشتڕاستکردنەوە پڕۆفایل و ڕۆڵەکەت پیشان دەدرێت.");
-      } else window.location.replace("/dashboard");
+      } else window.location.replace(nextPath);
     } catch { setMessage("پەیوەندی بە داتابەیس نەکرا. ڕێکخستنی پڕۆژە بپشکنە."); }
     finally { setBusy(false); }
   }
@@ -62,7 +69,8 @@ export default function LoginPage() {
   async function signInWithGoogle() {
     setBusy(true); setMessage("");
     try {
-      const callback = "https://daim-post.online/auth/callback?next=/dashboard";
+      const nextPath = getPostAuthPath();
+      const callback = `https://daim-post.online/auth/callback?next=${encodeURIComponent(nextPath)}`;
       const { error } = await createClient().auth.signInWithOAuth({
         provider: "google",
         options: {
