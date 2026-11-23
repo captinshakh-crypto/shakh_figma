@@ -1,5 +1,5 @@
-const CACHE = "shakh-shell-v3";
-const SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
+const CACHE = "shakh-shell-v4";
+const SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/brand-lockup.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
