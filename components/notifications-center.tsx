@@ -350,8 +350,8 @@ export default function NotificationsCenter() {
               </div>}
               {notices.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">{loadError ? "ئێستا ئاگادارییەکان بەردەست نین." : "هیچ ئاگادارییەک نییە."}</p> : notices.map((item) => (
                 <button key={item.id} onClick={() => { if (!item.read_at) void markRead(item.id); }} className={"block w-full border-t px-4 py-3 text-right hover:bg-slate-50 " + (item.read_at ? "bg-white" : "bg-orange-50/70")}>
-                  <div className="flex items-start justify-between gap-3"><b className="text-sm">{item.title}</b>{!item.read_at && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-shakh-orange"/>}</div>
-                  <p className="mt-1 text-sm text-slate-600">{item.body}</p>
+                  <div className="flex items-start justify-between gap-3"><b className="text-sm">{item.title.replaceAll("کپتن", "کاپتن")}</b>{!item.read_at && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-shakh-orange"/>}</div>
+                  <p className="mt-1 text-sm text-slate-600">{item.body.replaceAll("کپتن", "کاپتن")}</p>
                   <time className="mt-2 block text-[11px] text-slate-400">{new Date(item.created_at).toLocaleString("ckb-IQ")}</time>
                 </button>
               ))}
