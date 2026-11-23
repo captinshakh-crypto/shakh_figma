@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 type Product={id:string;merchant_id:string|null;is_shakh_store:boolean;cost_price_iqd:number|null;title:string;description:string|null;price_iqd:number;merchant_commission_per_unit_iqd:number;referral_commission_iqd:number;category_key:string;image_path:string|null;is_available:boolean;approval_status:string;rejection_reason:string|null;created_at:string};
 type Merchant={id:string;business_name:string;address:string|null};
@@ -19,6 +20,32 @@ export default function AdminMerchantPostsPage(){
   setSaving(null);
  }
  async function review(p:Product,approve:boolean){const reason=approve?null:window.prompt("هۆکاری ڕەفزکردن بنووسە (ئارەزوومەندانە):") ;if(!approve&&reason===null)return;setSaving(p.id);setError("");const {error}=await createClient().rpc("admin_review_product",{p_product_id:p.id,p_approve:approve,...(reason!==null?{p_rejection_reason:reason}:{})});if(error)setError(error.message);else await load();setSaving(null);}
+ async function permanentlyDelete(p:Product){
+  const typed=window.prompt("بۆ سڕینەوەی یەکجاریی «"+p.title+"»، تکایە وشەی «سڕینەوە» بنووسە. مێژووی داواکارییە کۆنەکان دەمێننەوە.");
+  if(typed?.trim()!=="سڕینەوە")return;
+  setSaving(p.id);setError("");
+  const s=createClient();
+  try{
+    const {data,error:deleteError}=await s.from("products").delete().eq("id",p.id).select("id").maybeSingle();
+    if(deleteError)throw deleteError;
+    if(!data)throw new Error("پۆستەکە نەسڕایەوە؛ دەسەڵات یان هەبوونی پۆستەکە بپشکنە.");
+    setProducts(old=>old.filter(x=>x.id!==p.id));
+    setCommissionDrafts(old=>{const next={...old};delete next[p.id];return next;});
+    setReferralDrafts(old=>{const next={...old};delete next[p.id];return next;});
+    if(p.image_path){
+      const {error:imageError}=await s.storage.from("product-images").remove([p.image_path]);
+      if(imageError){
+        setError("پۆستەکە بە یەکجاری سڕایەوە، بەڵام سڕینەوەی وێنەی هەڵگیراو تەواو نەبوو: "+imageError.message);
+        return;
+      }
+    }
+    setError("پۆستەکە بە یەکجاری سڕایەوە؛ مێژووی داواکارییە کۆنەکان و تۆمارە داراییەکان پارێزراون.");
+  }catch(e){
+    setError(e instanceof Error?e.message:"سڕینەوەی یەکجاری پۆست سەرکەوتوو نەبوو.");
+  }finally{
+    setSaving(null);
+  }
+ }
  const filtered=products.filter(p=>(filter==="all"||p.approval_status===filter)&&(p.title+" "+(p.description||"")+" "+(p.is_shakh_store?"SHAKH STORE شاخ ستۆر ":"")+(merchants[p.merchant_id||""]||"")).toLowerCase().includes(search.toLowerCase()));
  const counts={pending:products.filter(p=>p.approval_status==="pending").length,approved:products.filter(p=>p.approval_status==="approved").length,rejected:products.filter(p=>p.approval_status==="rejected").length};
  return <main className="min-h-screen px-4 py-8"><div className="mx-auto max-w-6xl"><Link href="/dashboard/admin" className="font-bold text-shakh-blue">← داشبۆردی سوپەر ئەدمین</Link><header className="mt-6"><h1 className="text-3xl font-black">بەڕێوەبردن و ڕەتکردنەوەی هەموو پۆستەکان</h1><p className="mt-2 text-sm text-slate-500">هەموو پۆستەکانی شاخ ستۆر و دوکانە هاوبەشەکان لێرە کۆکراونەتەوە. سوپەر ئەدمین دەتوانێت پۆستی پەسەندکراو ڕەت بکاتەوە و پۆستی ڕەتکراو دووبارە پەسەند بکات. کۆمسیۆنی دوکان و خەڵاتی شێر جیاوازن.</p></header>
@@ -32,6 +59,6 @@ export default function AdminMerchantPostsPage(){
 <input type="number" min="0" step="1" value={referralDrafts[p.id]??"0"} onChange={e=>setReferralDrafts(old=>({...old,[p.id]:e.target.value}))} className="mt-1 w-full rounded-lg border bg-white p-2 text-sm text-slate-900"/>
 </label>
 <button disabled={saving===p.id} onClick={()=>void saveReferralReward(p)} className="mt-2 w-full rounded-lg border border-purple-300 bg-white px-3 py-2 text-sm font-bold text-purple-800 disabled:opacity-50">پاشەکەوتی خەڵاتی شێر (سفر یان بڕی نوێ)</button>
-</div>{!p.is_shakh_store&&(<div className="mt-2 rounded-xl bg-orange-50 p-3"><label className="block text-xs font-bold text-orange-900">کۆمسیۆنی دوکان بۆ هەر دانە (جیا لە خەڵاتی شێر، د.ع)<input type="number" min="0" step="1" value={commissionDrafts[p.id]??"0"} onChange={e=>setCommissionDrafts(old=>({...old,[p.id]:e.target.value}))} className="mt-1 w-full rounded-lg border bg-white p-2 text-sm text-slate-900"/></label><button disabled={saving===p.id} onClick={()=>void saveCommission(p)} className="mt-2 w-full rounded-lg bg-shakh-blue px-3 py-2 text-sm font-bold text-white disabled:opacity-50">پاشەکەوتی کۆمسیۆن و چالاککردن</button></div>)}{p.rejection_reason&&<p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">هۆکاری ڕەفز: {p.rejection_reason}</p>}<p className="mt-3 text-[11px] text-slate-400">بەرواری پۆست: {new Date(p.created_at).toLocaleDateString("ckb-IQ")}</p></div><div className="flex gap-2 border-t p-3">{p.approval_status==="approved"?<button disabled={saving===p.id} onClick={()=>void review(p,false)} className="flex-1 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50">ڕەتکردنەوەی پۆست</button>:p.approval_status==="rejected"?<button disabled={saving===p.id} onClick={()=>void review(p,true)} className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">دووبارە پەسەندکردن</button>:<><button disabled={saving===p.id} onClick={()=>void review(p,true)} className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">پەسەندکردن</button><button disabled={saving===p.id} onClick={()=>void review(p,false)} className="flex-1 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50">ڕەتکردنەوە</button></>}</div></article>;})}</div>}
+</div>{!p.is_shakh_store&&(<div className="mt-2 rounded-xl bg-orange-50 p-3"><label className="block text-xs font-bold text-orange-900">کۆمسیۆنی دوکان بۆ هەر دانە (جیا لە خەڵاتی شێر، د.ع)<input type="number" min="0" step="1" value={commissionDrafts[p.id]??"0"} onChange={e=>setCommissionDrafts(old=>({...old,[p.id]:e.target.value}))} className="mt-1 w-full rounded-lg border bg-white p-2 text-sm text-slate-900"/></label><button disabled={saving===p.id} onClick={()=>void saveCommission(p)} className="mt-2 w-full rounded-lg bg-shakh-blue px-3 py-2 text-sm font-bold text-white disabled:opacity-50">پاشەکەوتی کۆمسیۆن و چالاککردن</button></div>)}{p.rejection_reason&&<p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">هۆکاری ڕەفز: {p.rejection_reason}</p>}<p className="mt-3 text-[11px] text-slate-400">بەرواری پۆست: {new Date(p.created_at).toLocaleDateString("ckb-IQ")}</p></div><div className="flex flex-wrap gap-2 border-t p-3"><button disabled={saving===p.id} onClick={()=>void permanentlyDelete(p)} className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"><Trash2 size={15}/> سڕینەوەی یەکجاری</button>{p.approval_status==="approved"?<button disabled={saving===p.id} onClick={()=>void review(p,false)} className="flex-1 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50">ڕەتکردنەوەی پۆست</button>:p.approval_status==="rejected"?<button disabled={saving===p.id} onClick={()=>void review(p,true)} className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">دووبارە پەسەندکردن</button>:<><button disabled={saving===p.id} onClick={()=>void review(p,true)} className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">پەسەندکردن</button><button disabled={saving===p.id} onClick={()=>void review(p,false)} className="flex-1 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50">ڕەتکردنەوە</button></>}</div></article>;})}</div>}
  </div></main>;
 }
