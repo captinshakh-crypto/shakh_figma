@@ -1,4 +1,4 @@
-const CACHE = "shakh-shell-v2";
+const CACHE = "shakh-shell-v3";
 const SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -9,7 +9,11 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))
+      Promise.all(
+        keys
+          .filter((key) => key.startsWith("shakh-") && key !== CACHE)
+          .map((key) => caches.delete(key))
+      )
     )
   );
   self.clients.claim();
@@ -18,8 +22,16 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
+
+  // Never cache or replace authenticated pages, API calls, or user-specific responses.
   event.respondWith(
-    fetch(request).catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+    fetch(request).catch(async () => {
+      if (request.mode === "navigate") {
+        const shell = await caches.match("/");
+        if (shell) return shell;
+      }
+      return Response.error();
+    })
   );
 });
 
