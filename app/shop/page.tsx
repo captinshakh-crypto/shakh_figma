@@ -130,6 +130,7 @@ export default function ShopPage() {
         referral_campaign_id: activeReferral,
       });
       localStorage.setItem("shakh-cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("shakh:cart-updated"));
       setCartCount(cart.reduce((total, item) => total + item.quantity, 0));
       setMessage("کاڵا زیاد کرا بۆ سەبەتە.");
     } catch {
