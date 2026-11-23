@@ -444,7 +444,7 @@ export default function StorePage() {
   }
 
   async function removeProduct(product: Product) {
-    if (!window.confirm(`دڵنیایت لە سڕینەوەی «${product.title}»؟ ئەم کردارە ناگەڕێتەوە.`)) return;
+    if (!window.confirm(`دڵنیایت لە سڕینەوەی یەکجاری «${product.title}»؟ ئەم کردارە ناگەڕێتەوە. تەنها مێژووی داواکارییە کۆنەکان دەمێننەوە.`)) return;
     setSaving(true);
     setMessage("");
     const supabase = createClient();
@@ -459,7 +459,7 @@ export default function StorePage() {
       }
       setProducts((current) => current.filter((item) => item.id !== product.id));
       if (product.image_path) await supabase.storage.from("product-images").remove([product.image_path]);
-      setMessage("پۆستەکە بە سەرکەوتوویی سڕایەوە.");
+      setMessage("پۆستەکە بە یەکجاری سڕایەوە؛ مێژووی داواکارییە کۆنەکان پارێزراون.");
       if (editing?.id === product.id) resetProductForm();
       await load();
     } catch (error) {
@@ -629,7 +629,7 @@ export default function StorePage() {
                           )}
                           <button disabled={saving} onClick={() => startEditing(product)} className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 disabled:opacity-50"><Pencil size={15}/> دەستکاری</button>
                           <button disabled={saving} onClick={() => void toggleAvailability(product)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-50">{product.is_available ? <EyeOff size={15}/> : <Eye size={15}/>} {product.is_available ? "ناچالاککردن" : "بەردەستکردن"}</button>
-                          <button disabled={saving} onClick={() => void removeProduct(product)} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50"><Trash2 size={15}/> سڕینەوە</button>
+                          <button disabled={saving} onClick={() => void removeProduct(product)} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50"><Trash2 size={15}/> سڕینەوەی یەکجاری</button>
                         </div>
                       </article>
                     );
