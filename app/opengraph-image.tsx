@@ -1,105 +1,50 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "SHAKH - Online Market and Delivery";
+export const alt = "SHAKH STORE - شاخ ستۆر، بازاڕی ئۆنلاین و گەیاندن";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const heroImage =
-  "https://images.unsplash.com/photo-1772884011435-00b8eeceb1a0?auto=format&fit=crop&fm=jpg&q=78&w=1600";
+function Mountain({ flip = false }: { flip?: boolean }) {
+  return (
+    <svg width="220" height="190" viewBox="0 0 390 320" style={{ transform: flip ? "scaleX(-1)" : "none" }}>
+      <path d="M25 245 112 143l48 55 66-93 133 140H25Z" fill="none" stroke="#fff" strokeWidth="25" strokeLinejoin="round" strokeLinecap="round"/>
+      <path d="m112 143 42 45 10-12m62-71-28 58 33-20 30 42" fill="none" stroke="#ffe7d0" strokeWidth="13" strokeLinejoin="round" strokeLinecap="round"/>
+      <circle cx="322" cy="77" r="14" fill="#ffd27c"/>
+    </svg>
+  );
+}
 
-export default async function OpenGraphImage() {
-  let photoSrc = "";
-  try {
-    const response = await fetch(heroImage);
-    if (response.ok) {
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      photoSrc = "data:image/jpeg;base64," + btoa(binary);
-    }
-  } catch {
-    // Keep the branded gradient card when the photo host is unavailable.
-  }
-
+export default function OpenGraphImage() {
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "1200px",
-          height: "630px",
-          display: "flex",
-          position: "relative",
-          overflow: "hidden",
-          background: "#102f49",
-          color: "#ffffff",
-        }}
-      >
-        {photoSrc ? (
-          <img
-            src={photoSrc}
-            width="1200"
-            height="630"
-            style={{ position: "absolute", inset: 0, width: "1200px", height: "630px", objectFit: "cover" }}
-          />
-        ) : null}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            background: "linear-gradient(90deg, rgba(8,28,45,.05) 0%, rgba(8,28,45,.3) 45%, rgba(8,28,45,.96) 100%)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            right: 72,
-            top: 68,
-            width: 485,
-            height: 490,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-            justifyContent: "center",
-            textAlign: "right",
-            fontFamily: "Arial, sans-serif",
-          }}
-        >
-          <div style={{ display: "flex", color: "#ffb36f", fontSize: 46, fontWeight: 900, letterSpacing: 4 }}>
-            SHAKH
+      <div style={{
+        width: "1200px", height: "630px", display: "flex", position: "relative",
+        overflow: "hidden", alignItems: "center", justifyContent: "center",
+        background: "linear-gradient(118deg, #ffb21d 0%, #ff7415 36%, #102f49 36%, #102f49 100%)",
+        color: "#ffffff", fontFamily: "Arial, Tahoma, sans-serif",
+      }}>
+        <div style={{ position: "absolute", left: 45, top: 95, display: "flex" }}><Mountain/></div>
+        <div style={{ position: "absolute", right: 45, top: 95, display: "flex" }}><Mountain flip/></div>
+        <div style={{
+          position: "absolute", inset: 0, display: "flex", alignItems: "center",
+          justifyContent: "center", flexDirection: "column", textAlign: "center", padding: "50px",
+        }}>
+          <div style={{ display: "flex", borderRadius: "999px", background: "#ff8b13", padding: "13px 34px", fontSize: 25, fontWeight: 900, letterSpacing: 4 }}>
+            SHAKH STORE
           </div>
-          <div style={{ display: "flex", marginTop: 24, fontSize: 58, fontWeight: 900, lineHeight: 1.2 }}>
-            Online Market
+          <div style={{ display: "flex", marginTop: 33, fontSize: 82, fontWeight: 900, lineHeight: 1.25, textShadow: "0 5px 18px rgba(0,0,0,.24)" }}>
+            شاخ ستۆر
           </div>
-          <div style={{ display: "flex", marginTop: 8, fontSize: 58, fontWeight: 900, lineHeight: 1.2 }}>
-            &amp; Delivery
+          <div style={{ display: "flex", marginTop: 20, fontSize: 34, fontWeight: 800, color: "#ffe0b2" }}>
+            بازاڕی ئۆنلاین و گەیاندن
           </div>
-          <div style={{ display: "flex", marginTop: 28, fontSize: 25, lineHeight: 1.5, color: "#e4eef7" }}>
-            Restaurants · Groceries · Supermarkets
+          <div style={{ display: "flex", marginTop: 24, fontSize: 24, fontWeight: 700, color: "#e6f0fa" }}>
+            چێشتخانە  |  سوپەرمارکێت  |  گۆشت و سپیاتی  |  بەقالی
           </div>
-          <div style={{ display: "flex", marginTop: 34, borderRadius: 18, background: "#f47721", padding: "16px 26px", fontSize: 23, fontWeight: 800 }}>
+          <div style={{ display: "flex", marginTop: 38, borderRadius: 18, background: "#ff7115", padding: "16px 32px", fontSize: 23, fontWeight: 900 }}>
             DAIM-POST.ONLINE
           </div>
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            left: 54,
-            top: 54,
-            display: "flex",
-            width: 112,
-            height: 112,
-            borderRadius: 28,
-            background: "linear-gradient(140deg, #ff9b3d, #e75f13)",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <svg width="85" height="72" viewBox="0 0 390 320">
-            <path d="M25 245 112 143l48 55 66-93 133 140H25Z" fill="none" stroke="#fff" strokeWidth="26" strokeLinejoin="round" strokeLinecap="round"/>
-            <path d="m95 245 65-77 43 48 25-31 60 60" fill="none" stroke="#ffe7d0" strokeWidth="14" strokeLinejoin="round" strokeLinecap="round"/>
-          </svg>
         </div>
       </div>
     ),
