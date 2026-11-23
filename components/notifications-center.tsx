@@ -36,6 +36,19 @@ export default function NotificationsCenter() {
   const audioRef = useRef<AudioContext | null>(null);
   const knownIds = useRef<Set<string>>(new Set());
 
+  // Keep the user's sound preference across page reloads and PWA restarts.
+  useEffect(() => {
+    if (!userId || typeof window === "undefined") {
+      setSoundOn(false);
+      return;
+    }
+    try {
+      setSoundOn(window.localStorage.getItem("shakh_notification_sound_" + userId) === "on");
+    } catch {
+      setSoundOn(false);
+    }
+  }, [userId]);
+
   const playSound = useCallback(async (force = false) => {
     if (!soundOn && !force) return;
     try {
@@ -249,8 +262,12 @@ export default function NotificationsCenter() {
   }
 
   async function toggleSound() {
-    if (!soundOn) {
-      setSoundOn(true);
+    const nextSoundOn = !soundOn;
+    setSoundOn(nextSoundOn);
+    try {
+      if (userId) window.localStorage.setItem("shakh_notification_sound_" + userId, nextSoundOn ? "on" : "off");
+    } catch { /* Sound preference persistence may be unavailable in private browsing. */ }
+    if (nextSoundOn) {
       try {
         const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
         if (AudioContextClass) {
