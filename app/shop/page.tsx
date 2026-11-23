@@ -46,7 +46,8 @@ export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [cartCount, setCartCount] = useState(0);
-  const [search, setSearch] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("q") || "" : "");
+  const [search, setSearch] = useState("");
+  const [searchInitialized, setSearchInitialized] = useState(false);
   const [storeType, setStoreType] = useState("all");
   const [category, setCategory] = useState("all");
   const [message, setMessage] = useState("");
@@ -85,11 +86,17 @@ export default function ShopPage() {
   }, []);
 
   useEffect(() => {
+    setSearch(new URLSearchParams(window.location.search).get("q") || "");
+    setSearchInitialized(true);
+  }, []);
+
+  useEffect(() => {
+    if (!searchInitialized) return;
     const url = new URL(window.location.href);
     if (search.trim()) url.searchParams.set("q", search.trim());
     else url.searchParams.delete("q");
     window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-  }, [search]);
+  }, [search, searchInitialized]);
 
   const merchantMap = useMemo(
     () => Object.fromEntries(merchants.map((merchant) => [merchant.id, merchant])) as Record<string, Merchant>,
