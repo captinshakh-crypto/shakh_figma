@@ -155,65 +155,51 @@ export default function HomePage() {
         </div>
       </header>
 
-      <section className="relative isolate overflow-hidden bg-[#102f49] text-white">
-        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_12%_12%,rgba(244,119,33,.34),transparent_36%),radial-gradient(ellipse_at_85%_90%,rgba(23,105,170,.5),transparent_42%)]"/>
-        <div aria-hidden="true" className="absolute -left-24 top-10 h-72 w-72 rounded-full border border-white/10"/>
-        <div aria-hidden="true" className="absolute -left-12 top-24 h-48 w-48 rounded-full border border-white/10"/>
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 md:grid-cols-[1.05fr_.95fr] md:py-24 lg:px-8">
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold text-blue-100 sm:text-sm">
-              <Sparkles size={15} className="text-orange-300"/> پلاتفۆرمی بازاڕی شاخ
-            </div>
-            <h1 className="mt-6 max-w-2xl text-[2.15rem] font-black leading-[1.45] tracking-tight sm:text-5xl sm:leading-[1.35] lg:text-6xl">
-              هەموو پێویستییەکانت
-              <span className="mt-1 block text-[#ffb36f]">لە یەک شوێن، بە شاخ</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-sm leading-8 text-blue-100 sm:text-lg sm:leading-9">
-              لە چێشتخانە، سوپەرمارکێت، گۆشت و سپیاتی و بەقالی بگەڕێ؛ کاڵای پێویستت هەڵبژێرە و داواکارییەکەت لە هەمان پلاتفۆرم ڕێکبخە.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/shop" className="inline-flex items-center gap-3 rounded-xl bg-[#f47721] px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-orange-950/25 transition hover:-translate-y-0.5 hover:bg-orange-600 sm:text-base">
-                دەستپێکردنی گەڕان <ArrowLeft size={18}/>
-              </Link>
-              <Link href={accountHref} className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-white/10 sm:text-base">
-                {profile ? "چوون بۆ داشبۆرد" : "هەژمارەکەت بکەرەوە"} <ChevronLeft size={18}/>
-              </Link>
-            </div>
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-xs font-semibold text-blue-100/90 sm:text-sm">
-              <span className="inline-flex items-center gap-2"><ShieldCheck size={17} className="text-[#ffb36f]"/> دەستگەیشتنی پارێزراو</span>
-              <span className="inline-flex items-center gap-2"><Clock3 size={17} className="text-[#ffb36f]"/> ڕێکخستنی ئاسان</span>
-              <span className="inline-flex items-center gap-2"><CircleCheck size={17} className="text-[#ffb36f]"/> بازاڕی یەکگرتوو</span>
-            </div>
-          </div>
-
-          <div className="relative mx-auto w-full max-w-xl">
-            <div className="absolute -inset-5 rounded-[2.5rem] bg-gradient-to-br from-orange-400/30 to-blue-400/20 blur-3xl"/>
-            <div className="relative rounded-[2rem] border border-white/15 bg-white/10 p-3 shadow-2xl backdrop-blur-xl sm:p-5">
-              <div className="rounded-[1.5rem] bg-white p-4 text-[#102f49] sm:p-5">
-                <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                  <div>
-                    <p className="text-[10px] font-black tracking-[0.2em] text-[#f47721]">DISCOVER SHAKH</p>
-                    <h2 className="mt-1 text-lg font-black sm:text-xl">لە کام بەشەوە دەست پێدەکەیت؟</h2>
-                  </div>
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-orange-50 text-[#f47721]"><ShoppingBasket size={22}/></span>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3">
-                  {categories.map(({ key, label, detail, icon: Icon, tone, color }) => (
-                    <Link key={key} href="/shop" className={`group rounded-2xl border border-slate-100 bg-gradient-to-br ${tone} p-3.5 transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md sm:p-4`}>
-                      <span className={`grid h-10 w-10 place-items-center rounded-xl bg-white shadow-sm ${color}`}><Icon size={20}/></span>
-                      <b className="mt-3 block text-sm font-black">{label}</b>
-                      <span className="mt-1 block text-[11px] leading-5 text-slate-500 sm:text-xs">{detail}</span>
-                    </Link>
-                  ))}
-                </div>
-                <Link href="/shop" className="mt-3 flex items-center gap-3 rounded-xl bg-[#edf4fa] p-3.5 transition hover:bg-blue-100">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-[#1769aa]"><Search size={17}/></span>
-                  <span className="min-w-0 flex-1 text-xs font-bold text-slate-700 sm:text-sm">گەڕان بە ناوی کاڵا یان فرۆشگا</span>
-                  <ArrowLeft size={16} className="text-[#1769aa]"/>
-                </Link>
+      <section aria-labelledby="home-hero-title" className="bg-[#f5f8fc] py-5 sm:py-8">
+        <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
+          <div className="grid overflow-hidden rounded-[1.75rem] bg-[#102f49] text-white shadow-[0_24px_70px_rgba(16,47,73,.18)] md:grid-cols-2 md:rounded-[2rem]">
+            <div className="relative order-first min-h-[245px] overflow-hidden sm:min-h-[330px] md:order-last md:min-h-[470px]">
+              <img
+                src="https://images.unsplash.com/photo-1772884011435-00b8eeceb1a0?auto=format&fit=crop&fm=jpg&q=78&w=1600"
+                alt="خواردنی برگری گەرم لەگەڵ فرێز"
+                className="absolute inset-0 h-full w-full object-cover object-center"
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+              />
+              <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#102f49]/55 via-transparent to-black/10 md:bg-gradient-to-l md:from-[#102f49]/10 md:to-transparent"/>
+              <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur-md sm:bottom-6 sm:left-6">
+                <span className="h-2 w-2 rounded-full bg-emerald-400"/>
+                شاخ · بازاڕ و گەیاندن
               </div>
-              <div className="flex items-center justify-between px-2 pt-3 text-[10px] font-semibold text-blue-100/75 sm:text-xs">
-                <span>چوار جۆری سەرەکیی بازاڕ</span><span className="tracking-[0.22em]">SHAKH</span>
+            </div>
+            <div className="relative order-last flex min-h-[350px] items-center overflow-hidden p-6 sm:p-9 md:order-first md:min-h-[470px] md:p-10 lg:p-12">
+              <div aria-hidden="true" className="pointer-events-none absolute -left-20 -top-24 h-72 w-72 rounded-full border border-white/10"/>
+              <div aria-hidden="true" className="pointer-events-none absolute -left-8 -top-12 h-48 w-48 rounded-full border border-white/10"/>
+              <div className="relative z-10 max-w-xl">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-black text-orange-100 sm:text-sm">
+                  <Sparkles size={15} className="text-[#ffb36f]"/> بازاڕی دیجیتاڵی شاخ
+                </span>
+                <h1 id="home-hero-title" className="mt-5 text-[2rem] font-black leading-[1.5] tracking-tight sm:text-4xl sm:leading-[1.4] lg:text-[3.25rem]">
+                  خواردنی دڵخوازت
+                  <span className="block text-[#ffb36f]">لە چێشتخانەکانی شاخ</span>
+                </h1>
+                <p className="mt-4 max-w-lg text-sm leading-8 text-blue-100 sm:text-base sm:leading-9">
+                  لە چێشتخانە، سوپەرمارکێت، گۆشت و سپیاتی و بەقالی بگەڕێ؛ کاڵای پێویستت هەڵبژێرە و داواکارییەکەت لە یەک پلاتفۆرمدا ڕێکبخە.
+                </p>
+                <div className="mt-7 flex flex-wrap gap-3">
+                  <Link href="/shop" className="inline-flex items-center gap-2 rounded-xl bg-[#f47721] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-orange-950/20 transition hover:-translate-y-0.5 hover:bg-orange-600 sm:px-6 sm:text-base">
+                    بینینی بازاڕ <ArrowLeft size={18}/>
+                  </Link>
+                  <Link href={accountHref} className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-4 py-3.5 text-sm font-bold text-white transition hover:bg-white/10">
+                    {profile ? "چوون بۆ داشبۆرد" : "چوونەژوورەوە"} <ChevronLeft size={17}/>
+                  </Link>
+                </div>
+                <div className="mt-7 flex flex-wrap gap-x-5 gap-y-3 text-xs font-semibold text-blue-100 sm:text-sm">
+                  <span className="inline-flex items-center gap-2"><ShieldCheck size={16} className="text-[#ffb36f]"/> پاراستنی هەژمار</span>
+                  <span className="inline-flex items-center gap-2"><Truck size={16} className="text-[#ffb36f]"/> گەیاندنی داواکاری</span>
+                  <span className="inline-flex items-center gap-2"><CircleCheck size={16} className="text-[#ffb36f]"/> چوار جۆری بازاڕ</span>
+                </div>
               </div>
             </div>
           </div>

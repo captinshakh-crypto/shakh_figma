@@ -38,3 +38,34 @@ a { color: inherit; text-decoration: none; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+
+/* Keep the notification bell aligned with the header on narrow and wide screens. */
+.shakh-notifications-anchor {
+  position: fixed;
+  z-index: 100;
+  top: calc(42px + env(safe-area-inset-top, 0px));
+  left: max(12px, calc((100vw - 1280px) / 2 + 16px));
+}
+
+.shakh-notifications-trigger {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+#shakh-notifications-panel {
+  max-height: min(72vh, 620px);
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 360px) {
+  .shakh-notifications-anchor {
+    left: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shakh-notifications-trigger {
+    transition: none;
+  }
+}

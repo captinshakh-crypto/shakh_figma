@@ -306,14 +306,14 @@ export default function NotificationsCenter() {
   const unread = notices.filter((item) => !item.read_at).length;
 
   return (
-    <div className="fixed left-4 top-4 z-[100]">
+    <div className="shakh-notifications-anchor">
       <div className="relative">
-        <button onClick={() => setOpen((value) => !value)} aria-label="ئاگادارییەکان" className="relative flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-shakh-blue shadow-lg">
+        <button onClick={() => setOpen((value) => !value)} aria-label="ئاگادارییەکان" aria-expanded={open} aria-controls="shakh-notifications-panel" className="shakh-notifications-trigger relative flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-shakh-blue shadow-md transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f47721]">
           <Bell size={21}/>
           {unread > 0 && <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[11px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}
         </button>
         {open && (
-          <section className="absolute left-0 top-14 w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" dir="rtl">
+          <section id="shakh-notifications-panel" role="dialog" aria-label="ئاگادارییەکان" className="absolute left-0 top-14 w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" dir="rtl">
             <header className="flex items-center justify-between border-b p-4">
               <div><b>ئاگادارییەکان</b><p className="text-xs text-slate-500">{unread.toLocaleString("en-US")} ئاگاداری نەخوێندراوە</p></div>
               <div className="flex items-center gap-2">
