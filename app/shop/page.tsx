@@ -260,7 +260,7 @@ export default function ShopPage() {
                       <span className="text-[11px] text-slate-400">{categoryLabels[product.category_key] || product.category_key}</span>
                     </div>
                     <p className="mt-1 min-h-5 truncate text-xs text-slate-500">{storeName}</p>
-                    {storeAddress && <p className="mt-1 flex min-h-5 items-center gap-1 text-[11px] text-slate-500"><span aria-hidden="true">📍</span><span className="truncate">شوێنی دوکان: {storeAddress}</span></p> }
+                    <p className="mt-1 flex min-h-5 items-center gap-1 truncate text-[11px] text-slate-500">{storeAddress ? <><span aria-hidden="true">📍</span><span className="truncate">شوێنی دوکان: {storeAddress}</span></> : "\u00a0"}</p>
                     <h2 className="mt-1 min-h-12 line-clamp-2 font-bold">{product.title}</h2>
                     <p className="mt-1 min-h-9 line-clamp-2 text-xs text-slate-500">{product.description || "\u00a0"}</p>
                     <div className="mt-2 flex min-h-[64px] items-center">
