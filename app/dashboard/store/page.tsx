@@ -49,6 +49,10 @@ const categorySets: Record<string, { value: string; label: string }[]> = {
     { value: "other", label: "هی تر" },
   ],
   super_admin: [
+    { value: "restaurant", label: "چێشتخانە" },
+    { value: "grocery", label: "بەقالی" },
+    { value: "butcher_poultry", label: "گۆشت و سپیاتی" },
+    { value: "supermarket", label: "سوپەرمارکێت" },
     { value: "general", label: "گشتی" },
     { value: "household", label: "پێداویستی ماڵ" },
     { value: "electronics", label: "ئەلیکترۆنیات" },
@@ -64,7 +68,24 @@ const units = [
   { value: "liter", label: "لیتر" },
   { value: "pack", label: "پاکەت" },
   { value: "box", label: "کارتۆن" },
+  { value: "portion", label: "پرس" },
+  { value: "plate", label: "قاپ" },
+  { value: "cup", label: "پەرداخ" },
+  { value: "bottle", label: "بوتڵ" },
+  { value: "bunch", label: "دەستە" },
 ];
+
+const unitsByCategory: Record<string, string[]> = {
+  supermarket: ["piece", "kg", "g", "liter", "pack", "box"],
+  grocery: ["kg", "g", "piece", "bunch"],
+  butcher_poultry: ["kg", "g", "piece"],
+  restaurant: ["portion", "plate", "piece", "cup", "bottle", "box"],
+};
+
+function getUnitsForCategory(category: string) {
+  const allowed = unitsByCategory[category];
+  return allowed ? units.filter((unit) => allowed.includes(unit.value)) : units;
+}
 
 type Merchant = {
   id: string;
@@ -131,6 +152,7 @@ export default function StorePage() {
   const formCategories = categories.some((item) => item.value === form.category)
     ? categories
     : [...categories, { value: form.category, label: form.category }];
+  const formUnits = getUnitsForCategory(form.category);
 
   async function load() {
     const supabase = createClient();
@@ -486,10 +508,19 @@ export default function StorePage() {
                   <label className="block text-sm font-bold">ناوی کاڵا
                     <input required maxLength={180} value={form.title} onChange={(event) => setForm((old) => ({ ...old, title: event.target.value }))} placeholder="ناوی کاڵا" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                   </label>
-                  <label className="block text-sm font-bold">بەشی کاڵا
-                    <select value={form.category} onChange={(event) => setForm((old) => ({ ...old, category: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 p-3">
+                  <label className="block text-sm font-bold">بەشی سەرەکی / جۆری کاڵا
+                    <select value={form.category} onChange={(event) => {
+                      const nextCategory = event.target.value;
+                      const nextUnits = getUnitsForCategory(nextCategory);
+                      setForm((old) => ({
+                        ...old,
+                        category: nextCategory,
+                        unit: nextUnits.some((unit) => unit.value === old.unit) ? old.unit : nextUnits[0]?.value || "piece",
+                      }));
+                    }} className="mt-2 w-full rounded-xl border border-slate-200 p-3">
                       {formCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                     </select>
+                    {isAdmin && <small className="mt-1 block text-xs font-medium leading-5 text-slate-500">بە هەڵبژاردنی جۆری کاڵا، یەکەی فرۆشتن بە گونجاوی هەمان بەش دەگۆڕێت.</small>}
                   </label>
                 </div>
                 <label className="block text-sm font-bold">وردەکاری کاڵا
@@ -504,8 +535,9 @@ export default function StorePage() {
                   </label>
                   <label className="block text-sm font-bold">یەکەی فرۆشتن
                     <select value={form.unit} onChange={(event) => setForm((old) => ({ ...old, unit: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 p-3">
-                      {units.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
+                      {formUnits.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
                     </select>
+                    {form.unit === "kg" && <small className="mt-1 block text-xs font-medium leading-5 text-slate-500">لە بازاڕ و سەبەتەدا بڕی کاڵای کیلۆیی بە هەنگاوی نیو کیلۆ (٠.٥) زیاد و کەم دەکرێت؛ نرخ بۆ هەر کیلۆیەکە.</small>}
                   </label>
                   <label className="block text-sm font-black text-purple-800">خەڵاتی شێر بۆ هەر دانە (ئارەزوومەندانە)
                     <input type="number" min="0" step="1" value={form.referralCommission} onChange={(event) => setForm((old) => ({ ...old, referralCommission: event.target.value }))} placeholder="٠ = بێ خەڵات · نموونە: ٥٠٠ د.ع" className="mt-2 w-full rounded-xl border-2 border-purple-200 bg-purple-50 p-3 text-base font-black text-purple-900 focus:border-purple-500 focus:outline-none"/>
