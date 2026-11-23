@@ -157,7 +157,7 @@ export default function HomePage() {
           <div className="grid overflow-hidden rounded-[1.75rem] bg-[#102f49] text-white shadow-[0_24px_70px_rgba(16,47,73,.18)] md:grid-cols-2 md:rounded-[2rem]">
             <div className="relative order-first min-h-[245px] overflow-hidden sm:min-h-[330px] md:order-last md:min-h-[470px]">
               <img
-                src="https://images.unsplash.com/photo-1772884011435-00b8eeceb1a0?auto=format&fit=crop&fm=jpg&q=78&w=1600"
+                src="https://images.unsplash.com/photo-1772884011435-00b8eeceb1a0?auto=format&fit=crop&fm=jpg&q=70&w=1280"
                 alt="خواردنی برگری گەرم لەگەڵ فرێز"
                 className="absolute inset-0 h-full w-full object-cover object-center"
                 loading="eager"
