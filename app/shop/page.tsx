@@ -202,6 +202,7 @@ export default function ShopPage() {
             <ShoppingCart size={18}/> سەبەتە ({cartCount})
           </Link>
         </header>
+        <p className="mt-3 text-sm leading-6 text-slate-500">هەموو کەس دەتوانێت کاڵاکان ببینێت و بیانخاتە سەبەتە؛ بۆ ناردنی داواکاری، هەژمارێکی بەکارهێنەر پێویستە.</p>
 
         {referralCampaignId && <p className="mt-5 rounded-xl bg-purple-50 p-3 text-sm font-bold text-purple-800">لینکی شێر و خەڵات چالاکە؛ ئەگەر لەم لینکەوە بکڕیت، خەڵاتی دیاریکراوی کاڵا بۆ خاوەن لینک تۆمار دەکرێت.</p>}
         <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
