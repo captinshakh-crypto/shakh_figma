@@ -219,7 +219,7 @@ export default function OrdersPage() {
   }
 
   function normalizeWhatsAppRecipient(phone: string | null | undefined): string | null {
-    const digits = (phone || "").replace(/\\D/g, "");
+    const digits = (phone || "").replace(/\D/g, "");
     if (!digits) return null;
     if (digits.startsWith("00")) return digits.slice(2);
     if (digits.startsWith("964")) return digits;
@@ -259,7 +259,7 @@ export default function OrdersPage() {
       "",
       "تکایە ئۆردەرەکە پشکنین بکە و ئامادەکارییەکانی دەست پێ بکە.",
       "سوپاس – Shakh",
-    ].filter(Boolean).join("\\n");
+    ].filter(Boolean).join("\n");
     return { recipient, message: receipt, url: recipient ? `https://wa.me/${recipient}?text=${encodeURIComponent(receipt)}` : null };
   }
 
