@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SHAKH | شاخ – بازاڕی ئۆنلاین و گەیاندن",
+    title: "SHAKH STORE | شاخ ستۆر – بازاڕی ئۆنلاین و گەیاندن",
     description: siteDescription,
     images: ["/opengraph-image"],
   },
@@ -77,8 +77,8 @@ const structuredData = {
     {
       "@type": "WebApplication",
       "@id": siteUrl + "#webapp",
-      name: "SHAKH | شاخ",
-      alternateName: "شاخ",
+      name: "SHAKH STORE | شاخ ستۆر",
+      alternateName: ["شاخ ستۆر", "SHAKH", "Shakh Store"],
       url: siteUrl,
       applicationCategory: "ShoppingApplication",
       operatingSystem: "Web browser",
