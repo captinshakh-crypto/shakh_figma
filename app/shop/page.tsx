@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ShoppingCart, Store, Search, Package, SlidersHorizontal } from "lucide-react";
+import { ShoppingCart, Store, Search, Package, SlidersHorizontal, Share2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ShakhBrand from "@/components/shakh-brand";
 
@@ -193,14 +193,79 @@ export default function ShopPage() {
     }
   }
 
+
+  function getShopShareUrl(productId?: string) {
+    const url = new URL("https://www.daim-post.online/shop");
+    if (productId) url.searchParams.set("product", productId);
+    if (referralCampaignId) url.searchParams.set("ref", referralCampaignId);
+    return url.toString();
+  }
+
+  async function copyShareUrl(url: string) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      return;
+    }
+    const field = document.createElement("textarea");
+    field.value = url;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.appendChild(field);
+    field.select();
+    const copied = document.execCommand("copy");
+    field.remove();
+    if (!copied) throw new Error("Copy was not available");
+  }
+
+  async function shareUrl(url: string, title: string, text: string, successMessage: string) {
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title, text, url });
+        setMessage(successMessage);
+        return;
+      }
+      await copyShareUrl(url);
+      setMessage("بەستەری شێرکردن کۆپی کرا؛ دەتوانیت لە هەر سۆشیال میدیایەک دایبنێیت.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      try {
+        await copyShareUrl(url);
+        setMessage("بەستەری شێرکردن کۆپی کرا؛ دەتوانیت لە هەر سۆشیال میدیایەک دایبنێیت.");
+      } catch {
+        setMessage("شێرکردن سەرکەوتوو نەبوو؛ تکایە دووبارە هەوڵ بدە.");
+      }
+    }
+  }
+
+  function shareProduct(product: Product) {
+    const url = getShopShareUrl(product.id);
+    const text = product.title + " — " + product.price_iqd.toLocaleString("en-US") +
+      " د.ع. ئەم کاڵایە لە شاخ ستۆر ببینە و داوای بکە.";
+    void shareUrl(url, product.title + " | SHAKH STORE", text, "لینکی ئەم پۆستە شێر کرا.");
+  }
+
+  function shareAllProducts() {
+    const url = getShopShareUrl();
+    const text = "هەموو " + products.length.toLocaleString("en-US") +
+      " کاڵای بەردەست لە شاخ ستۆر ببینە؛ چێشتخانە، سوپەرمارکێت، گۆشت و سپیاتی و بەقالی لە یەک بازاڕدا.";
+    void shareUrl(url, "بازاڕی شاخ ستۆر | SHAKH STORE", text, "لینکی هەموو کاڵاکانی بازاڕ شێر کرا.");
+  }
+
   return (
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-7xl">
-        <header className="flex items-center justify-between">
+        <header className="flex flex-wrap items-center justify-between gap-3">
           <ShakhBrand size="sm" />
-          <Link href="/cart" className="flex items-center gap-2 rounded-xl bg-shakh-orange px-4 py-2 font-bold text-white">
-            <ShoppingCart size={18}/> سەبەتە ({cartCount})
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={shareAllProducts}
+              className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-800 transition hover:bg-orange-100">
+              <Share2 size={17}/> شێرکردنی هەموو کاڵاکان
+            </button>
+            <Link href="/cart" className="flex items-center gap-2 rounded-xl bg-shakh-orange px-4 py-2 font-bold text-white">
+              <ShoppingCart size={18}/> سەبەتە ({cartCount})
+            </Link>
+          </div>
         </header>
         <p className="mt-3 text-sm leading-6 text-slate-500">هەموو کەس دەتوانێت کاڵاکان ببینێت و بیانخاتە سەبەتە؛ بۆ ناردنی داواکاری، هەژمارێکی بەکارهێنەر پێویستە.</p>
 
@@ -276,9 +341,15 @@ export default function ShopPage() {
                     <p className={`mt-1 text-xs ${outOfStock ? "text-red-600" : "text-green-700"}`}>
                       {outOfStock ? "کۆگا تەواو بووە" : product.stock_quantity === null ? "بەردەست" : `ماوە: ${product.stock_quantity.toLocaleString("en-US")} ${unitLabels[product.unit] || product.unit}`}
                     </p>
-                    <button disabled={outOfStock} onClick={() => add(product)} className="mt-auto h-12 w-full rounded-xl bg-shakh-blue px-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
-                      {outOfStock ? "لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
-                    </button>
+                    <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
+                      <button type="button" onClick={() => shareProduct(product)}
+                        className="flex h-12 items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2 text-xs font-bold text-orange-800 transition hover:bg-orange-100">
+                        <Share2 size={16}/> شێرکردن
+                      </button>
+                      <button disabled={outOfStock} onClick={() => add(product)} className="h-12 rounded-xl bg-shakh-blue px-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
+                        {outOfStock ? "لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
+                      </button>
+                    </div>
                   </div>
                 </article>
               );
