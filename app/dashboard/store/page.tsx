@@ -424,28 +424,49 @@ export default function StorePage() {
 
   async function toggleAvailability(product: Product) {
     setSaving(true);
-    const { error } = await createClient().from("products")
-      .update({ is_available: !product.is_available })
-      .eq("id", product.id);
-    setMessage(error?.message || (product.is_available ? "کاڵا ناچالاک کرا." : "کاڵا بەردەست کرا."));
-    setSaving(false);
-    if (!error) await load();
+    setMessage("");
+    try {
+      const { data, error } = await createClient().from("products")
+        .update({ is_available: !product.is_available })
+        .eq("id", product.id)
+        .select("id,is_available")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("پۆستەکە نەدۆزرایەوە یان مۆڵەتی گۆڕینی دۆخت نییە.");
+      setProducts((current) => current.map((item) => item.id === product.id ? { ...item, is_available: data.is_available } : item));
+      setMessage(data.is_available ? "پۆستەکە دووبارە بەردەست کرا." : "پۆستەکە ناچالاک کرا و لە بازاڕ شاردرایەوە.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "گۆڕینی دۆخی پۆست سەرکەوتوو نەبوو.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function removeProduct(product: Product) {
-    if (!window.confirm(`دڵنیایت لە سڕینەوەی «${product.title}»؟`)) return;
+    if (!window.confirm(`دڵنیایت لە سڕینەوەی «${product.title}»؟ ئەم کردارە ناگەڕێتەوە.`)) return;
     setSaving(true);
+    setMessage("");
     const supabase = createClient();
-    const { error } = await supabase.from("products").delete().eq("id", product.id);
-    if (error) {
-      setMessage(error.message);
-    } else {
+    try {
+      const { data, error } = await supabase.from("products")
+        .delete()
+        .eq("id", product.id)
+        .select("id");
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("هیچ پۆستێک نەسڕایەوە؛ پشکنینی دەسەڵات و هەبوونی پۆستەکە بکە.");
+      }
+      setProducts((current) => current.filter((item) => item.id !== product.id));
       if (product.image_path) await supabase.storage.from("product-images").remove([product.image_path]);
-      setMessage("کاڵا سڕایەوە.");
+      setMessage("پۆستەکە بە سەرکەوتوویی سڕایەوە.");
       if (editing?.id === product.id) resetProductForm();
       await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "سڕینەوەی پۆست سەرکەوتوو نەبوو.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   const availableCount = products.filter((product) => product.is_available && product.stock_quantity !== 0).length;
