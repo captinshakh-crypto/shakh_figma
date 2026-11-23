@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "SHAKH | شاخ – بازاڕی ئۆنلاین و گەیاندن";
+export const alt = "SHAKH - Online Market and Delivery";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -19,7 +19,7 @@ export default async function OpenGraphImage() {
       photoSrc = "data:image/jpeg;base64," + btoa(binary);
     }
   } catch {
-    // A branded gradient fallback keeps the social card available if the photo host is unavailable.
+    // Keep the branded gradient card when the photo host is unavailable.
   }
 
   return new ImageResponse(
@@ -33,7 +33,6 @@ export default async function OpenGraphImage() {
           overflow: "hidden",
           background: "#102f49",
           color: "#ffffff",
-          direction: "rtl",
         }}
       >
         {photoSrc ? (
@@ -49,35 +48,38 @@ export default async function OpenGraphImage() {
             position: "absolute",
             inset: 0,
             display: "flex",
-            background: "linear-gradient(90deg, rgba(8,28,45,.05) 0%, rgba(8,28,45,.30) 45%, rgba(8,28,45,.96) 100%)",
+            background: "linear-gradient(90deg, rgba(8,28,45,.05) 0%, rgba(8,28,45,.3) 45%, rgba(8,28,45,.96) 100%)",
           }}
         />
         <div
           style={{
             position: "absolute",
-            right: 76,
-            top: 70,
-            width: 470,
-            height: 480,
+            right: 72,
+            top: 68,
+            width: 485,
+            height: 490,
             display: "flex",
             flexDirection: "column",
             alignItems: "flex-end",
             justifyContent: "center",
             textAlign: "right",
+            fontFamily: "Arial, sans-serif",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14, color: "#ffb36f", fontSize: 42, fontWeight: 800 }}>
-            <span>شاخ</span>
-            <span style={{ color: "#ffffff", fontSize: 24, letterSpacing: 3 }}>SHAKH</span>
+          <div style={{ display: "flex", color: "#ffb36f", fontSize: 46, fontWeight: 900, letterSpacing: 4 }}>
+            SHAKH
           </div>
-          <div style={{ display: "flex", marginTop: 24, fontSize: 66, fontWeight: 900, lineHeight: 1.25 }}>
-            بازاڕ و گەیاندن
+          <div style={{ display: "flex", marginTop: 24, fontSize: 58, fontWeight: 900, lineHeight: 1.2 }}>
+            Online Market
           </div>
-          <div style={{ display: "flex", marginTop: 24, fontSize: 28, lineHeight: 1.5, color: "#e4eef7" }}>
-            چێشتخانە، سوپەرمارکێت، گۆشت و سپیاتی و بەقالی
+          <div style={{ display: "flex", marginTop: 8, fontSize: 58, fontWeight: 900, lineHeight: 1.2 }}>
+            &amp; Delivery
+          </div>
+          <div style={{ display: "flex", marginTop: 28, fontSize: 25, lineHeight: 1.5, color: "#e4eef7" }}>
+            Restaurants · Groceries · Supermarkets
           </div>
           <div style={{ display: "flex", marginTop: 34, borderRadius: 18, background: "#f47721", padding: "16px 26px", fontSize: 23, fontWeight: 800 }}>
-            daim-post.online
+            DAIM-POST.ONLINE
           </div>
         </div>
         <div
@@ -92,7 +94,6 @@ export default async function OpenGraphImage() {
             background: "linear-gradient(140deg, #ff9b3d, #e75f13)",
             alignItems: "center",
             justifyContent: "center",
-            boxShadow: "0 12px 25px rgba(0,0,0,.24)",
           }}
         >
           <svg width="85" height="72" viewBox="0 0 390 320">
