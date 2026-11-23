@@ -482,6 +482,7 @@ export default function StorePage() {
             <p className="text-sm font-bold text-shakh-orange">{isAdmin ? "SHAKH STORE" : merchant ? roleNames[merchant.merchant_type] : "بەڕێوەبردنی دوکان"}</p>
             <h1 className="mt-1 text-3xl font-black">{isAdmin ? "بەڕێوەبردنی شاخ ستۆر" : merchant?.business_name || "بەشی فرۆشگاکەت"}</h1>
             <p className="mt-2 text-sm text-slate-500">کاڵا، نرخ، کۆگا، وێنە و بەردەستبوون بەڕێوەببە.</p>
+            {!isAdmin && merchant && <p className="mt-2 text-sm text-slate-600">شوێنی دوکان: {merchant.address?.trim() || "شوێن تۆمار نەکراوە"}</p>}
           </div>
           {(isAdmin || merchant?.approval_status === "approved") && (
             <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-bold text-green-700">دوکان چالاکە</span>
