@@ -279,46 +279,13 @@ export type Database = {
           },
         ]
       }
-      push_subscriptions: {
-        Row: {
-          auth: string
-          created_at: string
-          endpoint: string
-          id: string
-          p256dh: string
-          updated_at: string
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          auth: string
-          created_at?: string
-          endpoint: string
-          id?: string
-          p256dh: string
-          updated_at?: string
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          auth?: string
-          created_at?: string
-          endpoint?: string
-          id?: string
-          p256dh?: string
-          updated_at?: string
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       order_items: {
         Row: {
           cost_price_snapshot_iqd: number | null
           id: string
           line_total_iqd: number
-          merchant_commission_per_unit_snapshot_iqd: number
           merchant_commission_line_snapshot_iqd: number
+          merchant_commission_per_unit_snapshot_iqd: number
           order_id: string
           product_id: string | null
           product_title_snapshot: string
@@ -330,8 +297,8 @@ export type Database = {
           cost_price_snapshot_iqd?: number | null
           id?: string
           line_total_iqd: number
-          merchant_commission_per_unit_snapshot_iqd?: number
           merchant_commission_line_snapshot_iqd?: number
+          merchant_commission_per_unit_snapshot_iqd?: number
           order_id: string
           product_id?: string | null
           product_title_snapshot: string
@@ -343,6 +310,8 @@ export type Database = {
           cost_price_snapshot_iqd?: number | null
           id?: string
           line_total_iqd?: number
+          merchant_commission_line_snapshot_iqd?: number
+          merchant_commission_per_unit_snapshot_iqd?: number
           order_id?: string
           product_id?: string | null
           product_title_snapshot?: string
@@ -580,8 +549,10 @@ export type Database = {
           amount_iqd: number
           created_at: string
           id: string
+          owner_paid_iqd: number | null
           paid_at: string | null
           payout_method: string
+          platform_share_iqd: number | null
           requester_user_id: string
           reviewed_at: string | null
           reviewed_by: string | null
@@ -592,8 +563,10 @@ export type Database = {
           amount_iqd: number
           created_at?: string
           id?: string
+          owner_paid_iqd?: number | null
           paid_at?: string | null
           payout_method: string
+          platform_share_iqd?: number | null
           requester_user_id: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -604,8 +577,10 @@ export type Database = {
           amount_iqd?: number
           created_at?: string
           id?: string
+          owner_paid_iqd?: number | null
           paid_at?: string | null
           payout_method?: string
+          platform_share_iqd?: number | null
           requester_user_id?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -624,6 +599,51 @@ export type Database = {
             columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_revenue_ledger: {
+        Row: {
+          amount_iqd: number
+          created_at: string
+          id: string
+          note: string | null
+          order_id: string
+          revenue_type: string
+          source_ledger_id: string
+        }
+        Insert: {
+          amount_iqd: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          order_id: string
+          revenue_type: string
+          source_ledger_id: string
+        }
+        Update: {
+          amount_iqd?: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          order_id?: string
+          revenue_type?: string
+          source_ledger_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_revenue_ledger_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_revenue_ledger_source_ledger_id_fkey"
+            columns: ["source_ledger_id"]
+            isOneToOne: true
+            referencedRelation: "wallet_ledger"
             referencedColumns: ["id"]
           },
         ]
@@ -659,6 +679,7 @@ export type Database = {
       }
       products: {
         Row: {
+          approval_status: string
           category_key: string
           cost_price_iqd: number | null
           created_at: string
@@ -666,21 +687,21 @@ export type Database = {
           id: string
           image_path: string | null
           is_available: boolean
-          merchant_commission_per_unit_iqd: number
-          approval_status: string
-          reviewed_at: string | null
-          reviewed_by: string | null
-          rejection_reason: string | null
           is_shakh_store: boolean
+          merchant_commission_per_unit_iqd: number
           merchant_id: string | null
           price_iqd: number
           referral_commission_iqd: number
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           stock_quantity: number | null
           title: string
           unit: string
           updated_at: string
         }
         Insert: {
+          approval_status?: string
           category_key: string
           cost_price_iqd?: number | null
           created_at?: string
@@ -688,26 +709,22 @@ export type Database = {
           id?: string
           image_path?: string | null
           is_available?: boolean
-          merchant_commission_per_unit_iqd?: number
-          approval_status?: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          rejection_reason?: string | null
           is_shakh_store?: boolean
+          merchant_commission_per_unit_iqd?: number
           merchant_id?: string | null
           price_iqd: number
           referral_commission_iqd?: number
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           stock_quantity?: number | null
           title: string
           unit?: string
           updated_at?: string
         }
         Update: {
-          category_key?: string
           approval_status?: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          rejection_reason?: string | null
+          category_key?: string
           cost_price_iqd?: number | null
           created_at?: string
           description?: string | null
@@ -715,9 +732,13 @@ export type Database = {
           image_path?: string | null
           is_available?: boolean
           is_shakh_store?: boolean
+          merchant_commission_per_unit_iqd?: number
           merchant_id?: string | null
           price_iqd?: number
           referral_commission_iqd?: number
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           stock_quantity?: number | null
           title?: string
           unit?: string
@@ -729,6 +750,13 @@ export type Database = {
             columns: ["merchant_id"]
             isOneToOne: false
             referencedRelation: "merchant_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -763,6 +791,39 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -951,16 +1012,19 @@ export type Database = {
       wallets: {
         Row: {
           balance_iqd: number
+          referral_balance_iqd: number
           updated_at: string
           user_id: string
         }
         Insert: {
           balance_iqd?: number
+          referral_balance_iqd?: number
           updated_at?: string
           user_id: string
         }
         Update: {
           balance_iqd?: number
+          referral_balance_iqd?: number
           updated_at?: string
           user_id?: string
         }
@@ -983,9 +1047,17 @@ export type Database = {
         Args: { p_captain_user_id: string; p_order_id: string }
         Returns: undefined
       }
-      claim_available_delivery: {
-        Args: { p_order_id: string }
-        Returns: undefined
+      admin_commission_trend: {
+        Args: { p_days?: number }
+        Returns: {
+          day: string
+          delivered_order_count: number
+          merchant_commission_iqd: number
+          merchant_type: string
+          order_count: number
+          platform_delivery_commission_iqd: number
+          sales_iqd: number
+        }[]
       }
       admin_credit_own_wallet: {
         Args: { p_amount_iqd: number; p_note?: string }
@@ -995,52 +1067,36 @@ export type Database = {
         Args: { p_admin_note?: string; p_request_id: string }
         Returns: undefined
       }
-      admin_set_product_commission: {
-        Args: { p_amount_iqd: number; p_product_id: string }
-        Returns: undefined
-      }
       admin_platform_revenue_summary: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           revenue_type: string
-          transactions_count: number
           total_iqd: number
-        }[]
-      }
-      admin_sales_chart: {
-        Args: { p_period?: string }
-        Returns: {
-          bucket_start: string
-          orders_count: number
-          delivered_count: number
-          sales_iqd: number
-          product_commission_iqd: number
-          delivery_platform_iqd: number
-        }[]
-      }
-      admin_review_product: {
-        Args: { p_approve: boolean; p_product_id: string; p_rejection_reason?: string | null }
-        Returns: undefined
-      }
-      admin_commission_trend: {
-        Args: { p_days?: number }
-        Returns: {
-          day: string
-          merchant_type: string
-          order_count: number
-          delivered_order_count: number
-          sales_iqd: number
-          merchant_commission_iqd: number
-          platform_delivery_commission_iqd: number
+          transactions_count: number
         }[]
       }
       admin_review_merchant: {
         Args: { p_approve: boolean; p_merchant_id: string }
         Returns: undefined
       }
-      admin_save_service_zone_boundary: {
-        Args: { p_boundary_geojson: Json | null; p_zone_id: string }
+      admin_review_product: {
+        Args: {
+          p_approve: boolean
+          p_product_id: string
+          p_rejection_reason?: string
+        }
         Returns: undefined
+      }
+      admin_sales_chart: {
+        Args: { p_period?: string }
+        Returns: {
+          bucket_start: string
+          delivered_count: number
+          delivery_platform_iqd: number
+          orders_count: number
+          product_commission_iqd: number
+          sales_iqd: number
+        }[]
       }
       admin_save_service_zone: {
         Args: {
@@ -1053,6 +1109,14 @@ export type Database = {
           p_zone_id?: string
         }
         Returns: string
+      }
+      admin_save_service_zone_boundary: {
+        Args: { p_boundary_geojson: Json; p_zone_id: string }
+        Returns: undefined
+      }
+      admin_set_product_commission: {
+        Args: { p_amount_iqd: number; p_product_id: string }
+        Returns: undefined
       }
       admin_set_user_role: {
         Args: {
@@ -1070,6 +1134,10 @@ export type Database = {
           sales_iqd: number
           units_sold: number
         }[]
+      }
+      claim_available_delivery: {
+        Args: { p_order_id: string }
+        Returns: undefined
       }
       clear_captain_live_location: {
         Args: { p_order_id: string }
@@ -1090,8 +1158,8 @@ export type Database = {
       create_multi_store_orders_with_location_v1: {
         Args: {
           p_delivery_address: string
-          p_delivery_latitude?: number | null
-          p_delivery_longitude?: number | null
+          p_delivery_latitude?: number
+          p_delivery_longitude?: number
           p_delivery_notes?: string
           p_delivery_phone: string
           p_groups: Json
@@ -1193,6 +1261,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      service_zone_contains_point: {
+        Args: {
+          p_boundary_geojson: Json
+          p_latitude: number
+          p_longitude: number
+        }
+        Returns: boolean
+      }
       set_fixed_commission_setting: {
         Args: {
           p_fixed_commission_per_unit_iqd: number
@@ -1220,6 +1296,10 @@ export type Database = {
       update_order_status: {
         Args: { p_order_id: string; p_status: string }
         Returns: undefined
+      }
+      verify_push_webhook_secret: {
+        Args: { p_candidate: string }
+        Returns: boolean
       }
     }
     Enums: {
