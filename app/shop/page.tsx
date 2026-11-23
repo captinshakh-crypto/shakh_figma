@@ -251,7 +251,7 @@ export default function ShopPage() {
 
               return (
                 <article key={product.id} className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
-                  <div className="relative aspect-[4/3] w-full shrink-0 place-items-center overflow-hidden bg-shakh-mist text-shakh-blue">
+                  <div className="relative grid aspect-[4/3] w-full shrink-0 place-items-center overflow-hidden bg-shakh-mist text-shakh-blue">
                     {imageUrl ? <img src={imageUrl} alt={product.title} loading="lazy" className="h-full w-full object-cover"/> : <Store size={36}/>}
                   </div>
                   <div className="flex flex-1 flex-col p-4">
