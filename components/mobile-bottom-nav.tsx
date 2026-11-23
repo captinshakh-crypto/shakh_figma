@@ -13,7 +13,7 @@ function readCartCount() {
     const value = JSON.parse(window.localStorage.getItem("shakh-cart") || "[]");
     if (!Array.isArray(value)) return 0;
     return value.reduce((sum: number, item: CartEntry) =>
-      sum + (Number.isFinite(item.quantity) && Number(item.quantity) > 0 ? Number(item.quantity) : 0), 0);
+      sum + (typeof item.quantity === "number" && Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 0), 0);
   } catch {
     return 0;
   }
