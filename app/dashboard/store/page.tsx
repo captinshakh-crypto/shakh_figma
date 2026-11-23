@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Enums } from "@/lib/supabase/database.types";
-import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus } from "lucide-react";
+import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Share2 } from "lucide-react";
 
 const merchantTypes: { value: Enums<"app_role">; label: string }[] = [
   { value: "supermarket", label: "سوپەرمارکێت" },
@@ -326,6 +326,80 @@ export default function StorePage() {
     }
   }
 
+  async function shareProductReward(product: Product) {
+    if (product.referral_commission_iqd <= 0) {
+      setMessage("ئەم کاڵایە خەڵاتی شێری نییە؛ بڕی خەڵات لە پۆستەکە سفرە.");
+      return;
+    }
+    if (product.approval_status !== "approved" || !product.is_available || product.stock_quantity === 0) {
+      setMessage("تەنها پۆستی پەسەندکراو و بەردەست دەتوانرێت بۆ خەڵات شێر بکرێت.");
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    try {
+      const supabase = createClient();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error("تکایە دووبارە بچۆ ژوورەوە.");
+
+      const { data: existingCampaign, error: campaignError } = await supabase
+        .from("reward_campaigns")
+        .select("id")
+        .eq("owner_user_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (campaignError) throw campaignError;
+
+      let campaignId = existingCampaign?.id;
+      if (!campaignId) {
+        const { data: createdCampaign, error: createError } = await supabase
+          .from("reward_campaigns")
+          .insert({
+            owner_user_id: user.id,
+            title: "لینکی شێرکردنی پۆستەکانم",
+            description: "لینکی تایبەتی خاوەنی پۆست بۆ کاڵا خەڵاتدارەکان",
+            reward_amount_iqd: 0,
+            is_active: true,
+          })
+          .select("id")
+          .single();
+        if (createError) throw createError;
+        campaignId = createdCampaign.id;
+      }
+
+      const url = new URL("https://www.daim-post.online/shop");
+      url.searchParams.set("ref", campaignId);
+      url.searchParams.set("product", product.id);
+      const shareUrl = url.toString();
+      const shareText = `ئەم کاڵایە لە شاخ ستۆر ببینە: ${product.title}. ئەگەر بە لینکەکەم داواکاری بکەیت و گەیاندن تەواو بێت، خەڵاتی شێر بۆ من تۆمار دەکرێت.`;
+
+      if (typeof navigator.share === "function") {
+        try {
+          await navigator.share({ title: "SHAKH STORE | شاخ ستۆر", text: shareText, url: shareUrl });
+          setMessage("لینکی تایبەتی ئەم پۆستە شێر کرا. خەڵات دوای گەیاندنی داواکاریی کڕیار بۆ جزدان زیاد دەبێت.");
+          return;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+        }
+      }
+
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setMessage("لینکی تایبەتی ئەم پۆستە کۆپی کرا. بۆ کڕیاری تر بینێرە؛ خەڵات دوای گەیاندن بۆ جزدان زیاد دەبێت.");
+      } catch {
+        setMessage("لینکی تایبەتی ئەم پۆستە: " + shareUrl);
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "دروستکردنی لینکی شێرکردنی پۆست سەرکەوتوو نەبوو.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function toggleAvailability(product: Product) {
     setSaving(true);
     const { error } = await createClient().from("products")
@@ -496,6 +570,9 @@ export default function StorePage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2 border-t border-slate-100 p-3">
+                          {product.referral_commission_iqd > 0 && product.approval_status === "approved" && product.is_available && !outOfStock && (
+                            <button disabled={saving} onClick={() => void shareProductReward(product)} className="inline-flex items-center gap-1 rounded-lg bg-purple-50 px-3 py-2 text-sm font-bold text-purple-800 disabled:opacity-50"><Share2 size={15}/> شێرکردنی پۆست و وەرگرتنی خەڵات</button>
+                          )}
                           <button disabled={saving} onClick={() => startEditing(product)} className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 disabled:opacity-50"><Pencil size={15}/> دەستکاری</button>
                           <button disabled={saving} onClick={() => void toggleAvailability(product)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-50">{product.is_available ? <EyeOff size={15}/> : <Eye size={15}/>} {product.is_available ? "ناچالاککردن" : "بەردەستکردن"}</button>
                           <button disabled={saving} onClick={() => void removeProduct(product)} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50"><Trash2 size={15}/> سڕینەوە</button>
