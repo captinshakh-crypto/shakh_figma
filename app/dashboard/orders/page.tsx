@@ -159,11 +159,11 @@ export default function OrdersPage() {
 
     const merchantRows = merchantResult.data || [];
     const merchantUserIds = [...new Set(merchantRows.map((merchant) => merchant.user_id).filter((id): id is string => !!id))];
-    const profileResult = merchantUserIds.length
+    const merchantPhoneResult = merchantUserIds.length
       ? await supabase.from("profiles").select("id,phone").in("id", merchantUserIds)
       : { data: [], error: null };
-    if (profileResult.error) throw profileResult.error;
-    const phoneByUser = Object.fromEntries((profileResult.data || []).map((profile) => [profile.id, profile.phone]));
+    if (merchantPhoneResult.error) throw merchantPhoneResult.error;
+    const phoneByUser = Object.fromEntries((merchantPhoneResult.data || []).map((profile) => [profile.id, profile.phone]));
     setItems(itemResult.data || []);
     setHistory(historyResult.data || []);
     setLiveLocations(Object.fromEntries((locationResult.data || []).map((location) => [location.order_id, { ...location, order_id: location.order_id }])));
