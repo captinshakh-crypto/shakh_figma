@@ -39,6 +39,7 @@ function pointInsideZone(boundary: ZoneBoundary, latitude: number, longitude: nu
 
 const unitLabels: Record<string, string> = {
   piece: "دانە", kg: "کیلۆگرام", g: "گرام", liter: "لیتر", pack: "پاکەت", box: "کارتۆن",
+  portion: "پرس", plate: "قاپ", cup: "پەرداخ", bottle: "بوتڵ", bunch: "دەستە",
 };
 
 export default function CartPage() {
@@ -169,6 +170,12 @@ export default function CartPage() {
     window.dispatchEvent(new Event("shakh:cart-updated"));
   }
 
+  function changeQuantity(item: CartItem, direction: -1 | 1) {
+    const step = item.unit === "kg" ? 0.5 : 1;
+    const nextQuantity = Math.max(0, Math.round((item.quantity + direction * step) * 1000) / 1000);
+    update(item.product_id, nextQuantity);
+  }
+
   function update(id: string, quantity: number) {
     const item = items.find((value) => value.product_id === id);
     if (!item) return;
@@ -290,9 +297,9 @@ export default function CartPage() {
                         {item.stock_quantity !== null && item.stock_quantity !== undefined && <p className="mt-1 text-xs text-slate-500">کۆگا: {item.stock_quantity.toLocaleString("en-US")}</p>}
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        <button type="button" onClick={() => update(item.product_id, item.quantity - 1)} className="h-9 w-9 rounded-lg bg-slate-100">−</button>
-                        <b>{item.quantity}</b>
-                        <button type="button" disabled={item.stock_quantity !== null && item.stock_quantity !== undefined && item.quantity >= item.stock_quantity} onClick={() => update(item.product_id, item.quantity + 1)} className="h-9 w-9 rounded-lg bg-slate-100 disabled:opacity-40">+</button>
+                        <button type="button" aria-label="کەمکردنەوەی بڕ" onClick={() => changeQuantity(item, -1)} className="h-9 w-9 rounded-lg bg-slate-100">−</button>
+                        <b className="min-w-16 text-center">{item.quantity.toLocaleString("en-US", { maximumFractionDigits: 3 })} {unitLabels[item.unit || "piece"] || item.unit}</b>
+                        <button type="button" aria-label="زیادکردنی بڕ" disabled={item.stock_quantity !== null && item.stock_quantity !== undefined && item.quantity + (item.unit === "kg" ? 0.5 : 1) > item.stock_quantity} onClick={() => changeQuantity(item, 1)} className="h-9 w-9 rounded-lg bg-slate-100 disabled:opacity-40">+</button>
                       </div>
                     </div>
                   ))}
