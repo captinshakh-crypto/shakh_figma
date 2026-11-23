@@ -92,7 +92,7 @@ export default function ZonesPage() {
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isSplitValid) {
-      setMessage("کۆی بەشی شاخ و کپتن دەبێت یەکسان بێت بە کرێی گەیاندن.");
+      setMessage("کۆی بەشی شاخ و کاپتن دەبێت یەکسان بێت بە کرێی گەیاندن.");
       return;
     }
     setSaving(true);
@@ -152,7 +152,7 @@ export default function ZonesPage() {
         <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-3xl font-black">زۆنەکانی گەیاندن</h1>
-            <p className="mt-2 text-sm text-slate-500">کرێی گەیاندن و دابەشکردنی بڕەکە بۆ شاخ و کپتن بۆ هەر زۆنێک بە جیاوازی</p>
+            <p className="mt-2 text-sm text-slate-500">کرێی گەیاندن و دابەشکردنی بڕەکە بۆ شاخ و کاپتن بۆ هەر زۆنێک بە جیاوازی</p>
           </div>
           <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-shakh-blue">{activeCount} زۆنی چالاک</span>
         </div>
@@ -181,7 +181,7 @@ export default function ZonesPage() {
               <label className="block text-sm font-bold">بەشی شاخ (د.ع)
                 <input required type="number" min="0" step="1" value={form.shakh} onChange={(event) => setForm((old) => ({ ...old, shakh: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
               </label>
-              <label className="block text-sm font-bold">بەشی کپتن (د.ع)
+              <label className="block text-sm font-bold">بەشی کاپتن (د.ع)
                 <input required type="number" min="0" step="1" value={form.captain} onChange={(event) => setForm((old) => ({ ...old, captain: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
               </label>
             </div>
@@ -191,7 +191,7 @@ export default function ZonesPage() {
               <p className="mt-1">
                 شاخ: {validAmounts ? shakh.toLocaleString("en-US") : "—"} د.ع
                 {" · "}
-                کپتن: {validAmounts ? captain.toLocaleString("en-US") : "—"} د.ع
+                کاپتن: {validAmounts ? captain.toLocaleString("en-US") : "—"} د.ع
                 {" · "}
                 کۆی گشتی: {validAmounts ? (shakh + captain).toLocaleString("en-US") : "—"} د.ع
               </p>
@@ -236,7 +236,7 @@ export default function ZonesPage() {
               </div>
               <div className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
                 <div><p className="text-xs text-slate-500">بەشی شاخ</p><b className="text-lg text-shakh-orange">{zone.shakh_delivery_share_iqd.toLocaleString("en-US")} د.ع</b></div>
-                <div><p className="text-xs text-slate-500">بەشی کپتن</p><b className="text-lg text-shakh-blue">{zone.captain_delivery_share_iqd.toLocaleString("en-US")} د.ع</b></div>
+                <div><p className="text-xs text-slate-500">بەشی کاپتن</p><b className="text-lg text-shakh-blue">{zone.captain_delivery_share_iqd.toLocaleString("en-US")} د.ع</b></div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button onClick={() => editZone(zone)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700">دەستکاری</button>
