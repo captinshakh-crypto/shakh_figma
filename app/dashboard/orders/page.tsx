@@ -214,7 +214,7 @@ export default function OrdersPage() {
     if (!order.merchant_id) return null;
     const merchant = merchantInfo[order.merchant_id];
     const rawPhone = merchant?.phone?.trim() || "";
-    const digits = rawPhone.replace(/\\D/g, "");
+    const digits = rawPhone.replace(/\D/g, "");
     if (!digits) return null;
     const recipient = digits.startsWith("964") ? digits : digits.startsWith("0") ? "964" + digits.slice(1) : digits;
     const total = order.total_iqd || order.subtotal_iqd + order.delivery_fee_iqd;
@@ -240,7 +240,7 @@ export default function OrdersPage() {
       order.delivery_notes ? `تێبینی: ${order.delivery_notes}` : "",
       "",
       "تکایە داواکارییەکە وەربگرە و بەپێی وردەکارییەکان ئامادەی بکە."
-    ].filter(Boolean).join("\\n");
+    ].filter(Boolean).join("\n");
     return `https://wa.me/${recipient}?text=${encodeURIComponent(receipt)}`;
   }
 
