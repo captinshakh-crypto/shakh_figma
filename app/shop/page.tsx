@@ -34,6 +34,7 @@ const storeTypes = [
 
 const typeLabels: Record<string, string> = Object.fromEntries(storeTypes.map((item) => [item.value, item.label]));
 const unitLabels: Record<string, string> = { piece: "دانە", kg: "کیلۆگرام", g: "گرام", liter: "لیتر", pack: "پاکەت", box: "کارتۆن" };
+const shakhStoreCategoryKeys = ["general", "household", "electronics", "accessories", "other"];
 const categoryLabels: Record<string, string> = {
   groceries: "خۆراک و پێداویستی ماڵ", dairy: "شیرەمەنی", beverages: "خواردنەوە", cleaning: "پاککەرەوە",
   personal_care: "چاودێری کەسی", frozen: "بەرهەمی ساردکراو", meals: "خواردنی سەرەکی", breakfast: "نانی بەیانی",
@@ -54,11 +55,14 @@ export default function ShopPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [referralCampaignId, setReferralCampaignId] = useState("");
+  const [sharedProductId, setSharedProductId] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
     let active = true;
-    const urlReferral = new URLSearchParams(window.location.search).get("ref");
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlReferral = urlParams.get("ref");
+    setSharedProductId(urlParams.get("product") || "");
     const savedReferral = urlReferral || localStorage.getItem("shakh-referral-campaign") || "";
     if (urlReferral) localStorage.setItem("shakh-referral-campaign", urlReferral);
     setReferralCampaignId(savedReferral);
@@ -108,6 +112,7 @@ export default function ShopPage() {
     product.is_shakh_store ? "shakh_store" : merchantMap[product.merchant_id || ""]?.merchant_type || "all";
 
   const categories = useMemo(() => {
+    if (storeType === "shakh_store") return shakhStoreCategoryKeys;
     const keys = [...new Set(products
       .filter((product) => storeType === "all" || typeForProduct(product) === storeType)
       .map((product) => product.category_key))];
@@ -121,8 +126,9 @@ export default function ShopPage() {
       .toLowerCase().includes(search.toLowerCase());
     const matchesType = storeType === "all" || typeForProduct(product) === storeType;
     const matchesCategory = category === "all" || product.category_key === category;
-    return matchesSearch && matchesType && matchesCategory;
-  }), [products, merchants, search, storeType, category]);
+    const matchesSharedProduct = !sharedProductId || product.id === sharedProductId;
+    return matchesSearch && matchesType && matchesCategory && matchesSharedProduct;
+  }), [products, merchants, search, storeType, category, sharedProductId]);
 
   function add(product: Product) {
     if (product.stock_quantity === 0) {
@@ -173,6 +179,7 @@ export default function ShopPage() {
           </label>
         </div>
 
+        {sharedProductId && <p className="mt-5 rounded-xl border border-purple-100 bg-purple-50 p-3 text-sm font-bold text-purple-900">ئەمە لینکی تایبەتی پۆستی شێرکراوە؛ تەنها ئەم کاڵایە پیشان دەدرێت. خەڵاتی خاوەن لینک دوای گەیاندنی داواکاری زیاد دەبێت.</p>}
         <section className="mt-6 rounded-2xl bg-white p-4 shadow-soft">
           <div className="flex items-center gap-2 text-sm font-bold text-slate-500"><SlidersHorizontal size={16}/> جۆری دوکان</div>
           <div className="mt-3 flex flex-wrap gap-2">
