@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import ShakhBrand from "@/components/shakh-brand";
 import { CheckCircle2, LocateFixed, MapPin } from "lucide-react";
 
 type CartItem = {
@@ -264,6 +265,7 @@ export default function CartPage() {
   return (
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-3xl">
+        <div className="mb-5"><ShakhBrand size="sm" /></div>
         <Link href="/shop" className="font-bold text-shakh-blue">← گەڕانەوە بۆ بازاڕ</Link>
         <h1 className="mt-6 text-3xl font-black">سەبەتە و تەواوکردنی داواکاری</h1>
         {items.length === 0 ? (
