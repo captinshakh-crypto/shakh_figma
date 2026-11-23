@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { LogOut, ShieldCheck, Store, Wallet, Package, Truck, UserRound } from "lucide-react";
+import { LogOut, ShieldCheck, Store, Wallet, Package, Truck, UserRound, Gift } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ShakhBrand from "@/components/shakh-brand";
 
@@ -105,6 +105,11 @@ export default function DashboardPage() {
             <Wallet className="text-shakh-orange"/>
             <b className="mt-4 block">جزدان</b>
             <p className="mt-1 text-xl font-black">{balance.toLocaleString("en-US")} د.ع</p>
+          </Link>
+          <Link href="/dashboard/rewards" className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50 via-white to-orange-50 p-6 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg">
+            <Gift className="text-purple-700"/>
+            <b className="mt-4 block">شێر بکە و خەڵات وەربگرە</b>
+            <p className="mt-1 text-sm leading-6 text-slate-500">لینکی تایبەتی دروست بکە، لە TikTok و سۆشیال میدیا شێری بکە و لە کڕینە تەواوبووەکان خەڵات وەربگرە.</p>
           </Link>
           <Link href="/dashboard/orders" className="rounded-2xl bg-white p-6 shadow-soft">
             <Package className="text-shakh-blue"/>
