@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ShoppingCart, Store, Search, Package, SlidersHorizontal } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import ShakhBrand from "@/components/shakh-brand";
 
 type Product = {
   id: string;
@@ -45,7 +46,7 @@ export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [cartCount, setCartCount] = useState(0);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("q") || "" : "");
   const [storeType, setStoreType] = useState("all");
   const [category, setCategory] = useState("all");
   const [message, setMessage] = useState("");
@@ -82,6 +83,13 @@ export default function ShopPage() {
 
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (search.trim()) url.searchParams.set("q", search.trim());
+    else url.searchParams.delete("q");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+  }, [search]);
 
   const merchantMap = useMemo(
     () => Object.fromEntries(merchants.map((merchant) => [merchant.id, merchant])) as Record<string, Merchant>,
@@ -142,7 +150,7 @@ export default function ShopPage() {
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-7xl">
         <header className="flex items-center justify-between">
-          <Link href="/" className="text-2xl font-black text-shakh-orange">SHAKH</Link>
+          <ShakhBrand size="sm" />
           <Link href="/cart" className="flex items-center gap-2 rounded-xl bg-shakh-orange px-4 py-2 font-bold text-white">
             <ShoppingCart size={18}/> سەبەتە ({cartCount})
           </Link>
@@ -153,7 +161,7 @@ export default function ShopPage() {
           <div><p className="font-bold text-shakh-orange">بازاڕی شاخ</p><h1 className="mt-2 text-3xl font-black">کاڵاکان و فرۆشگاکان</h1></div>
           <label className="flex w-full max-w-sm items-center gap-2 rounded-xl border bg-white px-3">
             <Search size={18} className="text-slate-400"/>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="گەڕان بە ناوی کاڵا یان دوکان..." className="w-full bg-transparent p-3 outline-none"/>
+            <input aria-label="گەڕان بە ناوی کاڵا یان دوکان" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="گەڕان بە ناوی کاڵا یان دوکان..." className="w-full bg-transparent p-3 outline-none"/>
           </label>
         </div>
 
