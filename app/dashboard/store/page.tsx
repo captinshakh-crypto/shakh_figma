@@ -192,8 +192,8 @@ export default function StorePage() {
       .order("created_at", { ascending: false });
 
     // Super Admin must see every product post here, including merchant-owned posts.
-    else if (merchant?.id) query = query.eq("merchant_id", merchant.id);
-    else {
+    if (currentRole !== "super_admin" && merchant?.id) query = query.eq("merchant_id", merchant.id);
+    else if (currentRole !== "super_admin") {
       const { data: ownerMerchant } = await supabase.from("merchant_profiles")
         .select("id,merchant_type,approval_status").eq("user_id", user.id).maybeSingle();
       if (!ownerMerchant || ownerMerchant.approval_status !== "approved" || ownerMerchant.merchant_type !== currentRole) {
