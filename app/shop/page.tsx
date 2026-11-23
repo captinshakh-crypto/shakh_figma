@@ -33,9 +33,10 @@ const storeTypes = [
 ];
 
 const typeLabels: Record<string, string> = Object.fromEntries(storeTypes.map((item) => [item.value, item.label]));
-const unitLabels: Record<string, string> = { piece: "دانە", kg: "کیلۆگرام", g: "گرام", liter: "لیتر", pack: "پاکەت", box: "کارتۆن" };
+const unitLabels: Record<string, string> = { piece: "دانە", kg: "کیلۆگرام", g: "گرام", liter: "لیتر", pack: "پاکەت", box: "کارتۆن", portion: "پرس", plate: "قاپ", cup: "پەرداخ", bottle: "بوتڵ", bunch: "دەستە" };
 const shakhStoreCategoryKeys = ["general", "household", "electronics", "accessories", "other"];
 const categoryLabels: Record<string, string> = {
+  restaurant: "چێشتخانە", grocery: "بەقالی", butcher_poultry: "گۆشت و سپیاتی", supermarket: "سوپەرمارکێت",
   groceries: "خۆراک و پێداویستی ماڵ", dairy: "شیرەمەنی", beverages: "خواردنەوە", cleaning: "پاککەرەوە",
   personal_care: "چاودێری کەسی", frozen: "بەرهەمی ساردکراو", meals: "خواردنی سەرەکی", breakfast: "نانی بەیانی",
   sides: "پاڵاوتە و لاوەکی", drinks: "خواردنەوە", desserts: "شیرینی", beef: "گۆشتی مانگا",
