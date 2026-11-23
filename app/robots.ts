@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/icon", "/icon-192", "/apple-icon", "/opengraph-image"],
+      allow: ["/", "/shop", "/icon", "/icon-192", "/apple-icon", "/opengraph-image"],
       disallow: [
         "/dashboard/",
         "/cart",
