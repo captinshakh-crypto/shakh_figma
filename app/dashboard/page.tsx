@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LogOut, ShieldCheck, Store, Wallet, Package, Truck, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import ShakhBrand from "@/components/shakh-brand";
 
 const labels: Record<string, string> = {
   super_admin: "سوپەر ئەدمین",
@@ -80,7 +81,7 @@ export default function DashboardPage() {
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-5xl">
         <header className="flex items-center justify-between">
-          <Link href="/" className="text-2xl font-black text-shakh-orange">SHAKH</Link>
+          <ShakhBrand size="sm" />
           <button onClick={logout} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold"><LogOut size={16}/> دەرچوون</button>
         </header>
 
