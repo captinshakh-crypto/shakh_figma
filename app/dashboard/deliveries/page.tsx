@@ -216,7 +216,7 @@ export default function DeliveriesPage() {
     } else if (status === "delivered") {
       if (trackingOrderRef.current === id) stopLocalTracking();
       const { error: settlementError } = await createClient().rpc("settle_delivered_order", { p_order_id: id });
-      setMessage(settlementError ? "گەیاندن تەواو بوو؛ بەڵام داخستنی حساب پێویستی بە پشکنینە: " + settlementError.message : "گەیاندن تەواو بوو؛ لیستی فرۆشتن بۆ کپتن و خاوەنی پۆست تۆمار کرا و کۆمسیۆنی پۆستەکان لە جزدانی خاوەنەکە کەمکرایەوە.");
+      setMessage(settlementError ? "گەیاندن تەواو بوو؛ بەڵام داخستنی حساب پێویستی بە پشکنینە: " + settlementError.message : "گەیاندن تەواو بوو؛ لیستی فرۆشتن بۆ کاپتن و خاوەنی پۆست تۆمار کرا و کۆمسیۆنی پۆستەکان لە جزدانی خاوەنەکە کەمکرایەوە.");
     } else {
       setMessage("دۆخی گەیاندن نوێ کرایەوە.");
     }
@@ -231,7 +231,7 @@ export default function DeliveriesPage() {
   async function settle(id: string) {
     setBusyId(id);
     const { error } = await createClient().rpc("settle_delivered_order", { p_order_id: id });
-    setMessage(error?.message || "حسابی گەیاندن داخرا و بڕی کپتن بۆ جزدان زیاد کرا.");
+    setMessage(error?.message || "حسابی گەیاندن داخرا و بڕی کاپتن بۆ جزدان زیاد کرا.");
     setBusyId("");
     await load();
   }
@@ -281,7 +281,7 @@ export default function DeliveriesPage() {
                     </div>
                     <aside className="h-fit rounded-xl bg-shakh-mist p-4">
                       <p className="text-xs text-slate-500">کرێی گەیاندن</p><b className="mt-1 block text-xl">{order.delivery_fee_iqd.toLocaleString("en-US")} د.ع</b>
-                      <p className="mt-3 text-xs text-slate-500">بەشی کپتن</p><b className="mt-1 block text-lg text-shakh-blue">{order.captain_delivery_share_iqd.toLocaleString("en-US")} د.ع</b>
+                      <p className="mt-3 text-xs text-slate-500">بەشی کاپتن</p><b className="mt-1 block text-lg text-shakh-blue">{order.captain_delivery_share_iqd.toLocaleString("en-US")} د.ع</b>
                       <p className="mt-3 text-xs text-slate-500">بەشی شاخ</p><b className="mt-1 block text-lg text-shakh-orange">{order.platform_delivery_share_iqd.toLocaleString("en-US")} د.ع</b>
                       {order.status === "ready_for_pickup" && (
                         <button disabled={busyId === order.id} onClick={() => void claimDelivery(order.id)} className="mt-5 w-full rounded-xl bg-shakh-orange p-3 text-sm font-bold text-white disabled:opacity-50">
