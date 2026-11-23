@@ -336,7 +336,7 @@ export default function CartPage() {
                 <label className="mt-4 block text-sm font-bold">ژمارەی تەلەفۆن بۆ پەیوەندی
                   <input required type="tel" minLength={7} maxLength={24} value={deliveryPhone} onChange={(event) => setDeliveryPhone(event.target.value)} placeholder="07xxxxxxxxx" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                 </label>
-                <label className="mt-4 block text-sm font-bold">تێبینی بۆ کپتن (ئارەزوومەندانە)
+                <label className="mt-4 block text-sm font-bold">تێبینی بۆ کاپتن (ئارەزوومەندانە)
                   <textarea maxLength={500} rows={2} value={deliveryNotes} onChange={(event) => setDeliveryNotes(event.target.value)} placeholder="نزیکترین نیشانە، کاتی گونجاو یان زانیاری زیادە..." className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                 </label>
               </section>
