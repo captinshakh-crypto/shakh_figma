@@ -1,7 +1,7 @@
 {
-  "name": "SHAKH - شاخ",
-  "short_name": "شاخ",
-  "description": "بازاڕی ئۆنلاین و گەیاندنی شاخ",
+  "name": "SHAKH STORE - شاخ ستۆر",
+  "short_name": "شاخ ستۆر",
+  "description": "شاخ ستۆر؛ بازاڕی ئۆنلاین و گەیاندنی خواردن و پێداویستییەکان لە کوردستان.",
   "lang": "ckb",
   "dir": "rtl",
   "start_url": "/",
@@ -21,12 +21,6 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/icon-192",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
       "src": "/icon",
       "sizes": "512x512",
       "type": "image/png",
@@ -37,6 +31,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/icon-192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/apple-icon",
