@@ -62,7 +62,7 @@ export default function CaptainApplicationsPage() {
     });
     setBusyId("");
     if (error) { setMessage(error.message); return; }
-    setMessage(approve ? "داواکاری پەسەند کرا و ڕۆڵی کپتن چالاک بوو." : "داواکاری ڕەتکرایەوە.");
+    setMessage(approve ? "داواکاری پەسەند کرا و ڕۆڵی کاپتن چالاک بوو." : "داواکاری ڕەتکرایەوە.");
     await load();
   }
 
@@ -70,11 +70,11 @@ export default function CaptainApplicationsPage() {
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-5xl">
         <Link href="/dashboard/admin" className="font-bold text-shakh-blue">← داشبۆردی سوپەر ئەدمین</Link>
-        <h1 className="mt-6 text-3xl font-black">داواکارییەکانی کپتن</h1>
-        <p className="mt-2 text-sm text-slate-500">پێداچوونەوە و پەسەندکردنی دوو جۆری کپتن</p>
+        <h1 className="mt-6 text-3xl font-black">داواکارییەکانی کاپتن</h1>
+        <p className="mt-2 text-sm text-slate-500">پێداچوونەوە و پەسەندکردنی دوو جۆری کاپتن</p>
         {message && <p role="status" className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">{message}</p>}
         {loading ? <p className="mt-8">بارکردن...</p> : applications.length === 0 ? (
-          <p className="mt-6 rounded-2xl bg-white p-8 text-center text-slate-500">هیچ داواکاری کپتنێکی چاوەڕوانکراو نییە.</p>
+          <p className="mt-6 rounded-2xl bg-white p-8 text-center text-slate-500">هیچ داواکاری کاپتنێکی چاوەڕوانکراو نییە.</p>
         ) : applications.map((application) => {
           const profile = profiles[application.user_id];
           return (
@@ -86,7 +86,7 @@ export default function CaptainApplicationsPage() {
                   {profile?.phone && <p className="mt-1 text-sm text-slate-500">{profile.phone}</p>}
                 </div>
                 <span className="rounded-full bg-orange-50 px-3 py-2 text-sm font-bold text-shakh-orange">
-                  {application.captain_type === "shakh" ? "کپتنی شاخ" : "کپتنی تایبەت بە دوکان"}
+                  {application.captain_type === "shakh" ? "کاپتنی شاخ" : "کاپتنی تایبەت بە دوکان"}
                 </span>
               </div>
               {application.captain_type === "merchant" && (
