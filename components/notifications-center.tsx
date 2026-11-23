@@ -157,18 +157,28 @@ export default function NotificationsCenter() {
     } else setPushState("off");
   }, []);
 
-  // Re-sync an already granted browser subscription to the signed-in user's database row.
-  // This repairs missing rows without asking the user to grant permission again.
+  // Restore the user's existing push subscription on every app start.
+  // If browser permission is already granted but the subscription disappeared,
+  // recreate it silently; never show a permission prompt without a user gesture.
   useEffect(() => {
     if (!userId || typeof window === "undefined" || !("serviceWorker" in navigator) ||
         !("PushManager" in window) || !("Notification" in window) || Notification.permission !== "granted") return;
     let active = true;
-    void navigator.serviceWorker.ready.then(async (registration) => {
-      const subscription = await registration.pushManager.getSubscription();
-      if (!active || !subscription) return;
+    void (async () => {
+      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!publicKey) throw new Error("Missing public VAPID key");
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+        });
+      }
+      if (!active) return;
       const p256dh = subscription.getKey("p256dh");
       const auth = subscription.getKey("auth");
-      if (!p256dh || !auth) return;
+      if (!p256dh || !auth) throw new Error("Push subscription keys are unavailable");
       const { error } = await createClient().from("push_subscriptions").upsert({
         user_id: userId,
         endpoint: subscription.endpoint,
@@ -177,9 +187,13 @@ export default function NotificationsCenter() {
         user_agent: navigator.userAgent,
         updated_at: new Date().toISOString(),
       }, { onConflict: "endpoint" });
-      if (active && !error) setPushState("on");
-    }).catch(() => {
-      if (active) setPushMessage("تۆمارکردنی Push لەم ئامێرەدا سەرکەوتوو نەبوو.");
+      if (error) throw error;
+      if (active) {
+        setPushState("on");
+        setPushMessage("");
+      }
+    })().catch(() => {
+      if (active) setPushMessage("نەتوانرا ئاگادارکردنەوەی Push خۆکارانە نوێ بکرێتەوە. تکایە دوای دڵنیابوون لە مۆڵەتی وێبگەڕ، دووبارە هەوڵبدەوە.");
     });
     return () => { active = false; };
   }, [userId]);
