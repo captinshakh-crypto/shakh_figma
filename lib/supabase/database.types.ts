@@ -443,6 +443,9 @@ export type Database = {
           merchant_commission_iqd: number
           merchant_commission_rate_bps: number
           merchant_id: string | null
+          merchant_receipt_whatsapp_opened_at: string | null
+          merchant_receipt_whatsapp_sent_at: string | null
+          merchant_receipt_whatsapp_shared_by: string | null
           placed_at: string
           platform_delivery_share_iqd: number
           reward_amount_iqd: number
@@ -469,6 +472,9 @@ export type Database = {
           merchant_commission_iqd?: number
           merchant_commission_rate_bps?: number
           merchant_id?: string | null
+          merchant_receipt_whatsapp_opened_at?: string | null
+          merchant_receipt_whatsapp_sent_at?: string | null
+          merchant_receipt_whatsapp_shared_by?: string | null
           placed_at?: string
           platform_delivery_share_iqd?: number
           reward_amount_iqd?: number
@@ -495,6 +501,9 @@ export type Database = {
           merchant_commission_iqd?: number
           merchant_commission_rate_bps?: number
           merchant_id?: string | null
+          merchant_receipt_whatsapp_opened_at?: string | null
+          merchant_receipt_whatsapp_sent_at?: string | null
+          merchant_receipt_whatsapp_shared_by?: string | null
           placed_at?: string
           platform_delivery_share_iqd?: number
           reward_amount_iqd?: number
@@ -525,6 +534,13 @@ export type Database = {
             columns: ["merchant_id"]
             isOneToOne: false
             referencedRelation: "merchant_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_merchant_receipt_whatsapp_shared_by_fkey"
+            columns: ["merchant_receipt_whatsapp_shared_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1074,6 +1090,10 @@ export type Database = {
           total_iqd: number
           transactions_count: number
         }[]
+      }
+      admin_record_order_receipt_share: {
+        Args: { p_order_id: string; p_status: string }
+        Returns: undefined
       }
       admin_review_merchant: {
         Args: { p_approve: boolean; p_merchant_id: string }
