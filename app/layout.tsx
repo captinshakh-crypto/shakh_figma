@@ -3,7 +3,7 @@ import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 import NotificationsCenter from "@/components/notifications-center";
 
-const siteUrl = "https://daim-post.online";
+const siteUrl = "https://www.daim-post.online";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
