@@ -25,7 +25,7 @@ type Application = {
 const roleNames: Record<string, string> = {
   super_admin: "سوپەر ئەدمین",
   customer: "کڕیار",
-  captain: "کپتن",
+  captain: "کاپتن",
   supermarket: "سوپەرمارکێت",
   restaurant: "چێشتخانە",
   butcher_poultry: "گۆشت و سپیاتی",
@@ -114,7 +114,7 @@ export default function ProfilePage() {
         p_note: note.trim(),
       });
       if (error) throw error;
-      setMessage("داواکاری کپتن نێردرا. دوای پەسەندکردنی سوپەر ئەدمین ڕۆڵەکەت دەگۆڕدرێت.");
+      setMessage("داواکاری کاپتن نێردرا. دوای پەسەندکردنی سوپەر ئەدمین ڕۆڵەکەت دەگۆڕدرێت.");
       setNote("");
       await load();
     } catch (error) {
@@ -149,8 +149,8 @@ export default function ProfilePage() {
             {profile.role === "captain" && captain && (
               <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-900">
                 {captain.captain_type === "shakh"
-                  ? "کپتنی شاخ — دەتوانێت بۆ داواکارییەکانی هەموو دوکانەکان دیاری بکرێت."
-                  : `کپتنی تایبەت بە دوکان — سنووردارە بە ${selectedStore || "دوکانی دیاریکراو"}.`}
+                  ? "کاپتنی شاخ — دەتوانێت بۆ داواکارییەکانی هەموو دوکانەکان دیاری بکرێت."
+                  : `کاپتنی تایبەت بە دوکان — سنووردارە بە ${selectedStore || "دوکانی دیاریکراو"}.`}
               </div>
             )}
           </section>
@@ -172,8 +172,8 @@ export default function ProfilePage() {
 
           {profile.role === "customer" && !captain?.is_active && (
             <section className="mt-5 rounded-2xl bg-white p-6 shadow-soft">
-              <h2 className="text-xl font-black">داواکاری بوون بە کپتن</h2>
-              <p className="mt-2 text-sm leading-7 text-slate-600">جۆری کپتن هەڵبژێرە. سوپەر ئەدمین داواکارییەکەت پێداچوونەوەی بۆ دەکات پێش ئەوەی ڕۆڵەکەت بگۆڕدرێت.</p>
+              <h2 className="text-xl font-black">داواکاری بوون بە کاپتن</h2>
+              <p className="mt-2 text-sm leading-7 text-slate-600">جۆری کاپتن هەڵبژێرە. سوپەر ئەدمین داواکارییەکەت پێداچوونەوەی بۆ دەکات پێش ئەوەی ڕۆڵەکەت بگۆڕدرێت.</p>
 
               {pending ? (
                 <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">داواکارییەکت لە چاوەڕوانی پەسەندکردندایە.</p>
@@ -181,11 +181,11 @@ export default function ProfilePage() {
                 <form onSubmit={applyForCaptain} className="mt-5 space-y-4">
                   <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4">
                     <input type="radio" name="captainType" checked={captainType === "shakh"} onChange={() => setCaptainType("shakh")} className="mt-1"/>
-                    <span><b className="block">کپتنی شاخ</b><small className="mt-1 block leading-6 text-slate-500">بۆ هەموو دوکانەکانی پلاتفۆرمی شاخ.</small></span>
+                    <span><b className="block">کاپتنی شاخ</b><small className="mt-1 block leading-6 text-slate-500">بۆ هەموو دوکانەکانی پلاتفۆرمی شاخ.</small></span>
                   </label>
                   <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4">
                     <input type="radio" name="captainType" checked={captainType === "merchant"} onChange={() => setCaptainType("merchant")} className="mt-1"/>
-                    <span><b className="block">کپتنی تایبەت بە یەک دوکان</b><small className="mt-1 block leading-6 text-slate-500">تەنها بۆ گەیاندنی داواکارییەکانی ئەو دوکانەی هەڵیدەبژێریت.</small></span>
+                    <span><b className="block">کاپتنی تایبەت بە یەک دوکان</b><small className="mt-1 block leading-6 text-slate-500">تەنها بۆ گەیاندنی داواکارییەکانی ئەو دوکانەی هەڵیدەبژێریت.</small></span>
                   </label>
 
                   {captainType === "merchant" && (
@@ -202,7 +202,7 @@ export default function ProfilePage() {
                     <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} maxLength={500} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" placeholder="زانیاری زیادە بۆ داواکاری..."/>
                   </label>
                   <button disabled={saving || (captainType === "merchant" && !merchantId)} className="rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
-                    {saving ? "تکایە چاوەڕێ بکە..." : "ناردنی داواکاری کپتن"}
+                    {saving ? "تکایە چاوەڕێ بکە..." : "ناردنی داواکاری کاپتن"}
                   </button>
                 </form>
               )}
@@ -215,7 +215,7 @@ export default function ProfilePage() {
               {applications.map((application) => (
                 <div key={application.id} className="mt-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 py-3 last:border-0">
                   <div>
-                    <b>{application.captain_type === "shakh" ? "کپتنی شاخ" : "کپتنی تایبەت بە دوکان"}</b>
+                    <b>{application.captain_type === "shakh" ? "کاپتنی شاخ" : "کاپتنی تایبەت بە دوکان"}</b>
                     <p className="mt-1 text-xs text-slate-500">{new Date(application.created_at).toLocaleDateString("ckb-IQ")}</p>
                   </div>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{statusNames[application.status] || application.status}</span>
