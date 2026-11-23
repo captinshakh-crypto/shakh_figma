@@ -75,3 +75,23 @@ a { color: inherit; text-decoration: none; }
     scroll-behavior: auto;
   }
 }
+
+
+/* SHAKH STORE sharing action stays available throughout the app. */
+.shakh-share-control {
+  position: fixed;
+  z-index: 80;
+  left: 16px;
+  bottom: 22px;
+}
+
+@media (max-width: 767px) {
+  .shakh-share-control {
+    left: 12px;
+    bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shakh-share-control button { transition: none; }
+}
