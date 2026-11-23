@@ -215,8 +215,7 @@ export default function OrdersPage() {
     const merchant = merchantInfo[order.merchant_id];
     const rawPhone = merchant?.phone?.trim() || "";
     const digits = rawPhone.replace(/\D/g, "");
-    if (!digits) return null;
-    const recipient = digits.startsWith("964") ? digits : digits.startsWith("0") ? "964" + digits.slice(1) : digits;
+    const recipient = !digits ? "" : digits.startsWith("964") ? digits : digits.startsWith("0") ? "964" + digits.slice(1) : digits;
     const total = order.total_iqd || order.subtotal_iqd + order.delivery_fee_iqd;
     const itemLines = orderItems.map((item) =>
       `• ${item.product_title_snapshot} × ${Number(item.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} = ${formatIQD(item.line_total_iqd)}`
@@ -357,7 +356,7 @@ export default function OrdersPage() {
                       {role === "super_admin" && order.merchant_id && (
                         merchantReceiptWhatsAppUrl(order, orderItems)
                           ? <a href={merchantReceiptWhatsAppUrl(order, orderItems)!} target="_blank" rel="noreferrer" className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-3 text-center text-sm font-bold text-white"><MessageCircle size={18}/> ناردنی وەسڵ بۆ دوکان بە واتسئاپ</a>
-                          : <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-6 text-amber-800">ژمارەی مۆبایلی خاوەنی دوکان لە پڕۆفایل تۆمار نەکراوە؛ بۆ ناردنی وەسڵ، ژمارەی پەیوەندیی دوکان نوێ بکەرەوە.</p>
+                          : <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-6 text-amber-800">ژمارەی مۆبایلی خاوەنی دوکان لە پڕۆفایل تۆمار نەکراوە؛ واتسئاپ دەکرێتەوە بۆ ئەوەی چاتی دوکاندار لە پەیوەندییەکانت هەڵبژێریت.</p>
                       )}
                       {order.settled_at && <p className="mt-3 flex items-center gap-2 text-xs font-bold text-green-700"><CheckCircle2 size={15}/> حساب داخراوەتەوە</p>}
                       {actions.length > 0 && (
