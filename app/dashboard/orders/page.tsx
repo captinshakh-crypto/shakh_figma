@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import OrderLiveMap from "@/components/order-live-map";
 import { createClient } from "@/lib/supabase/client";
-import { MapPin, Phone, Package, Clock3, CheckCircle2, XCircle, Truck, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { MapPin, Phone, Package, Clock3, CheckCircle2, XCircle, Truck, RefreshCw, ChevronDown, ChevronUp, MessageCircle } from "lucide-react";
 
 type Order = {
   id: string;
@@ -40,6 +40,7 @@ type OrderItem = {
 };
 
 type LiveLocation = { order_id: string; latitude: number; longitude: number; accuracy_m: number | null; updated_at: string };
+type MerchantInfo = { business_name: string; address: string | null; phone: string | null };
 
 type History = {
   id: string;
@@ -81,7 +82,7 @@ export default function OrdersPage() {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [history, setHistory] = useState<History[]>([]);
   const [liveLocations, setLiveLocations] = useState<Record<string, LiveLocation>>({});
-  const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
+  const [merchantInfo, setMerchantInfo] = useState<Record<string, MerchantInfo>>({});
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({});
   const [role, setRole] = useState("");
   const [busyId, setBusyId] = useState("");
@@ -140,13 +141,13 @@ export default function OrdersPage() {
     const zoneIds = [...new Set(rows.map((order) => order.service_zone_id).filter((id): id is string => !!id))];
 
     if (orderIds.length === 0) {
-      setItems([]); setHistory([]); setLiveLocations({}); setMerchantNames({}); setZoneNames({}); setLoading(false); return;
+      setItems([]); setHistory([]); setLiveLocations({}); setMerchantInfo({}); setZoneNames({}); setLoading(false); return;
     }
 
     const [itemResult, historyResult, merchantResult, zoneResult, locationResult] = await Promise.all([
       supabase.from("order_items").select("id,order_id,product_title_snapshot,quantity,unit_price_iqd,line_total_iqd,merchant_commission_per_unit_snapshot_iqd,merchant_commission_line_snapshot_iqd").in("order_id", orderIds),
       supabase.from("order_status_history").select("id,order_id,from_status,to_status,actor_role,note,created_at").in("order_id", orderIds).order("created_at"),
-      merchantIds.length ? supabase.from("merchant_profiles").select("id,business_name").in("id", merchantIds) : Promise.resolve({ data: [], error: null }),
+      merchantIds.length ? supabase.from("merchant_profiles").select("id,user_id,business_name,address").in("id", merchantIds) : Promise.resolve({ data: [], error: null }),
       zoneIds.length ? supabase.from("service_zones").select("id,name").in("id", zoneIds) : Promise.resolve({ data: [], error: null }),
       supabase.from("order_live_locations").select("order_id,latitude,longitude,accuracy_m,updated_at").in("order_id", orderIds),
     ]);
@@ -156,10 +157,21 @@ export default function OrdersPage() {
     if (zoneResult.error) throw zoneResult.error;
     if (locationResult.error) throw locationResult.error;
 
+    const merchantRows = merchantResult.data || [];
+    const merchantUserIds = [...new Set(merchantRows.map((merchant) => merchant.user_id).filter((id): id is string => !!id))];
+    const profileResult = merchantUserIds.length
+      ? await supabase.from("profiles").select("id,phone").in("id", merchantUserIds)
+      : { data: [], error: null };
+    if (profileResult.error) throw profileResult.error;
+    const phoneByUser = Object.fromEntries((profileResult.data || []).map((profile) => [profile.id, profile.phone]));
     setItems(itemResult.data || []);
     setHistory(historyResult.data || []);
     setLiveLocations(Object.fromEntries((locationResult.data || []).map((location) => [location.order_id, { ...location, order_id: location.order_id }])));
-    setMerchantNames(Object.fromEntries((merchantResult.data || []).map((merchant) => [merchant.id, merchant.business_name])));
+    setMerchantInfo(Object.fromEntries(merchantRows.map((merchant) => [merchant.id, {
+      business_name: merchant.business_name,
+      address: merchant.address,
+      phone: phoneByUser[merchant.user_id] || null,
+    }])));
     setZoneNames(Object.fromEntries((zoneResult.data || []).map((zone) => [zone.id, zone.name])));
     setLoading(false);
   }, []);
@@ -196,6 +208,40 @@ export default function OrdersPage() {
     if (error) setMessage(error.message);
     else setMessage("دۆخی داواکاری نوێ کرایەوە.");
     await load();
+  }
+
+  function merchantReceiptWhatsAppUrl(order: Order, orderItems: OrderItem[]) {
+    if (!order.merchant_id) return null;
+    const merchant = merchantInfo[order.merchant_id];
+    const rawPhone = merchant?.phone?.trim() || "";
+    const digits = rawPhone.replace(/\\D/g, "");
+    if (!digits) return null;
+    const recipient = digits.startsWith("964") ? digits : digits.startsWith("0") ? "964" + digits.slice(1) : digits;
+    const total = order.total_iqd || order.subtotal_iqd + order.delivery_fee_iqd;
+    const itemLines = orderItems.map((item) =>
+      `• ${item.product_title_snapshot} × ${Number(item.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} = ${formatIQD(item.line_total_iqd)}`
+    );
+    const receipt = [
+      "SHAKH STORE | وەسڵی داواکاری نوێ",
+      `ژمارەی ئۆردەر: ${order.id.toUpperCase()}`,
+      `دوکان: ${merchant.business_name}`,
+      merchant.address ? `شوێنی دوکان: ${merchant.address}` : "",
+      `کات: ${new Date(order.placed_at).toLocaleString("ckb-IQ")}`,
+      "",
+      "کاڵاکان:",
+      ...itemLines,
+      "",
+      `کۆی کاڵاکان: ${formatIQD(order.subtotal_iqd)}`,
+      `کرێی گەیاندن: ${formatIQD(order.delivery_fee_iqd)}`,
+      `کۆی گشتی: ${formatIQD(total)}`,
+      "",
+      `ژمارەی کڕیار: ${order.delivery_phone}`,
+      `ناونیشانی گەیاندن: ${order.delivery_address}`,
+      order.delivery_notes ? `تێبینی: ${order.delivery_notes}` : "",
+      "",
+      "تکایە داواکارییەکە وەربگرە و بەپێی وردەکارییەکان ئامادەی بکە."
+    ].filter(Boolean).join("\\n");
+    return `https://wa.me/${recipient}?text=${encodeURIComponent(receipt)}`;
   }
 
   function allowedActions(order: Order) {
@@ -257,7 +303,8 @@ export default function OrdersPage() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap gap-3 text-xs text-slate-500">
                         <span>{new Date(order.placed_at).toLocaleString("ckb-IQ")}</span>
-                        <span>{order.merchant_id ? merchantNames[order.merchant_id] || "دوکانی هاوبەش" : "شاخ ستۆر"}</span>
+                        <span>{order.merchant_id ? merchantInfo[order.merchant_id]?.business_name || "دوکانی هاوبەش" : "شاخ ستۆر"}</span>
+                        {order.merchant_id && merchantInfo[order.merchant_id]?.address && <span className="flex items-center gap-1"><MapPin size={12}/> شوێنی دوکان: {merchantInfo[order.merchant_id].address}</span>}
                         {order.service_zone_id && <span>زۆن: {zoneNames[order.service_zone_id] || "—"}</span>}
                       </div>
                       <h2 className="mt-4 font-black">کاڵاکان</h2>
@@ -307,6 +354,11 @@ export default function OrdersPage() {
                         <div className="flex justify-between"><span>گەیاندن</span><b>{formatIQD(order.delivery_fee_iqd)}</b></div>
                         <div className="flex justify-between border-t border-slate-200 pt-3 font-black"><span>کۆی گشتی</span><span>{formatIQD(order.total_iqd || order.subtotal_iqd + order.delivery_fee_iqd)}</span></div>
                       </div>
+                      {role === "super_admin" && order.merchant_id && (
+                        merchantReceiptWhatsAppUrl(order, orderItems)
+                          ? <a href={merchantReceiptWhatsAppUrl(order, orderItems)!} target="_blank" rel="noreferrer" className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-3 text-center text-sm font-bold text-white"><MessageCircle size={18}/> ناردنی وەسڵ بۆ دوکان بە واتسئاپ</a>
+                          : <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-6 text-amber-800">ژمارەی مۆبایلی خاوەنی دوکان لە پڕۆفایل تۆمار نەکراوە؛ بۆ ناردنی وەسڵ، ژمارەی پەیوەندیی دوکان نوێ بکەرەوە.</p>
+                      )}
                       {order.settled_at && <p className="mt-3 flex items-center gap-2 text-xs font-bold text-green-700"><CheckCircle2 size={15}/> حساب داخراوەتەوە</p>}
                       {actions.length > 0 && (
                         <div className="mt-5 space-y-2">
