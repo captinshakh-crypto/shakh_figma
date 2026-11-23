@@ -15,6 +15,7 @@ type Product = {
   merchant_id: string | null;
   is_shakh_store: boolean;
   image_path: string | null;
+  referral_commission_iqd: number;
   stock_quantity: number | null;
   unit: string;
 };
@@ -63,7 +64,7 @@ export default function ShopPage() {
     setReferralCampaignId(savedReferral);
     Promise.all([
       supabase.from("products")
-        .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,stock_quantity,unit")
+        .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
         .eq("is_available", true).order("created_at", { ascending: false }),
       supabase.from("merchant_profiles")
         .select("id,business_name,merchant_type").eq("approval_status", "approved"),
@@ -220,6 +221,12 @@ export default function ShopPage() {
                     <p className="mt-1 truncate text-xs text-slate-500">{storeName}</p>
                     <h2 className="mt-1 font-bold">{product.title}</h2>
                     {product.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>}
+                    {product.referral_commission_iqd > 0 && (
+                      <div className="mt-2 rounded-xl border border-purple-100 bg-gradient-to-l from-purple-50 to-orange-50 px-2.5 py-2 text-xs font-black text-purple-800">
+                        <span className="mr-1 inline-block">🎁</span>
+                        شێر بکە و {product.referral_commission_iqd.toLocaleString("en-US")} د.ع خەڵات وەربگرە / هەر دانە
+                      </div>
+                    )}
                     <p className="mt-3 font-black text-shakh-orange">{product.price_iqd.toLocaleString("en-US")} د.ع <small className="font-medium text-slate-500">/ {unitLabels[product.unit] || product.unit}</small></p>
                     <p className={`mt-1 text-xs ${outOfStock ? "text-red-600" : "text-green-700"}`}>
                       {outOfStock ? "کۆگا تەواو بووە" : product.stock_quantity === null ? "بەردەست" : `ماوە: ${product.stock_quantity.toLocaleString("en-US")} ${unitLabels[product.unit] || product.unit}`}
