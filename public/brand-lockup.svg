@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="220" viewBox="0 0 980 220" role="img" aria-labelledby="title desc">
+<title id="title">SHAKH STORE - شاخ ستۆر</title>
+<desc id="desc">دوو چیا لە دوو لا و ناوی شاخ ستۆر لە ناوەڕاست</desc>
+<defs><linearGradient id="mountain" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffb51d"/><stop offset="1" stop-color="#ed4b12"/></linearGradient></defs>
+<g fill="url(#mountain)">
+<path d="M30 174 100 48 137 91 184 10 262 174 181 114 157 140 132 103 101 136 78 105Z"/>
+<path d="M950 174 880 48 843 91 796 10 718 174 799 114 823 140 848 103 879 136 902 105Z"/>
+</g>
+<g fill="none" stroke="#fff2d5" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<path d="m100 48 35 39 10-12m39-65-28 51 35-20 25 37"/>
+<path d="m880 48-35 39-10-12m-39-65 28 51-35-20-25 37"/>
+</g>
+<g text-anchor="middle" font-family="Tahoma,Arial,sans-serif">
+<text x="490" y="112" fill="#102f49" font-size="67" font-weight="900" direction="rtl">شاخ ستۆر</text>
+<text x="490" y="168" fill="#f47721" font-size="34" font-weight="900" letter-spacing="7">SHAKH STORE</text>
+</g>
+</svg>
