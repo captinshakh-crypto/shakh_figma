@@ -52,11 +52,11 @@ export default function DashboardPage() {
           const { data: captain } = await supabase.from("captain_profiles")
             .select("captain_type,merchant_id").eq("user_id", user.id).maybeSingle();
           if (!active) return;
-          if (captain?.captain_type === "shakh") setCaptainLabel("کپتنی شاخ");
+          if (captain?.captain_type === "shakh") setCaptainLabel("کاپتنی شاخ");
           else if (captain?.captain_type === "merchant" && captain.merchant_id) {
             const { data: merchant } = await supabase.from("merchant_profiles")
               .select("business_name").eq("id", captain.merchant_id).maybeSingle();
-            if (active) setCaptainLabel("کپتنی تایبەت بە " + (merchant?.business_name || "دوکان"));
+            if (active) setCaptainLabel("کاپتنی تایبەت بە " + (merchant?.business_name || "دوکان"));
           }
         }
       } catch {
