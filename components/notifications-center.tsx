@@ -36,6 +36,12 @@ export default function NotificationsCenter() {
   const audioRef = useRef<AudioContext | null>(null);
   const knownIds = useRef<Set<string>>(new Set());
 
+  useEffect(() => {
+    const openNotifications = () => setOpen(true);
+    window.addEventListener("shakh:open-notifications", openNotifications);
+    return () => window.removeEventListener("shakh:open-notifications", openNotifications);
+  }, []);
+
   // Keep the user's sound preference across page reloads and PWA restarts.
   useEffect(() => {
     if (!userId || typeof window === "undefined") {
