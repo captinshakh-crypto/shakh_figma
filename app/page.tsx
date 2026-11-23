@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PwaInstallCta from "@/components/pwa-install-cta";
+import { NotificationsHeaderBell } from "@/components/notifications-center";
 
 type Product = {
   id: string;
@@ -146,6 +147,7 @@ export default function HomePage() {
           </Link>
           <nav aria-label="ناڤی سەرەکی" className="flex items-center gap-2">
             <Link href="/shop" className="hidden rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-blue-50 hover:text-[#1769aa] sm:inline-flex">بازاڕ</Link>
+            <NotificationsHeaderBell />
             <PwaInstallCta compact />
             <Link href={accountHref} className="inline-flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 transition hover:border-orange-200 hover:bg-orange-50">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#eaf3fb] text-[#1769aa]"><UserRound size={18}/></span>

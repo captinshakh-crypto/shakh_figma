@@ -302,18 +302,20 @@ export default function NotificationsCenter() {
     }
   }
 
-  if (!userId || !ready) return null;
   const unread = notices.filter((item) => !item.read_at).length;
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("shakh:notifications-count", { detail: unread }));
+    }
+  }, [unread]);
+
+  if (!userId || !ready) return null;
+
   return (
-    <div className="shakh-notifications-anchor">
-      <div className="relative">
-        <button onClick={() => setOpen((value) => !value)} aria-label="ئاگادارییەکان" aria-expanded={open} aria-controls="shakh-notifications-panel" className="shakh-notifications-trigger relative flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-shakh-blue shadow-md transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f47721]">
-          <Bell size={21}/>
-          {unread > 0 && <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[11px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}
-        </button>
-        {open && (
-          <section id="shakh-notifications-panel" role="dialog" aria-label="ئاگادارییەکان" className="absolute left-0 top-14 w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" dir="rtl">
+    <div className="shakh-notifications-layer">
+      {open && (
+        <section id="shakh-notifications-panel" role="dialog" aria-label="ئاگادارییەکان" className="shakh-notifications-panel overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" dir="rtl">
             <header className="flex items-center justify-between border-b p-4">
               <div><b>ئاگادارییەکان</b><p className="text-xs text-slate-500">{unread.toLocaleString("en-US")} ئاگاداری نەخوێندراوە</p></div>
               <div className="flex items-center gap-2">
@@ -354,9 +356,39 @@ export default function NotificationsCenter() {
                 </button>
               ))}
             </div>
-          </section>
-        )}
-      </div>
+        </section>
+      )}
     </div>
+  );
+}
+
+export function NotificationsHeaderBell() {
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    const updateCount = (event: Event) => {
+      const count = (event as CustomEvent<number>).detail;
+      if (typeof count === "number" && Number.isFinite(count)) {
+        setUnread(Math.max(0, count));
+      }
+    };
+    window.addEventListener("shakh:notifications-count", updateCount);
+    return () => window.removeEventListener("shakh:notifications-count", updateCount);
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new Event("shakh:open-notifications"))}
+      aria-label="ئاگادارییەکان"
+      className="hidden md:inline-flex relative h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-shakh-blue shadow-sm transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f47721]"
+    >
+      <Bell size={21}/>
+      {unread > 0 && (
+        <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[11px] font-black leading-4 text-white">
+          {unread > 99 ? "99+" : unread}
+        </span>
+      )}
+    </button>
   );
 }
