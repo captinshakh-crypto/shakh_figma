@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
-  ArrowLeft, ArrowUpLeft, BadgeCheck, Beef, Carrot, ChevronLeft, Clock3,
+  ArrowLeft, ArrowUpLeft, Beef, Carrot, ChevronLeft, Clock3,
   PackageCheck, Search, ShieldCheck, ShoppingBag, Store, Truck, Utensils,
-  UserRound, WalletCards, Sparkles, CircleCheck, MapPin, ShoppingBasket,
+  UserRound, WalletCards, Sparkles, CircleCheck, ShoppingBasket,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PwaInstallCta from "@/components/pwa-install-cta";
