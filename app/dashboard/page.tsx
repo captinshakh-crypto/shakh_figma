@@ -96,6 +96,17 @@ export default function DashboardPage() {
         {profile && profile.role !== "customer" && profile.role !== "super_admin" && balance <= 0 && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">بۆ چالاکییەکانی دوکان، جزدانەکەت نابێت بەتاڵ بێت؛ بۆ کاپتنیش کۆمسیۆنی ٢٠٪ی گەیاندن پێشتر لە جزدان کەم دەکرێتەوە. باڵانسی ئێستا: {balance.toLocaleString("en-US")} د.ع. <Link href="/dashboard/wallet" className="font-black underline">پڕکردنەوەی جزدان</Link></div>}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {profile?.role === "super_admin" && (
+            <Link href="/dashboard/admin" className="order-first rounded-2xl border border-orange-200 bg-orange-50 p-5 shadow-soft sm:col-span-2 lg:col-span-3">
+              <div className="flex items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-shakh-orange"><ShieldCheck size={23}/></span>
+                <span className="min-w-0">
+                  <b className="block text-lg">داشبۆردی سوپەر ئەدمین</b>
+                  <span className="mt-1 block text-sm leading-6 text-slate-600">بەڕێوەبردنی دوکان و پۆستەکان، کاپتن، کڕیاران و داواکارییەکان لە یەک پانێڵدا.</span>
+                </span>
+              </div>
+            </Link>
+          )}
           <Link href="/dashboard/profile" className="rounded-2xl border border-orange-100 bg-orange-50 p-6 shadow-soft">
             <UserRound className="text-shakh-orange"/>
             <b className="mt-4 block">پڕۆفایل و ڕۆڵ</b>
@@ -121,13 +132,6 @@ export default function DashboardPage() {
             <b className="mt-4 block">بەشی فرۆشگا</b>
             <p className="mt-1 text-sm text-slate-500">بەپێی ڕۆڵی هەژمارەکەت</p>
           </Link>
-          {profile?.role === "super_admin" && (
-            <Link href="/dashboard/admin" className="rounded-2xl bg-orange-50 p-6 shadow-soft">
-              <ShieldCheck className="text-shakh-orange"/>
-              <b className="mt-4 block">بەڕێوەبردنی سوپەر ئەدمین</b>
-              <p className="mt-1 text-sm text-slate-500">کۆمسیۆن، جزدان و داواکارییەکان</p>
-            </Link>
-          )}
           {profile?.role === "captain" && (
             <Link href="/dashboard/deliveries" className="rounded-2xl bg-white p-6 shadow-soft">
               <Truck className="text-shakh-blue"/>
