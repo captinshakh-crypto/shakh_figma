@@ -7,43 +7,17 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": [
-    "standalone",
-    "minimal-ui"
-  ],
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#F4F8FB",
   "theme_color": "#F47721",
   "orientation": "portrait-primary",
-  "categories": [
-    "shopping",
-    "food"
-  ],
+  "categories": ["shopping", "food"],
   "prefer_related_applications": false,
   "icons": [
-    {
-      "src": "/icon?brand=rtl-20261124-2",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon?brand=rtl-20261124-2",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icon-192?brand=rtl-20261124-2",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/apple-icon?brand=rtl-20261124-2",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
-    }
+    {"src": "/icon?brand=delivery-20261124-1", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/icon?brand=delivery-20261124-1", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    {"src": "/icon-192?brand=delivery-20261124-1", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/apple-icon?brand=delivery-20261124-1", "sizes": "180x180", "type": "image/png", "purpose": "any"}
   ],
   "id": "/"
 }

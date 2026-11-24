@@ -47,8 +47,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "شاخ ستۆر", statusBarStyle: "default" },
   icons: {
-    icon: [{ url: "/icon.svg?v=20261124-rtl2", type: "image/svg+xml" }],
-    shortcut: [{ url: "/icon.svg?v=20261124-rtl2", type: "image/svg+xml" }],
+    icon: [{ url: "/icon.svg?v=delivery-20261124-1", type: "image/svg+xml" }],
+    shortcut: [{ url: "/icon.svg?v=delivery-20261124-1", type: "image/svg+xml" }],
     apple: [{ url: "/apple-icon?v=20261124-rtl2", sizes: "180x180", type: "image/png" }],
   },
 };
