@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Bell, Home, ShoppingBag, ShoppingCart, UserRound } from "lucide-react";
+import { Bell, Home, ShoppingBag, ShoppingCart, UserRound, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type CartEntry = { quantity?: number };
@@ -24,6 +24,7 @@ export default function MobileBottomNav() {
   const [cartCount, setCartCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
 
   const refreshUnread = useCallback(async (uid: string) => {
     const { count, error } = await createClient()
@@ -71,6 +72,24 @@ export default function MobileBottomNav() {
   }, [refreshUnread]);
 
   useEffect(() => {
+    let active = true;
+    if (!userId) {
+      setRole(null);
+      return () => { active = false; };
+    }
+    async function loadRole() {
+      const { data, error } = await createClient()
+        .from("profiles")
+        .select("role")
+        .eq("id", userId!)
+        .maybeSingle();
+      if (active) setRole(error ? null : data?.role || null);
+    }
+    void loadRole();
+    return () => { active = false; };
+  }, [userId]);
+
+  useEffect(() => {
     if (!userId) return;
     const supabase = createClient();
     const channel = supabase.channel("shakh-mobile-nav-notifications-" + userId)
@@ -99,7 +118,10 @@ export default function MobileBottomNav() {
     { href: "/shop", label: "بازاڕ", icon: ShoppingBag, active: pathname.startsWith("/shop") },
     { href: "/cart", label: "سەبەتە", icon: ShoppingCart, active: pathname.startsWith("/cart"), count: cartCount },
     { label: "ئاگاداری", icon: Bell, active: false, count: unreadCount, onClick: openNotifications },
-    { href: userId ? "/dashboard" : "/login", label: "هەژمار", icon: UserRound, active: pathname.startsWith("/dashboard") || pathname.startsWith("/login") },
+    { href: userId ? "/dashboard" : "/login", label: "هەژمار", icon: UserRound, active: pathname === "/dashboard" || (pathname.startsWith("/dashboard/") && !pathname.startsWith("/dashboard/admin")) || pathname.startsWith("/login") },
+    ...(role === "super_admin" ? [
+      { href: "/dashboard/admin", label: "ئەدمین", icon: ShieldCheck, active: pathname.startsWith("/dashboard/admin") },
+    ] : []),
   ];
 
   return (
