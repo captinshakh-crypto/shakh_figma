@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "SHAKH STORE - شاخ ستۆر، بازاڕی ئۆنلاین و گەیاندن";
+export const alt = "شاخ ستۆر، بازاڕی ئۆنلاین و گەیاندن";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -33,13 +33,13 @@ export default function OpenGraphImage() {
           <div style={{ display: "flex", borderRadius: "999px", background: "#ff8b13", padding: "13px 34px", fontSize: 25, fontWeight: 900, letterSpacing: 4 }}>
             SHAKH STORE
           </div>
-          <div style={{ display: "flex", marginTop: 33, fontSize: 82, fontWeight: 900, lineHeight: 1.25, textShadow: "0 5px 18px rgba(0,0,0,.24)" }}>
+          <div dir="rtl" lang="ckb-IQ" style={{ display: "flex", marginTop: 33, fontSize: 82, fontWeight: 900, lineHeight: 1.25, direction: "rtl", textAlign: "center", textShadow: "0 5px 18px rgba(0,0,0,.24)" }}>
             شاخ ستۆر
           </div>
-          <div style={{ display: "flex", marginTop: 20, fontSize: 34, fontWeight: 800, color: "#ffe0b2" }}>
+          <div dir="rtl" lang="ckb-IQ" style={{ display: "flex", marginTop: 20, fontSize: 34, fontWeight: 800, color: "#ffe0b2" }}>
             بازاڕی ئۆنلاین و گەیاندن
           </div>
-          <div style={{ display: "flex", marginTop: 24, fontSize: 24, fontWeight: 700, color: "#e6f0fa" }}>
+          <div dir="rtl" lang="ckb-IQ" style={{ display: "flex", marginTop: 24, fontSize: 24, fontWeight: 700, color: "#e6f0fa" }}>
             چێشتخانە  |  سوپەرمارکێت  |  گۆشت و سپیاتی  |  بەقالی
           </div>
           <div style={{ display: "flex", marginTop: 38, borderRadius: 18, background: "#ff7115", padding: "16px 32px", fontSize: 23, fontWeight: 900 }}>
