@@ -12,11 +12,11 @@ const siteDescription =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "SHAKH STORE | شاخ ستۆر – بازاڕی ئۆنلاین و گەیاندن",
-    template: "%s | SHAKH STORE",
+    default: "شاخ ستۆر | بازاڕی ئۆنلاین و گەیاندن",
+    template: "%s | شاخ ستۆر",
   },
   description: siteDescription,
-  applicationName: "SHAKH STORE",
+  applicationName: "شاخ ستۆر",
   alternates: { canonical: "/" },
   keywords: [
     "SHAKH STORE", "SHAKH", "شاخ ستۆر", "شاخ", "Shakh Store", "Shakh Stor", "بازاڕی ئۆنلاین", "گەیاندن", "داواکاری خواردن",
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ckb_IQ",
     url: siteUrl,
-    siteName: "SHAKH STORE | شاخ ستۆر",
-    title: "SHAKH STORE | شاخ ستۆر – بازاڕی ئۆنلاین و گەیاندن",
+    siteName: "شاخ ستۆر",
+    title: "شاخ ستۆر | بازاڕی ئۆنلاین و گەیاندن",
     description: siteDescription,
     images: [{
       url: "/opengraph-image",
@@ -39,13 +39,18 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SHAKH STORE | شاخ ستۆر – بازاڕی ئۆنلاین و گەیاندن",
+    title: "شاخ ستۆر | بازاڕی ئۆنلاین و گەیاندن",
     description: siteDescription,
     images: ["/opengraph-image"],
   },
   robots: { index: true, follow: true },
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "SHAKH STORE", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "شاخ ستۆر", statusBarStyle: "default" },
+  icons: {
+    icon: [{ url: "/icon.svg?v=20261124-rtl2", type: "image/svg+xml" }],
+    shortcut: [{ url: "/icon.svg?v=20261124-rtl2", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon?v=20261124-rtl2", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -60,8 +65,8 @@ const structuredData = {
     {
       "@type": "Organization",
       "@id": siteUrl + "#organization",
-      name: "SHAKH STORE",
-      alternateName: ["شاخ ستۆر", "SHAKH", "Shakh Store"],
+      name: "شاخ ستۆر",
+      alternateName: ["SHAKH STORE", "SHAKH", "Shakh Store"],
       url: siteUrl,
       logo: siteUrl + "/icon",
       description: siteDescription,
@@ -70,15 +75,15 @@ const structuredData = {
       "@type": "WebSite",
       "@id": siteUrl + "#website",
       url: siteUrl,
-      name: "SHAKH STORE | شاخ ستۆر",
-      inLanguage: ["ckb-IQ", "ar", "en"],
+      name: "شاخ ستۆر",
+      inLanguage: ["ckb-IQ"],
       publisher: { "@id": siteUrl + "#organization" },
     },
     {
       "@type": "WebApplication",
       "@id": siteUrl + "#webapp",
-      name: "SHAKH STORE | شاخ ستۆر",
-      alternateName: ["شاخ ستۆر", "SHAKH", "Shakh Store"],
+      name: "شاخ ستۆر",
+      alternateName: ["SHAKH STORE", "SHAKH", "Shakh Store"],
       url: siteUrl,
       applicationCategory: "ShoppingApplication",
       operatingSystem: "Web browser",

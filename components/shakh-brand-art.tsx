@@ -5,6 +5,7 @@ export function ShakhBrandArt({ size }: Props) {
 
   return (
     <div
+      dir="ltr"
       style={{
         width: size,
         height: size,
@@ -70,6 +71,8 @@ export function ShakhBrandArt({ size }: Props) {
           <circle cx="322" cy="46" r="13" fill="#ffe6a9" />
         </svg>
         <div
+          dir="rtl"
+          lang="ckb-IQ"
           style={{
             position: "absolute",
             top: circle * 0.68,
@@ -78,18 +81,21 @@ export function ShakhBrandArt({ size }: Props) {
             flexDirection: "column",
             alignItems: "center",
             textAlign: "center",
+            direction: "rtl",
             textShadow: "0 2px 5px rgba(100,35,0,.25)",
           }}
         >
-          <div style={{ fontSize: circle * 0.105, fontWeight: 900, lineHeight: 1.1 }}>
+          <div dir="rtl" lang="ckb-IQ" style={{ direction: "rtl", fontSize: circle * 0.105, fontWeight: 900, lineHeight: 1.1 }}>
             شاخ ستۆر
           </div>
-          <div style={{ marginTop: circle * 0.025, fontSize: circle * 0.047, fontWeight: 800, letterSpacing: circle * 0.004 }}>
+          <div dir="ltr" lang="en" style={{ direction: "ltr", marginTop: circle * 0.025, fontSize: circle * 0.047, fontWeight: 800, letterSpacing: circle * 0.004 }}>
             SHAKH STORE
           </div>
         </div>
       </div>
       <div
+        dir="rtl"
+        lang="ckb-IQ"
         style={{
           position: "absolute",
           top: size * 0.695,
@@ -100,6 +106,7 @@ export function ShakhBrandArt({ size }: Props) {
           fontSize: size * 0.115,
           fontWeight: 900,
           textAlign: "center",
+          direction: "rtl",
           textShadow: "0 3px 8px rgba(47,57,72,.35)",
         }}
       >

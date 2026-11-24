@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
-<title id="title">SHAKH STORE - شاخ ستۆر</title>
+<title id="title" lang="ckb-IQ">شاخ ستۆر</title>
 <defs>
   <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#aebdce"/><stop offset=".38" stop-color="#e8edf4"/><stop offset="1" stop-color="#c5d0dd"/></linearGradient>
   <radialGradient id="orange" cx=".36" cy=".24" r=".85"><stop stop-color="#ffad18"/><stop offset=".6" stop-color="#ff790b"/><stop offset="1" stop-color="#ed3d08"/></radialGradient>
@@ -15,8 +15,8 @@
 <path d="m183 164 27 29 8-7m44-70-20 48 25-16 20 31" fill="none" stroke="#ffe9c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
 <circle cx="338" cy="112" r="10" fill="#ffe6a9"/>
 <g text-anchor="middle" font-family="Arial,Tahoma,sans-serif">
-  <text x="256" y="266" fill="#fff" font-size="34" font-weight="900" direction="rtl">شاخ ستۆر</text>
+  <text x="256" y="266" fill="#fff" font-size="34" font-weight="900" direction="rtl" unicode-bidi="embed" lang="ckb-IQ">شاخ ستۆر</text>
   <text x="256" y="291" fill="#fff7ea" font-size="15" font-weight="800" letter-spacing="2">SHAKH STORE</text>
-  <text x="256" y="407" fill="#fff" font-size="61" font-weight="900" direction="rtl">شاخ ستۆر</text>
+  <text x="256" y="407" fill="#fff" font-size="61" font-weight="900" direction="rtl" unicode-bidi="embed" lang="ckb-IQ">شاخ ستۆر</text>
 </g>
 </svg>

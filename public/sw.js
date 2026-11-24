@@ -1,5 +1,6 @@
-const CACHE = "shakh-shell-v5";
-const SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/brand-lockup.svg"];
+const CACHE = "shakh-shell-v6";
+const BRAND_ICON = "/icon.svg?v=20261124-rtl2";
+const SHELL = ["/", "/manifest.webmanifest", BRAND_ICON, "/brand-lockup.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
@@ -43,11 +44,11 @@ self.addEventListener("push", (event) => {
     payload = { body: event.data ? event.data.text() : "" };
   }
 
-  const title = typeof payload.title === "string" && payload.title ? payload.title : "شاخ";
+  const title = typeof payload.title === "string" && payload.title ? payload.title : "شاخ ستۆر";
   const options = {
     body: typeof payload.body === "string" ? payload.body : "ئاگادارییەکی نوێت هەیە",
-    icon: "/icon.svg",
-    badge: "/icon.svg",
+    icon: BRAND_ICON,
+    badge: BRAND_ICON,
     tag: typeof payload.tag === "string"
       ? payload.tag
       : (typeof payload.notification_id === "string" ? "shakh-" + payload.notification_id : "shakh-notification"),
