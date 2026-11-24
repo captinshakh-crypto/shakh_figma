@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description,
   alternates: { canonical: "/shop" },
   openGraph: {
-    title: "بازاڕی شاخ ستۆر | SHAKH STORE",
+    title: "بازاڕی شاخ ستۆر",
     description,
     url: "https://www.daim-post.online/shop",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "شاخ ستۆر – بازاڕی ئۆنلاین" }],
