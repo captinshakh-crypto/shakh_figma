@@ -238,7 +238,7 @@ export default function HomePage() {
               <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-black text-[#e96916] sm:text-xs">بینین <ArrowLeft size={13}/></span>
             </Link>
           ))}
-        </div>>
+        </div>
       </section>
 
       <section className="border-y border-slate-200/70 bg-white py-12 sm:py-16">
