@@ -118,7 +118,7 @@ export default function MobileBottomNav() {
     { href: "/shop", label: "بازاڕ", icon: ShoppingBag, active: pathname.startsWith("/shop") },
     { href: "/cart", label: "سەبەتە", icon: ShoppingCart, active: pathname.startsWith("/cart"), count: cartCount },
     { label: "ئاگاداری", icon: Bell, active: false, count: unreadCount, onClick: openNotifications },
-    { href: userId ? "/dashboard" : "/login", label: "هەژمار", icon: UserRound, active: pathname.startsWith("/dashboard") || pathname.startsWith("/login") },
+    { href: userId ? "/dashboard" : "/login", label: "هەژمار", icon: UserRound, active: pathname === "/dashboard" || (pathname.startsWith("/dashboard/") && !pathname.startsWith("/dashboard/admin")) || pathname.startsWith("/login") },
     ...(role === "super_admin" ? [
       { href: "/dashboard/admin", label: "ئەدمین", icon: ShieldCheck, active: pathname.startsWith("/dashboard/admin") },
     ] : []),
