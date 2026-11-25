@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ShoppingCart, Store, Search, Package, SlidersHorizontal, Share2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ShakhBrand from "@/components/shakh-brand";
+import { Headset } from "lucide-react";
 
 type Product = {
   id: string;
@@ -258,6 +259,7 @@ export default function ShopPage() {
         <header className="flex flex-wrap items-center justify-between gap-3">
           <ShakhBrand size="sm" />
           <div className="flex flex-wrap items-center gap-2">
+            <Link href="/support" className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-bold text-[#1769aa] transition hover:bg-blue-100"><Headset size={16}/> پشتگیری</Link>
             <button type="button" onClick={shareAllProducts}
               className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-800 transition hover:bg-orange-100">
               <Share2 size={17}/> شێرکردنی هەموو کاڵاکان
