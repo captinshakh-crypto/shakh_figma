@@ -6,13 +6,14 @@ import type { User } from "@supabase/supabase-js";
 import {
   ArrowLeft, ArrowUpLeft, Beef, Carrot, ChevronLeft, Clock3,
   PackageCheck, Search, ShieldCheck, ShoppingBag, Store, Truck, Utensils,
-  UserRound, WalletCards, Sparkles, CircleCheck, ShoppingBasket,
+  UserRound, WalletCards, Sparkles, CircleCheck, ShoppingBasket, Headset,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PwaInstallCta from "@/components/pwa-install-cta";
 import ShakhBrand from "@/components/shakh-brand";
 import { NotificationsHeaderBell } from "@/components/notifications-center";
 import { ShakhDeliveryArt } from "@/components/shakh-delivery-art";
+import { SupportContactSection } from "@/components/support-contact";
 
 type Product = {
   id: string;
@@ -145,6 +146,7 @@ export default function HomePage() {
           <ShakhBrand size="md" onDark />
           <nav aria-label="ناڤی سەرەکی" className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <Link href="/shop" className="hidden rounded-xl px-4 py-2.5 text-sm font-black text-white transition hover:bg-white/10 sm:inline-flex">بازاڕ</Link>
+            <Link href="/support" aria-label="پشتگیری" title="پشتگیری" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20"><Headset size={19}/></Link>
             <NotificationsHeaderBell />
             <PwaInstallCta compact />
             <Link href="/cart" aria-label="سەبەتە" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20">
@@ -310,12 +312,15 @@ export default function HomePage() {
         </div>
       </section>
 
+      <SupportContactSection />
+
       <footer className="border-t border-slate-200 bg-white px-4 py-8 text-center sm:px-6">
         <ShakhBrand size="md" className="mx-auto justify-center" />
         <p className="mt-2 text-xs font-bold text-slate-500">بازاڕی ئۆنلاین و گەیاندن</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-5 text-xs font-bold text-slate-500">
           <Link href="/shop" className="hover:text-[#f47721]">بازاڕ</Link>
           <Link href="/cart" className="hover:text-[#f47721]">سەبەتە</Link>
+          <Link href="/support" className="hover:text-[#f47721]">پشتگیری</Link>
           <Link href={accountHref} className="hover:text-[#f47721]">هەژمار</Link>
         </div>
       </footer>

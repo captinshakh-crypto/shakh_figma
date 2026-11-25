@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { LogOut, ShieldCheck, Store, Wallet, Package, Truck, UserRound, Gift } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ShakhBrand from "@/components/shakh-brand";
+import { Headset } from "lucide-react";
 
 const labels: Record<string, string> = {
   super_admin: "سوپەر ئەدمین",
@@ -80,9 +81,12 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-5xl">
-        <header className="flex items-center justify-between">
+        <header className="flex items-center justify-between gap-3">
           <ShakhBrand size="sm" />
+          <div className="flex items-center gap-2">
+          <Link href="/support" className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-white px-3 py-2 text-sm font-bold text-[#1769aa] hover:bg-blue-50"><Headset size={16}/> پشتگیری</Link>
           <button onClick={logout} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold"><LogOut size={16}/> دەرچوون</button>
+          </div>
         </header>
 
         <section className="mt-8 rounded-3xl bg-gradient-to-l from-shakh-blue to-[#0e477b] p-8 text-white">
