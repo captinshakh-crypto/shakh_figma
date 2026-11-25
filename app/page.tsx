@@ -198,7 +198,7 @@ export default function HomePage() {
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#8e2b10]/20 to-transparent"/>
               </div>
               <ShakhDeliveryArt size={520} className="relative z-10 h-auto w-full max-w-[440px] drop-shadow-[0_24px_30px_rgba(88,35,13,.24)] sm:max-w-[480px]"/>
-              <div className="absolute bottom-5 left-5 rounded-full border border-white/35 bg-white/90 px-4 py-2 text-xs font-black text-[#0b3156] shadow-lg backdrop-blur sm:bottom-7 sm:left-7 sm:text-sm">
+              <div className="absolute bottom-5 left-5 z-20 inline-flex max-w-[calc(100%-2.5rem)] items-center gap-1.5 whitespace-nowrap rounded-full border border-white/80 bg-white px-4 py-2.5 text-xs font-black text-[#0b3156] shadow-[0_8px_24px_rgba(7,38,70,.28)] backdrop-blur sm:bottom-7 sm:left-7 sm:px-5 sm:py-3 sm:text-sm">
                 <span className="ml-2 inline-block h-2 w-2 rounded-full bg-[#f47721]"/> شاخ · خزمەتی گەیاندن
               </div>
             </div>
