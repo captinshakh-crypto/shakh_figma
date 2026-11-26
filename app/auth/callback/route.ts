@@ -48,5 +48,22 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.redirect(failureUrl);
   }
+  const privacyVersion = requestUrl.searchParams.get("privacy_policy_version");
+  const privacyMethod = requestUrl.searchParams.get("privacy_method");
+  if (
+    privacyVersion === "2026-11-26" &&
+    (privacyMethod === "email_signup" || privacyMethod === "google_signup")
+  ) {
+    const { error: acceptanceError } = await supabase.rpc("record_shakh_privacy_policy_acceptance", {
+      p_policy_version: privacyVersion,
+      p_method: privacyMethod,
+    });
+    if (acceptanceError) {
+      console.error("[auth/callback] privacy acceptance record failed", {
+        code: acceptanceError.code,
+        status: acceptanceError.status,
+      });
+    }
+  }
   return response;
 }

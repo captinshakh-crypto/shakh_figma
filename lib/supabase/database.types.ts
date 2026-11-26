@@ -1300,6 +1300,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_shakh_privacy_policy_acceptance: {
+        Args: { p_method: string; p_policy_version: string }
+        Returns: undefined
+      }
       settle_delivered_order: {
         Args: { p_order_id: string }
         Returns: undefined
