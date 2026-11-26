@@ -61,7 +61,6 @@ export async function GET(request: NextRequest) {
     if (acceptanceError) {
       console.error("[auth/callback] privacy acceptance record failed", {
         code: acceptanceError.code,
-        status: acceptanceError.status,
       });
     }
   }
