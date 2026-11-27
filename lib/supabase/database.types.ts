@@ -321,6 +321,10 @@ export type Database = {
           product_title_snapshot: string
           quantity: number
           referral_commission_snapshot_iqd: number
+          status: string
+          rejection_reason: string | null
+          rejected_at: string | null
+          rejected_by: string | null
           unit_price_iqd: number
         }
         Insert: {
@@ -334,6 +338,10 @@ export type Database = {
           product_title_snapshot: string
           quantity: number
           referral_commission_snapshot_iqd?: number
+          status?: string
+          rejection_reason?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
           unit_price_iqd: number
         }
         Update: {
@@ -347,6 +355,10 @@ export type Database = {
           product_title_snapshot?: string
           quantity?: number
           referral_commission_snapshot_iqd?: number
+          status?: string
+          rejection_reason?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
           unit_price_iqd?: number
         }
         Relationships: [
@@ -1274,6 +1286,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_super_admin: { Args: never; Returns: boolean }
+      merchant_reject_order_item: {
+        Args: { p_order_item_id: string; p_reason?: string | null }
+        Returns: undefined
+      }
       request_captain_application_v2: {
         Args: {
           p_agreement_version: string
