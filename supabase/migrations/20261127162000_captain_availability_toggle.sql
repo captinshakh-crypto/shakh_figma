@@ -11,6 +11,10 @@ as $fn$
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
   if p_is_available is null then raise exception 'Availability value is required'; end if;
+  if not exists (
+    select 1 from public.captain_agreement_acceptances ca
+    where ca.user_id=auth.uid() and ca.agreement_version='shakh-captain-terms-v1'
+  ) then raise exception 'Accept the current captain agreement before changing availability'; end if;
 
   update public.captain_profiles cp
   set is_available = p_is_available
@@ -56,6 +60,10 @@ begin
   where cp.user_id = v_user
     and cp.is_active = true
     and cp.is_available = true
+    and exists (
+      select 1 from public.captain_agreement_acceptances ca
+      where ca.user_id=cp.user_id and ca.agreement_version='shakh-captain-terms-v1'
+    )
     and p.role = 'captain'
     and p.is_active = true;
 
@@ -129,6 +137,10 @@ begin
   where cp.user_id=p_captain_user_id
     and cp.is_active=true
     and cp.is_available=true
+    and exists (
+      select 1 from public.captain_agreement_acceptances ca
+      where ca.user_id=cp.user_id and ca.agreement_version='shakh-captain-terms-v1'
+    )
     and p.role='captain'
     and p.is_active=true;
   if not found then raise exception 'Captain account is not active or available'; end if;
