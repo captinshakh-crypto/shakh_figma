@@ -93,15 +93,7 @@ begin
       coalesce(v_reason,'دوکان ناتوانێت هیچ کام لە کاڵاکانی داواکارییەکەت دابین بکات.'),'order_status');
   else
     -- Return only the rejected line's prepaid commission and referral reserve.
-    if v_commission > 0 then
-      insert into public.wallets(user_id,balance_iqd) values(v_owner,0) on conflict(user_id) do nothing;
-      insert into public.wallet_ledger(wallet_user_id,entry_type,amount_iqd,direction,reference_type,reference_id,idempotency_key,note,created_by)
-      values(v_owner,'refund',v_commission,'credit','merchant_item_commission_refund',v_order.id,
-        'merchant-item-commission-refund:'||v_item.id::text,'Prepaid product commission refunded after item rejection',auth.uid())
-      on conflict(idempotency_key) do nothing;
-      get diagnostics v_rows=row_count;
-      if v_rows=1 then update public.wallets set balance_iqd=balance_iqd+v_commission,updated_at=now() where user_id=v_owner; end if;
-    end if;
+    -- Exact item commission is charged only after delivery; it is not refunded here.
     if v_reward > 0 then
       insert into public.wallets(user_id,balance_iqd) values(v_owner,0) on conflict(user_id) do nothing;
       insert into public.wallet_ledger(wallet_user_id,entry_type,amount_iqd,direction,reference_type,reference_id,idempotency_key,note,created_by)
@@ -129,12 +121,93 @@ begin
 
   insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,details)
   values(auth.uid(),'merchant_reject_order_item','order_item',v_item.id,
-    jsonb_build_object('order_id',v_order.id,'reason',coalesce(v_reason,''),'commission_refund_iqd',v_commission,'reward_refund_iqd',v_reward));
+    jsonb_build_object('order_id',v_order.id,'reason',coalesce(v_reason,''),'commission_removed_from_order_iqd',v_commission,'reward_refund_iqd',v_reward));
 end;
 $fn$;
 
 revoke all on function public.merchant_reject_order_item(uuid,text) from public,anon;
 grant execute on function public.merchant_reject_order_item(uuid,text) to authenticated;
+
+create or replace function private.refund_order_commissions_on_cancel()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_merchant_owner uuid;
+  v_rows integer;
+  v_paid_commission bigint := 0;
+begin
+  if old.status not in ('cancelled','rejected')
+    and new.status in ('cancelled','rejected')
+    and old.settled_at is null then
+
+    if old.merchant_id is null then
+      select id into v_merchant_owner from public.profiles
+      where role='super_admin' and is_active=true order by created_at asc limit 1;
+    else
+      select user_id into v_merchant_owner from public.merchant_profiles where id=old.merchant_id;
+    end if;
+
+    -- Refund only net commission debits actually retained by the platform.
+    -- The checkout estimate is reversed by order_commission_reversal; exact item
+    -- commission is charged only when a delivered order is settled.
+    if v_merchant_owner is not null then
+      select greatest(0,coalesce(sum(
+        case when wl.direction='debit' then wl.amount_iqd else -wl.amount_iqd end
+      ),0)) into v_paid_commission
+      from public.wallet_ledger wl
+      where wl.wallet_user_id=v_merchant_owner
+        and wl.reference_id=old.id
+        and wl.entry_type::text='merchant_commission'
+        and wl.reference_type in (
+          'merchant_sale_commission',
+          'order_commission_reversal',
+          'delivered_order_product_commission'
+        );
+
+      if v_paid_commission>0 then
+        insert into public.wallet_ledger(wallet_user_id,entry_type,amount_iqd,direction,reference_type,reference_id,idempotency_key,note,created_by)
+        values(v_merchant_owner,'refund',v_paid_commission,'credit','merchant_commission_refund',old.id,
+          'merchant-commission-refund:'||old.id::text,
+          'Refund of net commission actually debited before order cancellation',auth.uid())
+        on conflict(idempotency_key) do nothing;
+        get diagnostics v_rows=row_count;
+        if v_rows=1 then
+          update public.wallets set balance_iqd=balance_iqd+v_paid_commission,updated_at=now()
+          where user_id=v_merchant_owner;
+        end if;
+      end if;
+
+      if old.reward_amount_iqd>0 and old.reward_campaign_id is not null then
+        insert into public.wallet_ledger(wallet_user_id,entry_type,amount_iqd,direction,reference_type,reference_id,idempotency_key,note,created_by)
+        values(v_merchant_owner,'refund',old.reward_amount_iqd,'credit','referral_reward_refund',old.id,
+          'referral-refund:'||old.id::text,'Prepaid referral reward refunded after cancellation',auth.uid())
+        on conflict(idempotency_key) do nothing;
+        get diagnostics v_rows=row_count;
+        if v_rows=1 then
+          update public.wallets set balance_iqd=balance_iqd+old.reward_amount_iqd,updated_at=now()
+          where user_id=v_merchant_owner;
+        end if;
+      end if;
+    end if;
+
+    if old.captain_user_id is not null and old.platform_delivery_share_iqd>0 then
+      insert into public.wallet_ledger(wallet_user_id,entry_type,amount_iqd,direction,reference_type,reference_id,idempotency_key,note,created_by)
+      values(old.captain_user_id,'refund',old.platform_delivery_share_iqd,'credit','captain_commission_refund',old.id,
+        'captain-commission-refund:'||old.id::text,'Prepaid captain delivery commission refunded after cancellation',auth.uid())
+      on conflict(idempotency_key) do nothing;
+      get diagnostics v_rows=row_count;
+      if v_rows=1 then
+        update public.wallets set balance_iqd=balance_iqd+old.platform_delivery_share_iqd,updated_at=now()
+        where user_id=old.captain_user_id;
+      end if;
+    end if;
+  end if;
+  return new;
+end;
+$function$;
 
 create or replace function public.update_order_status(p_order_id uuid,p_status text)
 returns void
