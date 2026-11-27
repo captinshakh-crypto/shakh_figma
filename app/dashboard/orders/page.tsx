@@ -70,7 +70,7 @@ const statusLabels: Record<string, string> = {
 
 const actionLabels: Record<string, string> = {
   accepted: "پەسەندکردن",
-  rejected: "ڕەتکردنەوە",
+  rejected: "ڕەتکردنەوەی هەموو ئۆردەر",
   preparing: "دەستکردن بە ئامادەکردن",
   ready_for_pickup: "ئامادەی وەرگرتنە",
   picked_up: "وەرگرتنی داواکاری",
@@ -388,7 +388,7 @@ export default function OrdersPage() {
                               {item.status === "cancelled" && <p className="mt-1 text-xs text-slate-500">هەڵوەشێندرایەوە</p>}
                             </div>
                             <div className="text-right"><b>{formatIQD(item.line_total_iqd)}</b>{role !== "customer" && item.merchant_commission_line_snapshot_iqd > 0 && <p className="mt-1 text-xs text-orange-700">کۆمسیۆن: {formatIQD(item.merchant_commission_line_snapshot_iqd)}</p>}
-                              {["supermarket", "restaurant", "butcher_poultry", "grocery"].includes(role) && order.status === "placed" && item.status === "pending" && <button type="button" disabled={busyId === item.id} onClick={() => void rejectOrderItem(item.id)} className="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 disabled:opacity-50">{busyId === item.id ? "..." : "ڕەتکردنەوەی ئەم کاڵایە"}</button>}
+                              {((role === "super_admin" && order.merchant_id === null) || ["supermarket", "restaurant", "butcher_poultry", "grocery"].includes(role)) && order.status === "placed" && item.status === "pending" && <button type="button" disabled={busyId === item.id} onClick={() => void rejectOrderItem(item.id)} className="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 disabled:opacity-50">{busyId === item.id ? "..." : "ڕەتکردنەوەی ئەم کاڵایە"}</button>}
                             </div>
                           </div>
                         ))}
