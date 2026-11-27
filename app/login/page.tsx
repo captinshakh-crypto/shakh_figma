@@ -58,7 +58,7 @@ export default function LoginPage() {
   async function submit(e:FormEvent) {
     e.preventDefault(); setMessage(""); setShowRecoveryLink(false);
     if (mode === "signup" && !privacyAccepted) { setMessage("پێویستە سیاسەتی تایبەتمەندی بخوێنیتەوە و پەسەندی بکەیت."); return; }
-    if (mode === "signup" && !/^\\+?(964)?0?7[0-9]{9}$/.test(phone.trim())) { setMessage("ژمارەی مۆبایلی عێراقی بە شێوەی دروست بنووسە؛ نموونە: 0750XXXXXXX."); return; }
+    if (mode === "signup" && !/^\+?(964)?0?7[0-9]{9}$/.test(phone.trim())) { setMessage("ژمارەی مۆبایلی عێراقی بە شێوەی دروست بنووسە؛ نموونە: 0750XXXXXXX."); return; }
     setBusy(true);
     try {
       const supabase=createClient();
@@ -136,7 +136,7 @@ export default function LoginPage() {
               <input required value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-shakh-blue"/>
             </label>
             <label className="block text-sm font-bold">ژمارەی مۆبایل <span className="text-red-600">*</span>
-              <input required type="tel" inputMode="tel" autoComplete="tel" maxLength={16} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0750XXXXXXX" pattern="(\\+?(964)?0?7[0-9]{9})" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-shakh-blue"/>
+              <input required type="tel" inputMode="tel" autoComplete="tel" maxLength={16} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0750XXXXXXX" pattern="(\+?(964)?0?7[0-9]{9})" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-shakh-blue"/>
               <small className="mt-1 block font-medium text-slate-500">ژمارەی مۆبایل بۆ پەیوەندی و تەواوکردنی داواکاری پێویستە.</small>
             </label>
           </>}
