@@ -302,10 +302,11 @@ export default function StorePage() {
     const requestId = ++variantLoadRequest.current;
     setLoadingVariants(true);
     setVariantDrafts([]);
-    void createClient().from("product_variants")
-      .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,is_active,sort_order")
-      .eq("product_id", product.id).order("sort_order")
-      .then(({ data, error }) => {
+    void (async () => {
+      try {
+        const { data, error } = await createClient().from("product_variants")
+          .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,is_active,sort_order")
+          .eq("product_id", product.id).order("sort_order");
         if (requestId !== variantLoadRequest.current) return;
         if (error) {
           setMessage("نەتوانرا جۆرەکانی کاڵا باربکرێن: " + error.message);
@@ -324,13 +325,12 @@ export default function StorePage() {
           stock: variant.stock_quantity === null ? "" : String(variant.stock_quantity),
           sku: variant.sku || "",
         })));
-      })
-      .catch(() => {
+      } catch {
         if (requestId === variantLoadRequest.current) setMessage("هەڵەیەک ڕوویدا لە بارکردنی جۆرەکانی کاڵا.");
-      })
-      .finally(() => {
+      } finally {
         if (requestId === variantLoadRequest.current) setLoadingVariants(false);
-      });
+      }
+    })();
     setMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
