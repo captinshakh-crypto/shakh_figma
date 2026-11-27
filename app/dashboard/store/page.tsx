@@ -451,6 +451,7 @@ export default function StorePage() {
       const productId = result.data.id;
       keepUploadedPath = true;
 
+      let retainedVariantIds = new Set<string>();
       if (parsedVariants.length) {
         const variantPayload = parsedVariants.map((variant, index) => ({
           ...(variant.id ? { id: variant.id } : {}),
@@ -468,15 +469,15 @@ export default function StorePage() {
           sort_order: index,
           is_active: true,
         }));
-        const { error: variantsError } = await supabase.from("product_variants").upsert(variantPayload);
+        const { data: upsertedVariantRows, error: variantsError } = await supabase.from("product_variants").upsert(variantPayload).select("id");
         if (variantsError) throw variantsError;
+        retainedVariantIds = new Set((upsertedVariantRows || []).map((variant) => variant.id));
       }
 
       // Only deactivate removed options after all submitted options were saved successfully.
       const { data: savedVariantRows, error: variantListError } = await supabase
         .from("product_variants").select("id").eq("product_id", productId);
       if (variantListError) throw variantListError;
-      const retainedVariantIds = new Set(parsedVariants.map((variant) => variant.id).filter((id): id is string => !!id));
       const removedVariantIds = (savedVariantRows || []).map((variant) => variant.id).filter((id) => !retainedVariantIds.has(id));
       if (removedVariantIds.length) {
         const { error: deactivateError } = await supabase.from("product_variants")
