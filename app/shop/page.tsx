@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ShoppingCart, Store, Search, Package, SlidersHorizontal, Share2 } from "lucide-react";
+import { ShoppingCart, ShoppingBasket, Store, Search, Package, SlidersHorizontal, Share2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ShakhBrand from "@/components/shakh-brand";
 import { Headset } from "lucide-react";
@@ -58,6 +58,7 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [referralCampaignId, setReferralCampaignId] = useState("");
   const [sharedProductId, setSharedProductId] = useState("");
+  const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -306,7 +307,7 @@ export default function ShopPage() {
             هیچ کاڵایەکی گونجاو لەگەڵ ئەم هەڵبژاردنە نەدۆزرایەوە.
           </div>
         ) : (
-          <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 items-start gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {filtered.map((product) => {
               const merchant = product.merchant_id ? merchantMap[product.merchant_id] : null;
               const storeName = product.is_shakh_store ? "شاخ ستۆر" : merchant?.business_name || "فرۆشگا";
@@ -316,42 +317,65 @@ export default function ShopPage() {
                 ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
                 : null;
               const outOfStock = product.stock_quantity === 0;
+              const detailsOpen = expandedProductIds.includes(product.id);
 
               return (
-                <article key={product.id} className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
-                  <div className="relative grid aspect-[4/3] w-full shrink-0 place-items-center overflow-hidden bg-shakh-mist text-shakh-blue">
-                    {imageUrl ? <img src={imageUrl} alt={product.title} loading="lazy" className="h-full w-full object-cover"/> : <Store size={36}/>}
+                <article key={product.id} className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
+                  <div className="relative grid aspect-square w-full shrink-0 place-items-center overflow-hidden bg-shakh-mist text-shakh-blue">
+                    {imageUrl ? <img src={imageUrl} alt={product.title} loading="lazy" className="h-full w-full object-contain p-2 sm:p-3"/> : <Store size={36}/>}
+                    <button
+                      type="button"
+                      onClick={() => add(product)}
+                      disabled={outOfStock}
+                      aria-label={outOfStock ? "ئەم کاڵایە لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
+                      title={outOfStock ? "لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
+                      className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-full bg-shakh-blue text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:opacity-75"
+                    >
+                      <ShoppingBasket size={20} strokeWidth={2.4}/>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => shareProduct(product)}
+                      aria-label="شێرکردنی کاڵا"
+                      title="شێرکردن"
+                      className="absolute right-3 top-[3.5rem] z-10 grid h-10 w-10 place-items-center rounded-full bg-shakh-orange text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-orange-600"
+                    >
+                      <Share2 size={18}/>
+                    </button>
                   </div>
-                  <div className="flex flex-1 flex-col p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-1">
-                      <span className="text-xs font-bold text-shakh-orange">{storeLabel}</span>
-                      <span className="text-[11px] text-slate-400">{categoryLabels[product.category_key] || product.category_key}</span>
-                    </div>
-                    <p className="mt-1 min-h-5 truncate text-xs text-slate-500">{storeName}</p>
-                    <p className="mt-1 flex min-h-5 items-center gap-1 truncate text-[11px] text-slate-500">{storeAddress ? <><span aria-hidden="true">📍</span><span className="truncate">شوێنی دوکان: {storeAddress}</span></> : "\u00a0"}</p>
-                    <h2 className="mt-1 min-h-12 line-clamp-2 font-bold">{product.title}</h2>
-                    <p className="mt-1 min-h-9 line-clamp-2 text-xs text-slate-500">{product.description || "\u00a0"}</p>
-                    <div className="mt-2 flex min-h-[64px] items-center">
-                      {product.referral_commission_iqd > 0 && (
-                        <div className="w-full rounded-xl border border-purple-100 bg-gradient-to-l from-purple-50 to-orange-50 px-2.5 py-2 text-xs font-black leading-5 text-purple-800">
-                          <span className="mr-1 inline-block">🎁</span>
-                          شێر بکە و {product.referral_commission_iqd.toLocaleString("en-US")} د.ع خەڵات وەربگرە / هەر دانە
+                  <div className="flex flex-col gap-2 p-3 sm:p-4">
+                    <p className="truncate text-sm font-semibold text-slate-600">{storeName}</p>
+                    <p className="font-black text-lg text-shakh-orange">{product.price_iqd.toLocaleString("en-US")} د.ع</p>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedProductIds((current) => detailsOpen ? current.filter((id) => id !== product.id) : [...current, product.id])}
+                      aria-expanded={detailsOpen}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-shakh-blue transition hover:bg-slate-100"
+                    >
+                      {detailsOpen ? "داخستنی زانیاری" : "زانیاری زیاتر"}
+                      <span aria-hidden="true" className={`text-base transition-transform ${detailsOpen ? "rotate-180" : ""}`}>⌄</span>
+                    </button>
+                    {detailsOpen && (
+                      <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-bold text-shakh-orange">{storeLabel}</span>
+                          <span className="text-xs text-slate-400">{categoryLabels[product.category_key] || product.category_key}</span>
                         </div>
-                      )}
-                    </div>
-                    <p className="mt-3 font-black text-shakh-orange">{product.price_iqd.toLocaleString("en-US")} د.ع <small className="font-medium text-slate-500">/ {unitLabels[product.unit] || product.unit}</small></p>
-                    <p className={`mt-1 text-xs ${outOfStock ? "text-red-600" : "text-green-700"}`}>
-                      {outOfStock ? "کۆگا تەواو بووە" : product.stock_quantity === null ? "بەردەست" : `ماوە: ${product.stock_quantity.toLocaleString("en-US")} ${unitLabels[product.unit] || product.unit}`}
-                    </p>
-                    <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
-                      <button type="button" onClick={() => shareProduct(product)}
-                        className="flex h-12 items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2 text-xs font-bold text-orange-800 transition hover:bg-orange-100">
-                        <Share2 size={16}/> شێرکردن
-                      </button>
-                      <button disabled={outOfStock} onClick={() => add(product)} className="h-12 rounded-xl bg-shakh-blue px-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
-                        {outOfStock ? "لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
-                      </button>
-                    </div>
+                        <h2 className="font-bold leading-6 text-slate-800">{product.title}</h2>
+                        {product.description && <p className="text-xs leading-5 text-slate-500">{product.description}</p>}
+                        {storeAddress && <p className="flex items-start gap-1 text-xs text-slate-500"><span aria-hidden="true">📍</span><span>شوێنی دوکان: {storeAddress}</span></p>}
+                        <p className="text-xs text-slate-500">یەکە: {unitLabels[product.unit] || product.unit}</p>
+                        <p className={`text-xs ${outOfStock ? "text-red-600" : "text-green-700"}`}>
+                          {outOfStock ? "کۆگا تەواو بووە" : product.stock_quantity === null ? "بەردەست" : `ماوە: ${product.stock_quantity.toLocaleString("en-US")} ${unitLabels[product.unit] || product.unit}`}
+                        </p>
+                        {product.referral_commission_iqd > 0 && (
+                          <div className="w-full rounded-xl border border-purple-100 bg-gradient-to-l from-purple-50 to-orange-50 px-2.5 py-2 text-xs font-black leading-5 text-purple-800">
+                            <span className="mr-1 inline-block">🎁</span>
+                            شێر بکە و {product.referral_commission_iqd.toLocaleString("en-US")} د.ع خەڵات وەربگرە / هەر دانە
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </article>
               );
