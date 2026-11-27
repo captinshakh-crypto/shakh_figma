@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Enums } from "@/lib/supabase/database.types";
-import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Camera, Share2 } from "lucide-react";
+import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Camera, Share2, Plus } from "lucide-react";
 
 const merchantTypes: { value: Enums<"app_role">; label: string }[] = [
   { value: "supermarket", label: "سوپەرمارکێت" },
@@ -14,52 +14,6 @@ const merchantTypes: { value: Enums<"app_role">; label: string }[] = [
 ];
 
 const roleNames: Record<string, string> = Object.fromEntries(merchantTypes.map((item) => [item.value, item.label]));
-
-const categorySets: Record<string, { value: string; label: string }[]> = {
-  supermarket: [
-    { value: "groceries", label: "خۆراک و پێداویستی ماڵ" },
-    { value: "dairy", label: "شیرەمەنی" },
-    { value: "beverages", label: "خواردنەوە" },
-    { value: "cleaning", label: "پاککەرەوە" },
-    { value: "personal_care", label: "چاودێری کەسی" },
-    { value: "frozen", label: "بەرهەمی ساردکراو" },
-  ],
-  restaurant: [
-    { value: "meals", label: "خواردنی سەرەکی" },
-    { value: "breakfast", label: "نانی بەیانی" },
-    { value: "sides", label: "پاڵاوتە و لاوەکی" },
-    { value: "drinks", label: "خواردنەوە" },
-    { value: "desserts", label: "شیرینی" },
-  ],
-  butcher_poultry: [
-    { value: "beef", label: "گۆشتی مانگا" },
-    { value: "lamb", label: "گۆشتی مەڕ" },
-    { value: "chicken", label: "گۆشتی مریشک" },
-    { value: "poultry", label: "باڵندە" },
-    { value: "spices", label: "سپیاتی و بەهارات" },
-  ],
-  grocery: [
-    { value: "tomatoes", label: "تەماتە" },
-    { value: "cucumbers", label: "خیار" },
-    { value: "vegetables", label: "سەوزەوات" },
-    { value: "fruits", label: "میوە" },
-    { value: "leafy_greens", label: "سەوزەی گەڵادار" },
-    { value: "herbs", label: "سەوزە و گیا بەهاراتییەکان" },
-    { value: "staples", label: "پێداویستی بنەڕەتی" },
-    { value: "other", label: "هی تر" },
-  ],
-  super_admin: [
-    { value: "restaurant", label: "چێشتخانە" },
-    { value: "grocery", label: "بەقالی" },
-    { value: "butcher_poultry", label: "گۆشت و سپیاتی" },
-    { value: "supermarket", label: "سوپەرمارکێت" },
-    { value: "general", label: "گشتی" },
-    { value: "household", label: "پێداویستی ماڵ" },
-    { value: "electronics", label: "ئەلیکترۆنیات" },
-    { value: "accessories", label: "ئاکسسوارات" },
-    { value: "other", label: "هی تر" },
-  ],
-};
 
 const units = [
   { value: "piece", label: "دانە" },
@@ -96,6 +50,10 @@ type Merchant = {
   approval_status: string;
 };
 
+type Category = { id: string; store_type: string; category_key: string; name: string; sort_order: number; is_active: boolean };
+type Subcategory = { id: string; category_id: string; subcategory_key: string; name: string; sort_order: number; is_active: boolean };
+type ProductVariant = { id: string; product_id: string; variant_label: string; color_name: string | null; color_hex: string | null; scent: string | null; size_label: string | null; unit: string | null; price_iqd: number; cost_price_iqd: number | null; stock_quantity: number | null; sku: string | null; is_active: boolean; sort_order: number };
+type VariantDraft = { id?: string; variant_label: string; color_name: string; color_hex: string; scent: string; size_label: string; unit: string; price: string; costPrice: string; stock: string; sku: string };
 type Product = {
   id: string;
   merchant_id: string | null;
@@ -108,11 +66,14 @@ type Product = {
   stock_quantity: number | null;
   unit: string;
   category_key: string;
+  category_id: string | null;
+  subcategory_id: string | null;
   image_path: string | null;
   is_available: boolean;
   approval_status: string;
   rejection_reason: string | null;
   created_at: string;
+  variants: ProductVariant[];
 };
 
 const emptyProduct = {
@@ -123,7 +84,9 @@ const emptyProduct = {
   referralCommission: "",
   stock: "",
   unit: "piece",
-  category: "general",
+  category: "",
+  categoryId: "",
+  subcategoryId: "",
 };
 
 async function compressProductImage(file: File): Promise<File> {
@@ -162,6 +125,12 @@ export default function StorePage() {
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
   const [products, setProducts] = useState<Product[]>([]);
+  const [catalogCategories, setCatalogCategories] = useState<Category[]>([]);
+  const [catalogSubcategories, setCatalogSubcategories] = useState<Subcategory[]>([]);
+  const [formStoreType, setFormStoreType] = useState("shakh_store");
+  const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([]);
+  const [loadingVariants, setLoadingVariants] = useState(false);
+  const variantLoadRequest = useRef(0);
   const [business, setBusiness] = useState("");
   const [applicationType, setApplicationType] = useState<Enums<"app_role">>("restaurant");
   const [address, setAddress] = useState("");
@@ -175,11 +144,9 @@ export default function StorePage() {
   const [saving, setSaving] = useState(false);
 
   const isAdmin = role === "super_admin";
-  const categories = categorySets[role] || categorySets.super_admin;
-  const formCategories = categories.some((item) => item.value === form.category)
-    ? categories
-    : [...categories, { value: form.category, label: form.category }];
-  const formUnits = getUnitsForCategory(form.category);
+  const formCategories = catalogCategories.filter((item) => item.store_type === formStoreType && item.is_active);
+  const formSubcategories = catalogSubcategories.filter((item) => item.category_id === form.categoryId && item.is_active);
+  const formUnits = getUnitsForCategory(formStoreType);
 
   async function load() {
     const supabase = createClient();
@@ -192,6 +159,20 @@ export default function StorePage() {
 
     const currentRole = profile.role || "customer";
     setRole(currentRole);
+    const currentStoreType = currentRole === "super_admin" ? "shakh_store" : currentRole;
+    setFormStoreType(currentStoreType);
+    const [categoryResult, subcategoryResult] = await Promise.all([
+      supabase.from("product_categories").select("id,store_type,category_key,name,sort_order,is_active").order("sort_order"),
+      supabase.from("product_subcategories").select("id,category_id,subcategory_key,name,sort_order,is_active").order("sort_order"),
+    ]);
+    if (categoryResult.error) throw categoryResult.error;
+    if (subcategoryResult.error) throw subcategoryResult.error;
+    setCatalogCategories((categoryResult.data || []) as Category[]);
+    setCatalogSubcategories((subcategoryResult.data || []) as Subcategory[]);
+    if (!editing) {
+      const firstCategory = (categoryResult.data || []).find((item) => item.store_type === currentStoreType && item.is_active);
+      if (firstCategory) setForm((old) => old.categoryId ? old : ({ ...old, category: firstCategory.category_key, categoryId: firstCategory.id }));
+    }
     if (currentRole !== "super_admin") {
       const { data: wallet } = await supabase.from("wallets").select("balance_iqd").eq("user_id", user.id).maybeSingle();
       setWalletBalance(wallet?.balance_iqd || 0);
@@ -214,7 +195,7 @@ export default function StorePage() {
     }
 
     let query = supabase.from("products")
-      .select("id,merchant_id,is_shakh_store,title,description,price_iqd,cost_price_iqd,referral_commission_iqd,stock_quantity,unit,category_key,image_path,is_available,approval_status,rejection_reason,created_at")
+      .select("id,merchant_id,is_shakh_store,title,description,price_iqd,cost_price_iqd,referral_commission_iqd,stock_quantity,unit,category_key,category_id,subcategory_id,image_path,is_available,approval_status,rejection_reason,created_at")
       .order("created_at", { ascending: false });
 
     // Super Admin must see every product post here, including merchant-owned posts.
@@ -234,6 +215,26 @@ export default function StorePage() {
     if (error) throw error;
 
     const rows = data || [];
+    const productIds = rows.map((product) => product.id);
+    let variantRows: ProductVariant[] = [];
+    if (productIds.length > 0) {
+      const { data: variantsData, error: variantsError } = await supabase
+        .from("product_variants")
+        .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,is_active,sort_order")
+        .in("product_id", productIds).eq("is_active", true).order("sort_order");
+      if (variantsError) throw variantsError;
+      variantRows = (variantsData || []) as ProductVariant[];
+    }
+    const variantsByProduct = new Map<string, ProductVariant[]>();
+    for (const variant of variantRows) {
+      const group = variantsByProduct.get(variant.product_id) || [];
+      group.push(variant);
+      variantsByProduct.set(variant.product_id, group);
+    }
+    const productsWithVariants = rows.map((product) => ({
+      ...product,
+      variants: variantsByProduct.get(product.id) || [],
+    }));
     if (currentRole === "super_admin") {
       const merchantIds = [...new Set(rows.map((product) => product.merchant_id).filter((id): id is string => Boolean(id)))];
       if (merchantIds.length > 0) {
@@ -250,7 +251,7 @@ export default function StorePage() {
       setMerchantNames({});
     }
 
-    setProducts(rows);
+    setProducts(productsWithVariants);
     setLoading(false);
   }
 
@@ -260,20 +261,31 @@ export default function StorePage() {
 
   const filteredProducts = useMemo(() => products.filter((product) => {
     const matchesSearch = (product.title + " " + (product.description || "")).toLowerCase().includes(search.toLowerCase());
+    const outOfStock = product.variants.length > 0
+      ? product.variants.every((variant) => variant.stock_quantity === 0)
+      : product.stock_quantity === 0;
     const matchesAvailability = availabilityFilter === "all"
-      || (availabilityFilter === "available" && product.is_available && product.stock_quantity !== 0)
-      || (availabilityFilter === "unavailable" && (!product.is_available || product.stock_quantity === 0));
+      || (availabilityFilter === "available" && product.is_available && !outOfStock)
+      || (availabilityFilter === "unavailable" && (!product.is_available || outOfStock));
     return matchesSearch && matchesAvailability;
   }), [products, search, availabilityFilter]);
 
   function resetProductForm() {
+    variantLoadRequest.current += 1;
     setEditing(null);
-    setForm({ ...emptyProduct, category: categories[0]?.value || "general" });
+    setLoadingVariants(false);
+    setVariantDrafts([]);
+    setFormStoreType(isAdmin ? "shakh_store" : role);
+    const firstCategory = catalogCategories.find((item) => item.store_type === (isAdmin ? "shakh_store" : role) && item.is_active);
+    setForm({ ...emptyProduct, category: firstCategory?.category_key || "", categoryId: firstCategory?.id || "" });
     setImage(null);
   }
 
   function startEditing(product: Product) {
     setEditing(product);
+    const productCategory = catalogCategories.find((item) => item.id === product.category_id)
+      || catalogCategories.find((item) => item.store_type === (product.is_shakh_store ? "shakh_store" : role) && item.category_key === product.category_key);
+    setFormStoreType(productCategory?.store_type || (product.is_shakh_store ? "shakh_store" : role));
     setForm({
       title: product.title,
       description: product.description || "",
@@ -283,8 +295,42 @@ export default function StorePage() {
       stock: product.stock_quantity === null ? "" : String(product.stock_quantity),
       unit: product.unit,
       category: product.category_key,
+      categoryId: productCategory?.id || "",
+      subcategoryId: product.subcategory_id || "",
     });
     setImage(null);
+    const requestId = ++variantLoadRequest.current;
+    setLoadingVariants(true);
+    setVariantDrafts([]);
+    void (async () => {
+      try {
+        const { data, error } = await createClient().from("product_variants")
+          .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,is_active,sort_order")
+          .eq("product_id", product.id).order("sort_order");
+        if (requestId !== variantLoadRequest.current) return;
+        if (error) {
+          setMessage("نەتوانرا جۆرەکانی کاڵا باربکرێن: " + error.message);
+          return;
+        }
+        setVariantDrafts(((data || []) as ProductVariant[]).filter((variant) => variant.is_active).map((variant) => ({
+          id: variant.id,
+          variant_label: variant.variant_label,
+          color_name: variant.color_name || "",
+          color_hex: variant.color_hex || "",
+          scent: variant.scent || "",
+          size_label: variant.size_label || "",
+          unit: variant.unit || product.unit,
+          price: String(variant.price_iqd),
+          costPrice: variant.cost_price_iqd === null ? "" : String(variant.cost_price_iqd),
+          stock: variant.stock_quantity === null ? "" : String(variant.stock_quantity),
+          sku: variant.sku || "",
+        })));
+      } catch {
+        if (requestId === variantLoadRequest.current) setMessage("هەڵەیەک ڕوویدا لە بارکردنی جۆرەکانی کاڵا.");
+      } finally {
+        if (requestId === variantLoadRequest.current) setLoadingVariants(false);
+      }
+    })();
     setMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -318,6 +364,19 @@ export default function StorePage() {
       setMessage("نرخ دەبێت ژمارەیەکی تەواوی زیاتر لە سفر بێت.");
       return;
     }
+    if (loadingVariants) {
+      setMessage("تکایە چاوەڕێی بارکردنی جۆرەکانی کاڵا بکە پێش پاشەکەوتکردن.");
+      return;
+    }
+    if (!form.categoryId || !form.category) {
+      setMessage("تکایە کاتەگۆرییەکی چالاک هەڵبژێرە.");
+      return;
+    }
+    const chosenCategory = catalogCategories.find((item) => item.id === form.categoryId && item.store_type === formStoreType && item.is_active);
+    if (!chosenCategory) {
+      setMessage("کاتەگۆرییەکە لە لیستی ناوەندی چالاک نییە؛ دووبارە هەڵیبژێرە.");
+      return;
+    }
     const costPrice = form.costPrice.trim() === "" ? null : Number(form.costPrice);
     const referralCommission = Number(form.referralCommission || 0);
     if (!Number.isSafeInteger(referralCommission) || referralCommission < 0) {
@@ -332,6 +391,41 @@ export default function StorePage() {
       setMessage("بڕی کۆگا نابێت ژمارەیەکی نەرێنی یان نادروست بێت.");
       return;
     }
+    const parsedVariants = variantDrafts.map((variant) => ({
+      id: variant.id,
+      variant_label: variant.variant_label.trim(),
+      color_name: variant.color_name.trim() || null,
+      color_hex: variant.color_hex.trim() || null,
+      scent: variant.scent.trim() || null,
+      size_label: variant.size_label.trim() || null,
+      unit: variant.unit || form.unit,
+      price_iqd: Number(variant.price),
+      cost_price_iqd: variant.costPrice.trim() === "" ? null : Number(variant.costPrice),
+      stock_quantity: variant.stock.trim() === "" ? null : Number(variant.stock),
+      sku: variant.sku.trim() || null,
+    }));
+    for (const variant of parsedVariants) {
+      if (!variant.variant_label || !Number.isSafeInteger(variant.price_iqd) || variant.price_iqd <= 0) {
+        setMessage("هەر جۆرێک دەبێت ناو و نرخی دروستی هەبێت.");
+        return;
+      }
+      if (variant.stock_quantity !== null && (!Number.isFinite(variant.stock_quantity) || variant.stock_quantity < 0 || variant.stock_quantity > 100000000)) {
+        setMessage("کۆگای هەر جۆرێک دەبێت سفر یان زیاتر بێت.");
+        return;
+      }
+      if (variant.cost_price_iqd !== null && (!Number.isSafeInteger(variant.cost_price_iqd) || variant.cost_price_iqd < 0)) {
+        setMessage("نرخی کڕینی جۆرەکان دەبێت ژمارەیەکی دروست بێت.");
+        return;
+      }
+      if (variant.color_hex && !/^#[0-9a-fA-F]{6}$/.test(variant.color_hex)) {
+        setMessage("کۆدی ڕەنگ دەبێت بە شێوەی #RRGGBB بێت.");
+        return;
+      }
+    }
+    if (new Set(parsedVariants.filter((v) => v.sku).map((v) => v.sku)).size !== parsedVariants.filter((v) => v.sku).length) {
+      setMessage("کۆدی SKU نابێت لە نێوان دوو جۆردا دووبارە بێت.");
+      return;
+    }
     if (image && (!["image/jpeg", "image/png", "image/webp"].includes(image.type) || image.size > 10 * 1024 * 1024)) {
       setMessage("وێنە دەبێت JPG یان PNG یان WebP بێت و قەبارەکەی زیاتر نەبێت لە ١٠MB.");
       return;
@@ -341,6 +435,7 @@ export default function StorePage() {
     setMessage("");
     const supabase = createClient();
     let uploadedPath: string | null = null;
+    let keepUploadedPath = false;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("تکایە دووبارە بچۆ ژوورەوە.");
@@ -360,35 +455,72 @@ export default function StorePage() {
       const payload = {
         title: form.title.trim(),
         description: form.description.trim() || null,
-        price_iqd: price,
+        price_iqd: parsedVariants.length ? Math.min(...parsedVariants.map((v) => v.price_iqd)) : price,
         ...(isAdmin ? { cost_price_iqd: costPrice } : {}),
         referral_commission_iqd: referralCommission,
-        stock_quantity: stock,
+        stock_quantity: parsedVariants.length ? null : stock,
         unit: form.unit,
-        category_key: form.category,
+        category_key: chosenCategory.category_key,
+        category_id: chosenCategory.id,
+        subcategory_id: form.subcategoryId || null,
         ...(uploadedPath ? { image_path: uploadedPath } : {}),
       };
 
       const result = editing
-        ? await supabase.from("products").update(payload).eq("id", editing.id)
+        ? await supabase.from("products").update(payload).eq("id", editing.id).select("id").single()
         : await supabase.from("products").insert({
             ...payload,
             merchant_id: isAdmin ? null : merchant?.id,
             is_shakh_store: isAdmin,
             is_available: true,
-          });
-
+          }).select("id").single();
       if (result.error) throw result.error;
+      const productId = result.data.id;
+      keepUploadedPath = true;
+
+      let retainedVariantIds = new Set<string>();
+      if (parsedVariants.length) {
+        const variantPayload = parsedVariants.map((variant, index) => ({
+          ...(variant.id ? { id: variant.id } : {}),
+          product_id: productId,
+          variant_label: variant.variant_label,
+          color_name: variant.color_name,
+          color_hex: variant.color_hex,
+          scent: variant.scent,
+          size_label: variant.size_label,
+          unit: variant.unit,
+          price_iqd: variant.price_iqd,
+          cost_price_iqd: variant.cost_price_iqd,
+          stock_quantity: variant.stock_quantity,
+          sku: variant.sku,
+          sort_order: index,
+          is_active: true,
+        }));
+        const { data: upsertedVariantRows, error: variantsError } = await supabase.from("product_variants").upsert(variantPayload).select("id");
+        if (variantsError) throw variantsError;
+        retainedVariantIds = new Set((upsertedVariantRows || []).map((variant) => variant.id));
+      }
+
+      // Only deactivate removed options after all submitted options were saved successfully.
+      const { data: savedVariantRows, error: variantListError } = await supabase
+        .from("product_variants").select("id").eq("product_id", productId);
+      if (variantListError) throw variantListError;
+      const removedVariantIds = (savedVariantRows || []).map((variant) => variant.id).filter((id) => !retainedVariantIds.has(id));
+      if (removedVariantIds.length) {
+        const { error: deactivateError } = await supabase.from("product_variants")
+          .update({ is_active: false }).in("id", removedVariantIds);
+        if (deactivateError) throw deactivateError;
+      }
 
       if (uploadedPath && editing?.image_path) {
         await supabase.storage.from("product-images").remove([editing.image_path]);
       }
 
-      setMessage(editing ? "کاڵاکە نوێکرایەوە." : isAdmin ? "کاڵا بۆ شاخ ستۆر زیاد کرا." : "پۆستەکەت نێردرا بۆ سوپەر ئەدمین. تا دیاریکردنی کۆمسیۆن، ناچالاک و نادیار دەمێنێتەوە؛ ئاگادارکردنەوەش بۆت نێردرا.");
+      setMessage(editing ? "کاڵا و جۆرەکانی نوێ کرانەوە." : isAdmin ? "کاڵا و جۆرەکانی بۆ شاخ ستۆر زیاد کران." : "پۆستەکەت نێردرا بۆ سوپەر ئەدمین. تا دیاریکردنی کۆمسیۆن، ناچالاک و نادیار دەمێنێتەوە؛ ئاگادارکردنەوەش بۆت نێردرا.");
       resetProductForm();
       await load();
     } catch (error) {
-      if (uploadedPath) await supabase.storage.from("product-images").remove([uploadedPath]);
+      if (uploadedPath && !keepUploadedPath) await supabase.storage.from("product-images").remove([uploadedPath]);
       setMessage(error instanceof Error ? error.message : "پاشەکەوتکردنی کاڵا سەرکەوتوو نەبوو.");
     } finally {
       setSaving(false);
@@ -578,19 +710,26 @@ export default function StorePage() {
                   <label className="block text-sm font-bold">ناوی کاڵا
                     <input required maxLength={180} value={form.title} onChange={(event) => setForm((old) => ({ ...old, title: event.target.value }))} placeholder="ناوی کاڵا" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                   </label>
-                  <label className="block text-sm font-bold">بەشی سەرەکی / جۆری کاڵا
-                    <select value={form.category} onChange={(event) => {
-                      const nextCategory = event.target.value;
-                      const nextUnits = getUnitsForCategory(nextCategory);
+                  <label className="block text-sm font-bold">کاتەگۆری سەرەکی
+                    <select required value={form.categoryId} onChange={(event) => {
+                      const selected = formCategories.find((item) => item.id === event.target.value);
                       setForm((old) => ({
                         ...old,
-                        category: nextCategory,
-                        unit: nextUnits.some((unit) => unit.value === old.unit) ? old.unit : nextUnits[0]?.value || "piece",
+                        categoryId: event.target.value,
+                        category: selected?.category_key || "",
+                        subcategoryId: "",
                       }));
                     }} className="mt-2 w-full rounded-xl border border-slate-200 p-3">
-                      {formCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                      <option value="">کاتەگۆری هەڵبژێرە</option>
+                      {formCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                     </select>
-                    {isAdmin && <small className="mt-1 block text-xs font-medium leading-5 text-slate-500">بە هەڵبژاردنی جۆری کاڵا، یەکەی فرۆشتن بە گونجاوی هەمان بەش دەگۆڕێت.</small>}
+                    <small className="mt-1 block text-xs font-medium leading-5 text-slate-500">هەمان لیستی ناوەندیی سوپەر ئەدمین بەکاردەهێنرێت.</small>
+                  </label>
+                  <label className="block text-sm font-bold">ژێرکاتەگۆری (ئارەزوومەندانە)
+                    <select value={form.subcategoryId} onChange={(event) => setForm((old) => ({ ...old, subcategoryId: event.target.value }))} disabled={!form.categoryId || formSubcategories.length === 0} className="mt-2 w-full rounded-xl border border-slate-200 p-3 disabled:bg-slate-50">
+                      <option value="">بێ ژێرکاتەگۆری</option>
+                      {formSubcategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </select>
                   </label>
                 </div>
                 <label className="block text-sm font-bold">وردەکاری کاڵا
@@ -613,10 +752,68 @@ export default function StorePage() {
                     <input type="number" min="0" step="1" value={form.referralCommission} onChange={(event) => setForm((old) => ({ ...old, referralCommission: event.target.value }))} placeholder="٠ = بێ خەڵات · نموونە: ٥٠٠ د.ع" className="mt-2 w-full rounded-xl border-2 border-purple-200 bg-purple-50 p-3 text-base font-black text-purple-900 focus:border-purple-500 focus:outline-none"/>
                     <small className="mt-2 block text-xs font-medium leading-6 text-slate-500">٠ دابنێ ئەگەر ناتەوێت ئەم کاڵایە خەڵاتی شێری هەبێت. تەنها کاتێک بڕێکی زیاتر لە سفر دابنێیت، ئەم کاڵایە لە پرۆگرامی شێر و خەڵاتدا دەردەکەوێت؛ خەڵاتەکە دوای گەیاندنی داواکاری زیاد دەکرێت.</small>
                   </label>
-                  <label className="block text-sm font-bold">بڕی کۆگا (بەتاڵ = بێ سنوور)
-                    <input type="number" min="0" step="0.001" value={form.stock} onChange={(event) => setForm((old) => ({ ...old, stock: event.target.value }))} placeholder="بۆ نموونە: ٢٥" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
-                  </label>
+                  {variantDrafts.length === 0
+                    ? <label className="block text-sm font-bold">بڕی کۆگا (بەتاڵ = بێ سنوور)
+                        <input type="number" min="0" step="0.001" value={form.stock} onChange={(event) => setForm((old) => ({ ...old, stock: event.target.value }))} placeholder="بۆ نموونە: ٢٥" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
+                      </label>
+                    : <div className="rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">کۆگا لەسەر هەر جۆرێک بە جیاوازی هەژمار دەکرێت؛ کۆگای بنەڕەتی بەکارناهێنرێت.</div>}
                 </div>
+                {loadingVariants && <p className="rounded-xl bg-blue-50 p-3 text-xs font-bold text-blue-800">بارکردنی جۆرەکانی ئەم کاڵایە...</p>}
+                <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="font-black text-slate-900">جۆرەکانی کاڵا (ڕەنگ، بۆن، قەبارە، حەجم...)</h3>
+                      <p className="mt-1 text-xs leading-6 text-slate-600">ئەگەر کاڵاکە چەند جۆری هەیە، هەر جۆرێک بە نرخ و کۆگای تایبەتی زیاد بکە. ئەگەر هیچ جۆرێکی نییە، ئەم بەشە بەتاڵ بهێڵەوە.</p>
+                    </div>
+                    <button type="button" onClick={() => setVariantDrafts((current) => [...current, { variant_label: "", color_name: "", color_hex: "", scent: "", size_label: "", unit: form.unit, price: form.price, costPrice: "", stock: "", sku: "" }])} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-shakh-blue px-4 text-sm font-bold text-white">
+                      <Plus size={16}/> زیادکردنی جۆر
+                    </button>
+                  </div>
+                  {variantDrafts.length > 0 && <div className="mt-4 space-y-3">
+                    {variantDrafts.map((variant, index) => (
+                      <div key={variant.id || index} className="rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <b className="text-sm">جۆری ژمارە {index + 1}</b>
+                          <button type="button" onClick={() => setVariantDrafts((current) => current.filter((_, rowIndex) => rowIndex !== index))} className="rounded-lg border border-red-100 p-2 text-red-600" aria-label="سڕینەوەی جۆر"><Trash2 size={15}/></button>
+                        </div>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <label className="text-xs font-bold">ناوی جۆر (پێویستە)
+                            <input required value={variant.variant_label} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, variant_label: event.target.value } : row))} placeholder="نموونە: بۆنی گوڵ · ١٠٠ گرام" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">کۆدی SKU (ئارەزوومەندانە)
+                            <input dir="ltr" value={variant.sku} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, sku: event.target.value } : row))} placeholder="HERO-ROSE-100" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">ڕەنگ
+                            <input value={variant.color_name} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, color_name: event.target.value } : row))} placeholder="ڕەش، سپی، سوور..." className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">کۆدی ڕەنگ (#RRGGBB)
+                            <input dir="ltr" value={variant.color_hex} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, color_hex: event.target.value } : row))} placeholder="#F4A261" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">بۆن یان تام
+                            <input value={variant.scent} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, scent: event.target.value } : row))} placeholder="گوڵ، لیمۆ، لاڤەندەر..." className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">قەبارە / حەجم
+                            <input value={variant.size_label} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, size_label: event.target.value } : row))} placeholder="١٠٠ گرام، ٥٠٠ مل..." className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">نرخ (د.ع)
+                            <input required type="number" min="1" step="1" value={variant.price} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, price: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          {isAdmin && <label className="text-xs font-bold">نرخی کڕین (د.ع)
+                            <input type="number" min="0" step="1" value={variant.costPrice} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, costPrice: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>}
+                          <label className="text-xs font-bold">کۆگای ئەم جۆرە (بەتاڵ = بێ سنوور)
+                            <input type="number" min="0" step="0.001" value={variant.stock} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, stock: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">یەکە
+                            <select value={variant.unit} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, unit: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm">
+                              {units.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
+                            </select>
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>}
+                </section>
                 <div className="block text-sm font-bold">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="flex items-center gap-2"><ImagePlus size={18}/> وێنەی کاڵا</span>
@@ -657,7 +854,7 @@ export default function StorePage() {
                   {editing?.image_path && !image && <small className="mt-2 block text-xs font-medium text-slate-500">وێنەی ئێستا دەمێنێتەوە؛ بۆ گۆڕینی، یەکێک لە دوو هەڵبژاردەکە بەکاربهێنە.</small>}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button disabled={saving || !form.title.trim() || !form.price || (!isAdmin && walletBalance <= 0)} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
+                  <button disabled={saving || loadingVariants || !form.title.trim() || !form.price || (!isAdmin && walletBalance <= 0)} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
                     <Save size={17}/>{saving ? "پاشەکەوت دەکرێت..." : editing ? "پاشەکەوتکردنی گۆڕانکاری" : "زیادکردنی کاڵا"}
                   </button>
                   {editing && <button type="button" onClick={resetProductForm} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 font-bold text-slate-700"><X size={17}/> هەڵوەشاندنەوە</button>}
@@ -684,7 +881,13 @@ export default function StorePage() {
                     const publicImage = product.image_path
                       ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
                       : null;
-                    const outOfStock = product.stock_quantity === 0;
+                    const outOfStock = product.variants.length > 0
+                       ? product.variants.every((variant) => variant.stock_quantity === 0)
+                       : product.stock_quantity === 0;
+                     const lowestVariantPrice = product.variants.length > 0
+                       ? Math.min(...product.variants.map((variant) => variant.price_iqd))
+                       : product.price_iqd;
+                     const availableVariantCount = product.variants.filter((variant) => variant.stock_quantity !== 0).length;
                     return (
                       <article key={product.id} className="overflow-hidden rounded-2xl bg-white shadow-soft">
                         <div className="flex gap-4 p-4">
@@ -696,13 +899,17 @@ export default function StorePage() {
                               <h3 className="font-black">{product.title}</h3>
                               <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${product.approval_status === "pending" ? "bg-amber-50 text-amber-800" : product.approval_status === "rejected" ? "bg-red-50 text-red-700" : product.is_available && !outOfStock ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{product.approval_status === "pending" ? "چاوەڕوانی پەسەندکردن" : product.approval_status === "rejected" ? "ڕەفزکراو" : outOfStock ? "کۆگا تەواو بووە" : product.is_available ? "بەردەست" : "ناچالاک"}</span>
                             </div>
-                            {isAdmin && <p className="mt-1 text-xs font-semibold text-slate-500">نرخی کڕین: {product.cost_price_iqd === null ? "تۆمار نەکراوە" : formatIQD(product.cost_price_iqd)} · قازانجی هەر دانە: {product.cost_price_iqd === null ? "—" : formatIQD(product.price_iqd - product.cost_price_iqd)}</p>}
+                            {isAdmin && <p className="mt-1 text-xs font-semibold text-slate-500">{product.variants.length > 0
+                               ? `${product.variants.length} جۆری تایبەت · تێچوو و قازانج بەپێی هەر جۆرێک لە ئۆردەر تۆمار دەکرێت`
+                               : `نرخی کڕین: ${product.cost_price_iqd === null ? "تۆمار نەکراوە" : formatIQD(product.cost_price_iqd)} · قازانجی هەر دانە: ${product.cost_price_iqd === null ? "—" : formatIQD(product.price_iqd - product.cost_price_iqd)}`}</p>}
                             {isAdmin && !product.is_shakh_store && <p className="mt-1 rounded-lg bg-blue-50 px-2 py-1 text-xs font-bold text-blue-800">خاوەنی پۆست: {merchantNames[product.merchant_id || ""] || "دوکانداری نەناسراو"}</p>}
                             {product.referral_commission_iqd > 0
                               ? <p className="mt-1 rounded-lg bg-purple-50 px-2 py-1 text-xs font-black text-purple-800">خەڵاتی شێر بۆ هەر دانە: {formatIQD(product.referral_commission_iqd)}</p>
                               : <p className="mt-1 rounded-lg bg-slate-50 px-2 py-1 text-xs font-medium text-slate-500">ئەم کاڵایە بە شێوەی ئاسایی دەفرۆشرێت؛ شێر و خەڵاتی نییە.</p>}
-                            <p className="mt-1 text-lg font-black text-shakh-orange">{formatIQD(product.price_iqd)} <small className="text-xs font-medium text-slate-500">/ {units.find((unit) => unit.value === product.unit)?.label || product.unit}</small></p>
-                            <p className="mt-1 text-sm text-slate-500">کۆگا: {product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}</p>
+                            <p className="mt-1 text-lg font-black text-shakh-orange">{product.variants.length > 0 ? "لە " : ""}{formatIQD(lowestVariantPrice)} <small className="text-xs font-medium text-slate-500">/ {units.find((unit) => unit.value === product.unit)?.label || product.unit}</small></p>
+                            <p className="mt-1 text-sm text-slate-500">{product.variants.length > 0
+                               ? `کۆگا: ${availableVariantCount} لە ${product.variants.length} جۆر بەردەستن`
+                               : `کۆگا: ${product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}`}</p>
                             {product.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>}{product.rejection_reason && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">هۆکاری ڕەفز: {product.rejection_reason}</p>}
                           </div>
                         </div>

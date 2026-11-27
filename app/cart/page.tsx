@@ -14,6 +14,11 @@ type CartItem = {
   quantity: number;
   unit?: string;
   stock_quantity?: number | null;
+  variant_id?: string;
+  variant_label?: string;
+  color_name?: string | null;
+  scent?: string | null;
+  size_label?: string | null;
   is_shakh_store?: boolean;
   referral_campaign_id?: string | null;
 };
@@ -27,6 +32,19 @@ type ProductSnapshot = {
   stock_quantity: number | null;
   is_available: boolean;
   is_shakh_store: boolean;
+};
+
+type VariantSnapshot = {
+  id: string;
+  product_id: string;
+  variant_label: string;
+  color_name: string | null;
+  scent: string | null;
+  size_label: string | null;
+  unit: string | null;
+  price_iqd: number;
+  stock_quantity: number | null;
+  is_active: boolean;
 };
 
 type ZoneBoundary = { type: "Polygon"; coordinates: [number, number][][] };
@@ -73,15 +91,24 @@ export default function CartPage() {
         const { data, error } = await supabase.from("products")
           .select("id,title,price_iqd,merchant_id,unit,stock_quantity,is_available,is_shakh_store")
           .in("id", ids);
+        const variantIds = [...new Set(saved.map((item) => item.variant_id).filter((id): id is string => !!id))];
+        const variantResult = variantIds.length
+          ? await supabase.from("product_variants")
+              .select("id,product_id,variant_label,color_name,scent,size_label,unit,price_iqd,stock_quantity,is_active")
+              .in("id", variantIds)
+          : { data: [], error: null };
 
         if (!active) return;
-        if (error) {
+        if (error || variantResult.error) {
           setItems(saved);
           setMessage("نەتوانرا نرخ و کۆگای نوێ پشتڕاست بکرێتەوە؛ تکایە پەیوەندی ئینتەرنێت بپشکنە.");
           setCartVerified(false);
         } else {
           const productMap: Record<string, ProductSnapshot> = Object.fromEntries(
             (data || []).map((product) => [product.id, product as ProductSnapshot])
+          );
+          const variantMap: Record<string, VariantSnapshot> = Object.fromEntries(
+            ((variantResult.data || []) as VariantSnapshot[]).map((variant) => [variant.id, variant])
           );
           let removed = 0;
           let adjusted = false;
@@ -91,18 +118,30 @@ export default function CartPage() {
               removed += 1;
               return [];
             }
-            const quantity = product.stock_quantity === null
-              ? item.quantity
-              : Math.min(item.quantity, product.stock_quantity);
-            if (quantity !== item.quantity) adjusted = true;
+            const variant = item.variant_id ? variantMap[item.variant_id] : null;
+            if (item.variant_id && (!variant || !variant.is_active || variant.product_id !== product.id || variant.stock_quantity === 0)) {
+              removed += 1;
+              return [];
+            }
+            const currentPrice = variant?.price_iqd ?? product.price_iqd;
+            const currentUnit = variant?.unit || product.unit;
+            const currentStock = variant ? variant.stock_quantity : product.stock_quantity;
+            const quantity = currentStock === null ? item.quantity : Math.min(item.quantity, currentStock);
+            if (quantity !== item.quantity || currentPrice !== item.price_iqd) adjusted = true;
             return [{
               ...item,
               title: product.title,
-              price_iqd: product.price_iqd,
+              price_iqd: currentPrice,
               merchant_id: product.merchant_id,
-              unit: product.unit,
-              stock_quantity: product.stock_quantity,
+              unit: currentUnit,
+              stock_quantity: currentStock,
               is_shakh_store: product.is_shakh_store,
+              ...(variant ? {
+                variant_label: variant.variant_label,
+                color_name: variant.color_name,
+                scent: variant.scent,
+                size_label: variant.size_label,
+              } : {}),
               quantity,
             }];
           });
@@ -175,17 +214,19 @@ export default function CartPage() {
   function changeQuantity(item: CartItem, direction: -1 | 1) {
     const step = item.unit === "kg" ? 0.5 : 1;
     const nextQuantity = Math.max(0, Math.round((item.quantity + direction * step) * 1000) / 1000);
-    update(item.product_id, nextQuantity);
+    update(item.product_id, item.variant_id, nextQuantity);
   }
 
-  function update(id: string, quantity: number) {
-    const item = items.find((value) => value.product_id === id);
+  function update(id: string, variantId: string | undefined, quantity: number) {
+    const item = items.find((value) => value.product_id === id && (value.variant_id || "") === (variantId || ""));
     if (!item) return;
     if (quantity > 0 && item.stock_quantity !== null && item.stock_quantity !== undefined && quantity > item.stock_quantity) {
       setMessage("ئەو بڕەی داوات کردووە لە کۆگا زیاترە.");
       return;
     }
-    const next = items.map((value) => value.product_id === id ? { ...value, quantity } : value).filter((value) => value.quantity > 0);
+    const next = items.map((value) => value.product_id === id && (value.variant_id || "") === (variantId || "")
+      ? { ...value, quantity }
+      : value).filter((value) => value.quantity > 0);
     persist(next);
   }
 
@@ -243,7 +284,11 @@ export default function CartPage() {
 
       const groups = storeGroups.map((group) => ({
         merchant_id: group.merchantId,
-        items: group.items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
+        items: group.items.map((item) => ({
+          product_id: item.product_id,
+          ...(item.variant_id ? { variant_id: item.variant_id } : {}),
+          quantity: item.quantity,
+        })),
       }));
       const { data, error } = await supabase.rpc("create_multi_store_orders_with_location_v1", {
         p_service_zone_id: zone,
@@ -298,6 +343,7 @@ export default function CartPage() {
                     <div key={item.product_id} className="flex items-center justify-between gap-3 border-b py-3">
                       <div className="min-w-0">
                         <b>{item.title}</b>
+                        {item.variant_label && <p className="mt-1 text-xs font-bold text-shakh-blue">{item.variant_label}{[item.color_name, item.scent, item.size_label].filter(Boolean).length ? " · " + [item.color_name, item.scent, item.size_label].filter(Boolean).join(" · ") : ""}</p>}
                         <p className="text-sm text-shakh-orange">{item.price_iqd.toLocaleString("en-US")} د.ع / {unitLabels[item.unit || "piece"] || item.unit}</p>
                         {item.stock_quantity !== null && item.stock_quantity !== undefined && <p className="mt-1 text-xs text-slate-500">کۆگا: {item.stock_quantity.toLocaleString("en-US")}</p>}
                       </div>

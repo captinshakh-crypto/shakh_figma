@@ -292,6 +292,8 @@ export type Database = {
           quantity: number
           referral_commission_snapshot_iqd: number
           unit_price_iqd: number
+          variant_id: string | null
+          variant_snapshot: Json
         }
         Insert: {
           cost_price_snapshot_iqd?: number | null
@@ -305,6 +307,8 @@ export type Database = {
           quantity: number
           referral_commission_snapshot_iqd?: number
           unit_price_iqd: number
+          variant_id?: string | null
+          variant_snapshot?: Json
         }
         Update: {
           cost_price_snapshot_iqd?: number | null
@@ -318,6 +322,8 @@ export type Database = {
           quantity?: number
           referral_commission_snapshot_iqd?: number
           unit_price_iqd?: number
+          variant_id?: string | null
+          variant_snapshot?: Json
         }
         Relationships: [
           {
@@ -332,6 +338,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -693,10 +706,30 @@ export type Database = {
           },
         ]
       }
+      product_categories: {
+        Row: { category_key: string; created_at: string; id: string; is_active: boolean; name: string; sort_order: number; store_type: string; updated_at: string }
+        Insert: { category_key: string; created_at?: string; id?: string; is_active?: boolean; name: string; sort_order?: number; store_type: string; updated_at?: string }
+        Update: { category_key?: string; created_at?: string; id?: string; is_active?: boolean; name?: string; sort_order?: number; store_type?: string; updated_at?: string }
+        Relationships: []
+      }
+      product_subcategories: {
+        Row: { category_id: string; created_at: string; id: string; is_active: boolean; name: string; sort_order: number; subcategory_key: string; updated_at: string }
+        Insert: { category_id: string; created_at?: string; id?: string; is_active?: boolean; name: string; sort_order?: number; subcategory_key: string; updated_at?: string }
+        Update: { category_id?: string; created_at?: string; id?: string; is_active?: boolean; name?: string; sort_order?: number; subcategory_key?: string; updated_at?: string }
+        Relationships: [{ foreignKeyName: "product_subcategories_category_id_fkey"; columns: ["category_id"]; isOneToOne: false; referencedRelation: "product_categories"; referencedColumns: ["id"] }]
+      }
+      product_variants: {
+        Row: { color_hex: string | null; color_name: string | null; cost_price_iqd: number | null; created_at: string; id: string; image_path: string | null; is_active: boolean; price_iqd: number; product_id: string; scent: string | null; size_label: string | null; sku: string | null; sort_order: number; stock_quantity: number | null; unit: string | null; updated_at: string; variant_label: string }
+        Insert: { color_hex?: string | null; color_name?: string | null; cost_price_iqd?: number | null; created_at?: string; id?: string; image_path?: string | null; is_active?: boolean; price_iqd: number; product_id: string; scent?: string | null; size_label?: string | null; sku?: string | null; sort_order?: number; stock_quantity?: number | null; unit?: string | null; updated_at?: string; variant_label: string }
+        Update: { color_hex?: string | null; color_name?: string | null; cost_price_iqd?: number | null; created_at?: string; id?: string; image_path?: string | null; is_active?: boolean; price_iqd?: number; product_id?: string; scent?: string | null; size_label?: string | null; sku?: string | null; sort_order?: number; stock_quantity?: number | null; unit?: string | null; updated_at?: string; variant_label?: string }
+        Relationships: [{ foreignKeyName: "product_variants_product_id_fkey"; columns: ["product_id"]; isOneToOne: false; referencedRelation: "products"; referencedColumns: ["id"] }]
+      }
       products: {
         Row: {
           approval_status: string
+          category_id: string | null
           category_key: string
+          subcategory_id: string | null
           cost_price_iqd: number | null
           created_at: string
           description: string | null
@@ -718,7 +751,9 @@ export type Database = {
         }
         Insert: {
           approval_status?: string
+          category_id?: string | null
           category_key: string
+          subcategory_id?: string | null
           cost_price_iqd?: number | null
           created_at?: string
           description?: string | null
@@ -740,7 +775,9 @@ export type Database = {
         }
         Update: {
           approval_status?: string
+          category_id?: string | null
           category_key?: string
+          subcategory_id?: string | null
           cost_price_iqd?: number | null
           created_at?: string
           description?: string | null
@@ -761,6 +798,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "product_subcategories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_merchant_id_fkey"
             columns: ["merchant_id"]
