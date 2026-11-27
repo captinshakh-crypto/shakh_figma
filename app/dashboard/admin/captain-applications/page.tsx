@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/supabase/database.types";
+import type { Json } from "@/lib/supabase/database.types";
 
 type Application = {
   id: string;
@@ -16,6 +17,10 @@ type Application = {
   pledge_full_name: string | null;
   pledge_accepted_at: string | null;
   pledge_terms: Json | null;
+  pledge_version: string | null;
+  pledge_full_name: string | null;
+  pledge_accepted_at: string | null;
+  pledge_terms: Json | null;
 };
 type Profile = { id: string; full_name: string | null; email: string | null; phone: string | null };
 type Merchant = { id: string; business_name: string };
@@ -24,6 +29,7 @@ export default function CaptainApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [merchants, setMerchants] = useState<Record<string, string>>({});
+  const [identities, setIdentities] = useState<Record<string, string>>({});
   const [identities, setIdentities] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -55,6 +61,7 @@ export default function CaptainApplicationsPage() {
     setApplications(data || []);
     setProfiles(Object.fromEntries((profileResult.data || []).map((item) => [item.id, item])));
     setMerchants(Object.fromEntries((merchantResult.data || []).map((item) => [item.id, item.business_name])));
+    setIdentities(Object.fromEntries((identityResult.data || []).map((item) => [item.user_id, item.national_id_number])));
     setIdentities(Object.fromEntries((identityResult.data || []).map((item) => [item.user_id, item.national_id_number])));
     setLoading(false);
   }
@@ -105,6 +112,25 @@ export default function CaptainApplicationsPage() {
                 <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">دوکان: {application.merchant_id ? merchants[application.merchant_id] || "دوکان نەدۆزرایەوە" : "—"}</p>
               )}
               {application.note && <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-600">{application.note}</p>}
+              {(() => {
+                const terms = application.pledge_terms && typeof application.pledge_terms === "object" && !Array.isArray(application.pledge_terms)
+                  ? application.pledge_terms as Record<string, Json>
+                  : {};
+                return (
+                  <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50/70 p-4">
+                    <h3 className="font-black text-[#0a3157]">پەیمانی کاپتن</h3>
+                    <p className="mt-2 text-sm">واژۆ: <b>{application.pledge_full_name || "تۆمار نەکراوە"}</b></p>
+                    <p className="mt-1 text-xs text-slate-500">وەشان: {application.pledge_version || "—"} {application.pledge_accepted_at ? `· واژۆکراوە لە ${new Date(application.pledge_accepted_at).toLocaleString("ckb-IQ")}` : ""}</p>
+                    <ul className="mt-3 space-y-1 text-sm text-slate-700">
+                      <li>{terms.protect_goods === true ? "✓" : "—"} پاراستنی کەل و پەل و کاڵا</li>
+                      <li>{terms.honest_delivery === true ? "✓" : "—"} ڕاستگۆیی و گەیاندنی سەلامەت</li>
+                      <li>{terms.respect_community === true ? "✓" : "—"} ڕێزگرتن لە بەها کۆمەڵایەتییەکان</li>
+                      <li>{terms.protect_privacy === true ? "✓" : "—"} پاراستنی نهێنی و زانیاری</li>
+                      <li>{terms.follow_rules === true ? "✓" : "—"} پابەندبوون بە ڕێنمایی شاخ</li>
+                    </ul>
+                  </div>
+                );
+              })()}
               {(() => {
                 const terms = application.pledge_terms && typeof application.pledge_terms === "object" && !Array.isArray(application.pledge_terms)
                   ? application.pledge_terms as Record<string, Json>
