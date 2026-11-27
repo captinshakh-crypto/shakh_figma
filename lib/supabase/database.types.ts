@@ -63,6 +63,10 @@ export type Database = {
           reviewed_by: string | null
           status: Database["public"]["Enums"]["record_status"]
           user_id: string
+          pledge_version: string | null
+          pledge_full_name: string | null
+          pledge_accepted_at: string | null
+          pledge_terms: Json | null
         }
         Insert: {
           captain_type: Database["public"]["Enums"]["captain_type"]
@@ -74,6 +78,10 @@ export type Database = {
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["record_status"]
           user_id: string
+          pledge_version?: string | null
+          pledge_full_name?: string | null
+          pledge_accepted_at?: string | null
+          pledge_terms?: Json | null
         }
         Update: {
           captain_type?: Database["public"]["Enums"]["captain_type"]
@@ -85,6 +93,10 @@ export type Database = {
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["record_status"]
           user_id?: string
+          pledge_version?: string | null
+          pledge_full_name?: string | null
+          pledge_accepted_at?: string | null
+          pledge_terms?: Json | null
         }
         Relationships: [
           {
@@ -105,6 +117,32 @@ export type Database = {
             foreignKeyName: "captain_applications_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      captain_identity_details: {
+        Row: {
+          user_id: string
+          national_id_number: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          national_id_number: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          national_id_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captain_identity_details_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -208,6 +246,10 @@ export type Database = {
           merchant_type: Database["public"]["Enums"]["app_role"]
           service_zone_ids: string[] | null
           user_id: string
+          opening_time: string
+          closing_time: string
+          opening_days: number[]
+          is_manually_closed: boolean
         }
         Insert: {
           address?: string | null
@@ -219,6 +261,10 @@ export type Database = {
           merchant_type: Database["public"]["Enums"]["app_role"]
           service_zone_ids?: string[] | null
           user_id: string
+          opening_time?: string
+          closing_time?: string
+          opening_days?: number[]
+          is_manually_closed?: boolean
         }
         Update: {
           address?: string | null
@@ -230,6 +276,10 @@ export type Database = {
           merchant_type?: Database["public"]["Enums"]["app_role"]
           service_zone_ids?: string[] | null
           user_id?: string
+          opening_time?: string
+          closing_time?: string
+          opening_days?: number[]
+          is_manually_closed?: boolean
         }
         Relationships: [
           {
@@ -1297,6 +1347,43 @@ export type Database = {
         Args: {
           p_fixed_commission_per_unit_iqd: number
           p_merchant_type: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: undefined
+      }
+
+      complete_my_phone: {
+        Args: { p_phone: string }
+        Returns: undefined
+      }
+      merchant_reject_orders: {
+        Args: { p_order_ids: string[] }
+        Returns: number
+      }
+      request_captain_application_with_pledge: {
+        Args: {
+          p_captain_type: Database["public"]["Enums"]["captain_type"]
+          p_merchant_id?: string | null
+          p_note?: string | null
+          p_national_id_number?: string | null
+          p_pledge_full_name?: string | null
+          p_pledge_terms?: Json
+        }
+        Returns: string
+      }
+      set_my_captain_availability: {
+        Args: { p_is_active: boolean }
+        Returns: undefined
+      }
+      update_my_captain_identity: {
+        Args: { p_national_id_number: string }
+        Returns: undefined
+      }
+      update_my_store_hours: {
+        Args: {
+          p_opening_time: string
+          p_closing_time: string
+          p_opening_days: number[]
+          p_is_manually_closed: boolean
         }
         Returns: undefined
       }
