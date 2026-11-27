@@ -94,7 +94,7 @@ export default function ProfilePage() {
     setSaving(true);
     setMessage("");
     if (!phone.trim()) { setMessage("ژمارەی مۆبایل مەرجە."); setSaving(false); return; }
-    if (phone.replace(/\D/g, "").length < 7) { setMessage("ژمارەی مۆبایل دروست نییە."); setSaving(false); return; }
+    if (phone.replace(/\D/g, "").length < 7 || phone.replace(/\D/g, "").length > 20 || !/^[0-9+()\s-]+$/.test(phone.trim())) { setMessage("ژمارەی مۆبایل دروست نییە."); setSaving(false); return; }
     try {
       const { error } = await createClient().rpc("update_my_profile", {
         p_full_name: name.trim(),
