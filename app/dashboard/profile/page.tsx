@@ -118,7 +118,7 @@ export default function ProfilePage() {
     setMessage("");
     let uploadedPath: string | null = null;
     try {
-      const normalizedId = nationalIdNumber.replace(/\\D/g, "");
+      const normalizedId = nationalIdNumber.replace(/\D/g, "");
       if (normalizedId.length < 5 || normalizedId.length > 20) throw new Error("ژمارەی ناسنامە دەبێت لە ٥ تا ٢٠ ژمارە بێت.");
       if (!identityDocument) throw new Error("وێنە یان PDF ـی ناسنامە باربکە.");
       if (identityDocument.size > 10 * 1024 * 1024) throw new Error("قەبارەی ناسنامە نابێت لە ١٠MB زیاتر بێت.");
