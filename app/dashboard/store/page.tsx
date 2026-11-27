@@ -91,13 +91,13 @@ type StoreDayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 type StoreDayHours = { open: string; close: string; closed: boolean };
 type StoreHours = Record<StoreDayKey, StoreDayHours>;
 const defaultStoreHours: StoreHours = {
-  mon: { open: "09:00", close: "23:00", closed: false },
-  tue: { open: "09:00", close: "23:00", closed: false },
-  wed: { open: "09:00", close: "23:00", closed: false },
-  thu: { open: "09:00", close: "23:00", closed: false },
-  fri: { open: "09:00", close: "23:00", closed: false },
-  sat: { open: "09:00", close: "23:00", closed: false },
-  sun: { open: "09:00", close: "23:00", closed: false },
+  mon: { open: "00:00", close: "23:59", closed: false },
+  tue: { open: "00:00", close: "23:59", closed: false },
+  wed: { open: "00:00", close: "23:59", closed: false },
+  thu: { open: "00:00", close: "23:59", closed: false },
+  fri: { open: "00:00", close: "23:59", closed: false },
+  sat: { open: "00:00", close: "23:59", closed: false },
+  sun: { open: "00:00", close: "23:59", closed: false },
 };
 const storeDays: { key: StoreDayKey; label: string }[] = [
   { key: "sat", label: "شەممە" },
