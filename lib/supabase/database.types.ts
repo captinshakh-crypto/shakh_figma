@@ -122,6 +122,51 @@ export type Database = {
           },
         ]
       }
+      captain_agreement_acceptances: {
+        Row: {
+          accepted_at: string
+          accepted_user_agent: string | null
+          agreement_version: string
+          application_id: string | null
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          accepted_user_agent?: string | null
+          agreement_version: string
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          accepted_user_agent?: string | null
+          agreement_version?: string
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captain_agreement_acceptances_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "captain_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captain_agreement_acceptances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       captain_profiles: {
         Row: {
           approved_at: string
@@ -1286,6 +1331,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_super_admin: { Args: never; Returns: boolean }
+      accept_current_captain_agreement: {
+        Args: { p_user_agent?: string | null }
+        Returns: undefined
+      }
       merchant_reject_order_item: {
         Args: { p_order_item_id: string; p_reason?: string | null }
         Returns: undefined
