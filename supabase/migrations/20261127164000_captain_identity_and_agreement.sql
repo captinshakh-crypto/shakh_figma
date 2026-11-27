@@ -73,13 +73,52 @@ using (
 create table if not exists public.captain_agreement_acceptances (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
-  application_id uuid not null references public.captain_applications(id) on delete cascade,
+  application_id uuid references public.captain_applications(id) on delete cascade,
   agreement_version text not null,
   accepted_at timestamptz not null default now(),
   accepted_user_agent text,
   created_at timestamptz not null default now(),
   constraint captain_agreement_acceptances_application_unique unique(application_id)
 );
+
+create unique index if not exists captain_agreement_acceptances_user_version_uidx
+  on public.captain_agreement_acceptances(user_id,agreement_version);
+
+-- Existing captains must explicitly accept the current terms before becoming available.
+update public.captain_profiles cp
+set is_available=false
+where not exists (
+  select 1 from public.captain_agreement_acceptances ca
+  where ca.user_id=cp.user_id and ca.agreement_version='shakh-captain-terms-v1'
+);
+
+create or replace function public.accept_current_captain_agreement(p_user_agent text default null)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $fn$
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if not exists (
+    select 1 from public.captain_profiles cp
+    join public.profiles p on p.id=cp.user_id
+    where cp.user_id=auth.uid() and cp.is_active=true
+      and p.role='captain' and p.is_active=true
+  ) then raise exception 'Active captain account required'; end if;
+
+  insert into public.captain_agreement_acceptances(user_id,application_id,agreement_version,accepted_user_agent)
+  values(auth.uid(),null,'shakh-captain-terms-v1',left(coalesce(p_user_agent,''),500))
+  on conflict(user_id,agreement_version) do nothing;
+
+  insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,details)
+  values(auth.uid(),'accept_captain_agreement','captain_profile',auth.uid(),
+    jsonb_build_object('agreement_version','shakh-captain-terms-v1'));
+end;
+$fn$;
+
+revoke all on function public.accept_current_captain_agreement(text) from public,anon;
+grant execute on function public.accept_current_captain_agreement(text) to authenticated;
 
 alter table public.captain_agreement_acceptances enable row level security;
 drop policy if exists captain_agreement_acceptances_read_self_or_admin on public.captain_agreement_acceptances;
