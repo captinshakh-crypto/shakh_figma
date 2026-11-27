@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
       target.pathname = "/dashboard/profile";
       target.search = "?require_phone=1";
       const redirect = NextResponse.redirect(target);
-      request.cookies.getAll().forEach(({ name, value }) => redirect.cookies.set(name, value));
+      response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
       return redirect;
     }
   }
