@@ -35,7 +35,7 @@ export default function CompleteProfilePage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!/^\\+?(964)?0?7[0-9]{9}$/.test(phone.trim())) {
+    if (!/^\+?(964)?0?7[0-9]{9}$/.test(phone.trim())) {
       setMessage("ژمارەی مۆبایلی عێراقی بە شێوەی دروست بنووسە؛ نموونە: 0750XXXXXXX.");
       return;
     }
@@ -71,7 +71,7 @@ export default function CompleteProfilePage() {
               <Phone size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"/>
               <input required autoFocus type="tel" inputMode="tel" autoComplete="tel" maxLength={16} value={phone}
                 onChange={(event) => setPhone(event.target.value)} placeholder="0750XXXXXXX"
-                pattern="(\\+?(964)?0?7[0-9]{9})"
+                pattern="(\+?(964)?0?7[0-9]{9})"
                 className="w-full rounded-xl border border-slate-200 py-3 pl-4 pr-11 outline-none focus:border-shakh-blue"/>
             </span>
           </label>
