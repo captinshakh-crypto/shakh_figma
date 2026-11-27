@@ -131,6 +131,14 @@ create or replace function private.guard_merchant_store_hours()
 returns trigger language plpgsql security definer set search_path=''
 as $function$
 begin
+  if not exists (
+    select 1 from public.profiles p
+    where p.id = new.customer_id and p.is_active = true
+      and nullif(btrim(coalesce(p.phone,'')),'') is not null
+  ) then
+    raise exception 'A valid mobile number is required before placing an order.';
+  end if;
+
   if new.merchant_id is not null and not public.merchant_store_is_open_now(new.merchant_id,now()) then
     raise exception 'This store is currently closed. Please place the order during its opening hours.';
   end if;
@@ -197,7 +205,7 @@ grant select on table public.captain_identity_details to authenticated;
 create or replace function public.update_my_captain_identity(p_national_id_number text)
 returns void language plpgsql security definer set search_path=''
 as $function$
-declare v_id text:=upper(regexp_replace(trim(coalesce(p_national_id_number,'')),'[[:space:]]+','','g'));
+declare v_id text:=upper(translate(regexp_replace(trim(coalesce(p_national_id_number,'')),'[[:space:]]+','','g'),'٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹','01234567890123456789'));
   v_role public.app_role;
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
@@ -260,7 +268,7 @@ begin
   else raise exception 'Invalid captain type';
   end if;
 
-  v_identity:=upper(regexp_replace(trim(coalesce(p_national_id_number,'')),'[[:space:]]+','','g'));
+  v_identity:=upper(translate(regexp_replace(trim(coalesce(p_national_id_number,'')),'[[:space:]]+','','g'),'٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹','01234567890123456789'));
   if length(v_identity) not between 6 and 30 or v_identity !~ '^[A-Z0-9-]+$' then
     raise exception 'A valid national identity number is required';
   end if;
