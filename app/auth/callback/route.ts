@@ -64,5 +64,21 @@ export async function GET(request: NextRequest) {
       });
     }
   }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!recovery && user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("phone")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile?.phone) {
+      const completionUrl = new URL("/complete-profile", request.url);
+      completionUrl.searchParams.set("next", next);
+      response.headers.set("Location", completionUrl.toString());
+      return response;
+    }
+  }
+
   return response;
 }

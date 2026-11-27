@@ -23,7 +23,7 @@ function getPostAuthPath() {
 }
 
 export default function LoginPage() {
-  const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [name,setName]=useState("");
+  const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [name,setName]=useState(""); const [phone,setPhone]=useState("");
   const [mode,setMode]=useState<"login"|"signup">("login"); const [privacyAccepted,setPrivacyAccepted]=useState(false); const [message,setMessage]=useState(""); const [busy,setBusy]=useState(false); const [showRecoveryLink,setShowRecoveryLink]=useState(false);
 
   useEffect(() => {
@@ -37,8 +37,14 @@ export default function LoginPage() {
     }
 
     try {
-      void Promise.resolve(createClient().auth.getUser()).then(({ data }) => {
-        if (active && data.user) window.location.replace(getPostAuthPath());
+      void Promise.resolve(createClient().auth.getUser()).then(async ({ data }) => {
+        if (active && data.user) {
+          const { data: profile } = await createClient()
+            .from("profiles").select("phone").eq("id", data.user.id).maybeSingle();
+          if (active) window.location.replace(profile?.phone
+            ? getPostAuthPath()
+            : `/complete-profile?next=${encodeURIComponent(getPostAuthPath())}`);
+        }
       }).catch(() => {
         // Keep the sign-in form available when the session check is temporarily offline.
       });
@@ -52,6 +58,7 @@ export default function LoginPage() {
   async function submit(e:FormEvent) {
     e.preventDefault(); setMessage(""); setShowRecoveryLink(false);
     if (mode === "signup" && !privacyAccepted) { setMessage("پێویستە سیاسەتی تایبەتمەندی بخوێنیتەوە و پەسەندی بکەیت."); return; }
+    if (mode === "signup" && !/^\\+?(964)?0?7[0-9]{9}$/.test(phone.trim())) { setMessage("ژمارەی مۆبایلی عێراقی بە شێوەی دروست بنووسە؛ نموونە: 0750XXXXXXX."); return; }
     setBusy(true);
     try {
       const supabase=createClient();
@@ -60,7 +67,7 @@ export default function LoginPage() {
       const cleanEmail = email.trim().toLowerCase();
       const result=mode==="login"
         ? await supabase.auth.signInWithPassword({email:cleanEmail,password})
-        : await supabase.auth.signUp({email:cleanEmail,password,options:{data:{full_name:name.trim(),privacy_policy_version:PRIVACY_POLICY_VERSION,privacy_policy_accepted_at:new Date().toISOString()},emailRedirectTo:callback}});
+        : await supabase.auth.signUp({email:cleanEmail,password,options:{data:{full_name:name.trim(),phone:phone.trim(),privacy_policy_version:PRIVACY_POLICY_VERSION,privacy_policy_accepted_at:new Date().toISOString()},emailRedirectTo:callback}});
       if(result.error) {
         if (mode === "login" && result.error.code === "invalid_credentials") {
           setMessage("ئیمەیڵ یان وشەی نهێنی دروست نییە. وشەی نهێنییەکەت لەبیرچووە؟ لینکی گۆڕینی وشەی نهێنی بنێرە.");
@@ -79,16 +86,26 @@ export default function LoginPage() {
           window.location.replace(nextPath);
         }
         else setMessage("هەژمارەکەت دروست کرا. تکایە ئیمەیڵەکەت بپشکنە و لینکی پشتڕاستکردنەوە بکەرەوە؛ دوای پشتڕاستکردنەوە پڕۆفایل و ڕۆڵەکەت پیشان دەدرێت.");
-      } else window.location.replace(nextPath);
+      } else {
+        const userId = result.data.user?.id;
+        const { data: profile } = userId
+          ? await supabase.from("profiles").select("phone").eq("id", userId).maybeSingle()
+          : { data: null };
+        if (!profile?.phone) {
+          window.location.replace(`/complete-profile?next=${encodeURIComponent(nextPath)}`);
+          return;
+        }
+        window.location.replace(nextPath);
+      }
     } catch { setMessage("پەیوەندی بە داتابەیس نەکرا. ڕێکخستنی پڕۆژە بپشکنە."); }
     finally { setBusy(false); }
   }
 
   async function signInWithGoogle() {
+    if (mode === "signup" && !privacyAccepted) { setMessage("پێویستە سیاسەتی تایبەتمەندی پەسەند بکەیت."); return; }
     setBusy(true); setMessage("");
     try {
       const nextPath = getPostAuthPath();
-      if (mode === "signup" && !privacyAccepted) { setMessage("پێویستە سیاسەتی تایبەتمەندی پەسەند بکەیت."); setBusy(false); return; }
       const callback = buildAuthCallback(nextPath, mode === "signup" ? "google_signup" : undefined);
       const { error } = await createClient().auth.signInWithOAuth({
         provider: "google",
@@ -114,9 +131,15 @@ export default function LoginPage() {
         <h1 className="mt-7 text-3xl font-black">{mode === "login" ? "بەخێربێیتەوە" : "هەژماری شاخ دروست بکە"}</h1>
         <p className="mt-2 text-sm leading-7 text-slate-500">بۆ بەکارهێنانی بازاڕ و گەیاندن بچۆ ژوورەوە.</p>
         <form onSubmit={submit} className="mt-7 space-y-4">
-          {mode === "signup" && <label className="block text-sm font-bold">ناوی تەواو
-            <input required value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-shakh-blue"/>
-          </label>}
+          {mode === "signup" && <>
+            <label className="block text-sm font-bold">ناوی تەواو
+              <input required value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-shakh-blue"/>
+            </label>
+            <label className="block text-sm font-bold">ژمارەی مۆبایل <span className="text-red-600">*</span>
+              <input required type="tel" inputMode="tel" autoComplete="tel" maxLength={16} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0750XXXXXXX" pattern="(\\+?(964)?0?7[0-9]{9})" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-shakh-blue"/>
+              <small className="mt-1 block font-medium text-slate-500">ژمارەی مۆبایل بۆ پەیوەندی و تەواوکردنی داواکاری پێویستە.</small>
+            </label>
+          </>}
           <label className="block text-sm font-bold">ئیمەیڵ
             <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-shakh-blue"/>
           </label>
@@ -147,7 +170,7 @@ export default function LoginPage() {
           <p>{message}</p>
           {showRecoveryLink && <Link href={`/forgot-password?email=${encodeURIComponent(email.trim().toLowerCase())}`} className="mt-2 inline-block font-black underline">ناردنی لینکی گۆڕینی وشەی نهێنی</Link>}
         </div>}
-        <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setPrivacyAccepted(false); setMessage(""); setShowRecoveryLink(false); }} className="mt-5 w-full text-sm font-bold text-shakh-blue">
+        <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setPrivacyAccepted(false); setPhone(""); setMessage(""); setShowRecoveryLink(false); }} className="mt-5 w-full text-sm font-bold text-shakh-blue">
           {mode === "login" ? "هەژمارت نییە؟ هەژمار دروست بکە" : "پێشتر هەژمارت هەیە؟ بچۆ ژوورەوە"}
         </button>
         <div className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2 border-t border-slate-100 pt-4 text-xs font-bold text-slate-500">
