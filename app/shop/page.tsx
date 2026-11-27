@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ShoppingCart, Store, Search, Package, SlidersHorizontal, Share2 } from "lucide-react";
+import { ShoppingCart, ShoppingBasket, Store, Search, Package, SlidersHorizontal, Share2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ShakhBrand from "@/components/shakh-brand";
 import { Headset } from "lucide-react";
@@ -321,6 +321,25 @@ export default function ShopPage() {
                 <article key={product.id} className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
                   <div className="relative grid aspect-square w-full shrink-0 place-items-center overflow-hidden bg-shakh-mist text-shakh-blue">
                     {imageUrl ? <img src={imageUrl} alt={product.title} loading="lazy" className="h-full w-full object-contain p-2 sm:p-3"/> : <Store size={36}/>}
+                    <button
+                      type="button"
+                      onClick={() => add(product)}
+                      disabled={outOfStock}
+                      aria-label={outOfStock ? "ئەم کاڵایە لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
+                      title={outOfStock ? "لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
+                      className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-full bg-shakh-blue text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:opacity-75"
+                    >
+                      <ShoppingBasket size={20} strokeWidth={2.4}/>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => shareProduct(product)}
+                      aria-label="شێرکردنی کاڵا"
+                      title="شێرکردن"
+                      className="absolute bottom-3 left-3 z-10 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-shakh-orange px-4 text-xs font-bold text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-orange-600"
+                    >
+                      <Share2 size={16}/> شێرکردن
+                    </button>
                   </div>
                   <div className="flex flex-col gap-1.5 p-3 sm:p-4">
                     <div className="flex flex-wrap items-center justify-between gap-1">
@@ -341,15 +360,6 @@ export default function ShopPage() {
                     <p className={`mt-1 text-xs ${outOfStock ? "text-red-600" : "text-green-700"}`}>
                       {outOfStock ? "کۆگا تەواو بووە" : product.stock_quantity === null ? "بەردەست" : `ماوە: ${product.stock_quantity.toLocaleString("en-US")} ${unitLabels[product.unit] || product.unit}`}
                     </p>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <button type="button" onClick={() => shareProduct(product)}
-                        className="flex h-12 items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2 text-xs font-bold text-orange-800 transition hover:bg-orange-100">
-                        <Share2 size={16}/> شێرکردن
-                      </button>
-                      <button disabled={outOfStock} onClick={() => add(product)} className="h-12 rounded-xl bg-shakh-blue px-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
-                        {outOfStock ? "لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
-                      </button>
-                    </div>
                   </div>
                 </article>
               );
