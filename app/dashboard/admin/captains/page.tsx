@@ -144,8 +144,8 @@ export default function CaptainsPage() {
 
         {orders.map((order) => {
           const eligible = captains.filter((captain) =>
-            captain.captain_type === "shakh" ||
-            (captain.captain_type === "merchant" && captain.merchant_id === order.merchant_id)
+            captain.is_available && (captain.captain_type === "shakh" ||
+            (captain.captain_type === "merchant" && captain.merchant_id === order.merchant_id))
           );
           const orderItems = items.filter((item) => item.order_id === order.id);
           return (
@@ -180,7 +180,7 @@ export default function CaptainsPage() {
                     ))}
                   </select>
                   {busyId === order.id && <p className="mt-2 text-xs text-slate-500">دیاریکردن...</p>}
-                  {eligible.length === 0 && <p className="mt-2 text-sm text-amber-700">کاپتنێکی چالاک و شیاو بۆ ئەم دوکانە نییە.</p>}
+                  {eligible.length === 0 && <p className="mt-2 text-sm text-amber-700">کاپتنێکی چالاک و بەردەست بۆ ئەم دوکانە نییە.</p>}
                 </aside>
               </div>
             </article>
