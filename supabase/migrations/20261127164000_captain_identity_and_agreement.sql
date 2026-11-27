@@ -53,8 +53,20 @@ on storage.objects for delete to authenticated
 using (
   bucket_id='captain-documents'
   and (
-    (storage.foldername(name))[1]=auth.uid()::text
-    or public.is_super_admin()
+    public.is_super_admin()
+    or (
+      (storage.foldername(name))[1]=auth.uid()::text
+      and not exists (
+        select 1 from public.captain_applications a
+        where a.user_id=auth.uid()
+          and a.identity_document_path=name
+          and a.status in ('pending','approved')
+      )
+      and not exists (
+        select 1 from public.captain_profiles cp
+        where cp.user_id=auth.uid() and cp.identity_document_path=name
+      )
+    )
   )
 );
 
