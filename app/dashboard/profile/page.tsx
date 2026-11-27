@@ -51,6 +51,8 @@ export default function ProfilePage() {
   const [nationalIdNumber, setNationalIdNumber] = useState("");
   const [identityDocument, setIdentityDocument] = useState<File | null>(null);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [captainAgreementAccepted, setCaptainAgreementAccepted] = useState(false);
+  const [existingAgreementChecked, setExistingAgreementChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -61,12 +63,13 @@ export default function ProfilePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = "/login"; return; }
 
-    const [p, c, a, m, roleResult] = await Promise.all([
+    const [p, c, a, m, roleResult, agreementResult] = await Promise.all([
       supabase.from("profiles").select("email,full_name,phone,role").eq("id", user.id).single(),
       supabase.from("captain_profiles").select("captain_type,merchant_id,is_active").eq("user_id", user.id).maybeSingle(),
       supabase.from("captain_applications").select("id,captain_type,merchant_id,note,status,created_at").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("merchant_profiles").select("id,business_name").eq("approval_status", "approved").order("business_name"),
       supabase.rpc("current_app_role"),
+      supabase.from("captain_agreement_acceptances").select("id").eq("user_id", user.id).eq("agreement_version", "shakh-captain-terms-v1").maybeSingle(),
     ]);
 
     if (p.error) throw p.error;
@@ -78,6 +81,7 @@ export default function ProfilePage() {
     setName(p.data.full_name || "");
     setPhone(p.data.phone || "");
     setCaptain(c.data);
+    setCaptainAgreementAccepted(!!agreementResult.data);
     setApplications(a.data || []);
     setMerchants(m.data || []);
     if (c.data?.captain_type) setCaptainType(c.data.captain_type);
@@ -107,6 +111,25 @@ export default function ProfilePage() {
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "پاشەکەوتکردنی زانیاری سەرکەوتوو نەبوو.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function acceptCurrentCaptainAgreement() {
+    if (!existingAgreementChecked) { setMessage("پێویستە بەڵێننامەکە پەسەند بکەیت."); return; }
+    setSaving(true);
+    setMessage("");
+    try {
+      const { error } = await createClient().rpc("accept_current_captain_agreement", {
+        p_user_agent: navigator.userAgent,
+      });
+      if (error) throw error;
+      setCaptainAgreementAccepted(true);
+      setMessage("بەڵێننامەی کاپتن پەسەند کرا و تۆمار کرا. ئێستا دەتوانیت دۆخی بەردەستبوون چالاک بکەیت.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "پەسەندکردنی بەڵێننامە سەرکەوتوو نەبوو.");
     } finally {
       setSaving(false);
     }
@@ -198,6 +221,32 @@ export default function ProfilePage() {
               </div>
             )}
           </section>
+
+          {profile.role === "captain" && (
+            <section className="mt-5 rounded-2xl border border-blue-100 bg-white p-6 shadow-soft">
+              <h2 className="text-xl font-black">بەڵێننامەی کاپتن بۆ گەیاندن</h2>
+              {captainAgreementAccepted ? (
+                <p className="mt-3 rounded-xl bg-green-50 p-3 text-sm font-bold text-green-800">بەڵێننامەی shakh-captain-terms-v1 پەسەند کراوە و تۆمارەکە پارێزراوە.</p>
+              ) : (
+                <>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">پێش چالاککردنی بەردەستبوون و وەرگرتنی گەیاندن، پێویستە کاپتنی پێشتر پەسەندکراویش ئەم بەڵێننامەیە پەسەند بکات.</p>
+                  <ul className="mt-3 list-disc space-y-1 pr-5 text-sm leading-7 text-slate-700">
+                    <li>پاراستنی کەلوپەل و داواکارییەکانی کڕیار و دوکاندار.</li>
+                    <li>ڕادەستکردنی دروستی کاڵا و پارە بە خاوەنەکەیان.</li>
+                    <li>ڕێزگرتن لە کڕیار و دوکاندار و پاراستنی زانیاری تایبەتییان.</li>
+                    <li>پابەندبوون بە یاسا و ڕێنمایی سەلامەتی هاتوچۆ و ڕێساکانی شاخ.</li>
+                    <li>ڕاگەیاندنی هەر زیان، ونبوون یان دواخستنێک بە خێرایی.</li>
+                    <li>وەرگرتنی بەرپرسیارێتی هەڵسوکەوتی خۆت لە چوارچێوەی یاسا و بەڵگەکاندا.</li>
+                  </ul>
+                  <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-slate-100 pt-4 text-sm font-bold">
+                    <input type="checkbox" checked={existingAgreementChecked} onChange={(event) => setExistingAgreementChecked(event.target.checked)} className="mt-1"/>
+                    <span>بەڵێننامەکەم خوێندووەتەوە و پەسەندی دەکەم.</span>
+                  </label>
+                  <button type="button" disabled={saving || !existingAgreementChecked} onClick={() => void acceptCurrentCaptainAgreement()} className="mt-4 rounded-xl bg-shakh-blue px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{saving ? "تکایە چاوەڕێ بکە..." : "پەسەندکردنی بەڵێننامە"}</button>
+                </>
+              )}
+            </section>
+          )}
 
           <section className="mt-5 rounded-2xl bg-white p-6 shadow-soft">
             <h2 className="text-xl font-black">زانیاری کەسی</h2>
