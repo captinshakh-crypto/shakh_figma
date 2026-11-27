@@ -372,6 +372,25 @@ export default function OrdersPage() {
               {showOrders ? <ChevronUp size={20} className="shrink-0 text-shakh-blue"/> : <ChevronDown size={20} className="shrink-0 text-shakh-blue"/>}
             </button>
             {showOrders && <div className="mt-4 space-y-5">
+            {merchantRoles.includes(role) && pendingMerchantOrders.length > 0 && (
+              <section className="rounded-2xl border border-orange-100 bg-white p-4 shadow-soft">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-black text-[#0a2d50]">
+                    <input type="checkbox"
+                      checked={pendingMerchantOrders.every((order) => selectedOrderIds.includes(order.id))}
+                      onChange={(event) => setSelectedOrderIds(event.target.checked ? pendingMerchantOrders.map((order) => order.id) : [])}
+                      className="h-4 w-4 accent-[#f47721]"/>
+                    هەڵبژاردنی هەموو ئۆردەرە چاوەڕوانەکان ({pendingMerchantOrders.length})
+                  </label>
+                  <button type="button" disabled={selectedOrderIds.length === 0 || busyId === "bulk-reject"}
+                    onClick={() => void rejectSelectedOrders()}
+                    className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">
+                    {busyId === "bulk-reject" ? "ڕەتکردنەوە..." : `ڕەتکردنەوەی هەڵبژێردراوەکان (${selectedOrderIds.length})`}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs leading-6 text-slate-500">دەتوانیت بۆ هەر ئۆردەرێک بە جیا ڕەفز بکەیت، یان چەند ئۆردەرێک دیاری بکەیت و بە یەکجار ڕەفزیان بکەیتەوە.</p>
+              </section>
+            )}
             {orders.map((order) => {
               const orderItems = items.filter((item) => item.order_id === order.id);
               const events = history.filter((entry) => entry.order_id === order.id);
@@ -379,7 +398,15 @@ export default function OrdersPage() {
               return (
                 <article key={order.id} className="overflow-hidden rounded-2xl bg-white shadow-soft">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
-                    <div><p className="text-xs text-slate-400">ژمارەی داواکاری</p><b className="font-mono text-sm">{order.id.slice(0, 8).toUpperCase()}</b></div>
+                    <div className="flex items-center gap-3">
+                      {merchantRoles.includes(role) && order.status === "placed" && (
+                        <input type="checkbox" aria-label={`هەڵبژاردنی ئۆردەری ${order.id.slice(0,8)}`}
+                          checked={selectedOrderIds.includes(order.id)}
+                          onChange={(event) => toggleSelectedOrder(order.id,event.target.checked)}
+                          className="h-4 w-4 accent-[#f47721]"/>
+                      )}
+                      <div><p className="text-xs text-slate-400">ژمارەی داواکاری</p><b className="font-mono text-sm">{order.id.slice(0, 8).toUpperCase()}</b></div>
+                    </div>
                     <span className={`rounded-full px-3 py-1.5 text-sm font-bold ${["delivered","accepted"].includes(order.status) ? "bg-green-50 text-green-700" : ["rejected","cancelled"].includes(order.status) ? "bg-red-50 text-red-700" : "bg-orange-50 text-orange-700"}`}>{statusLabels[order.status] || order.status}</span>
                   </div>
 
