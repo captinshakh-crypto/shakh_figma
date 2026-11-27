@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Enums } from "@/lib/supabase/database.types";
-import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Share2 } from "lucide-react";
+import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Camera, Share2 } from "lucide-react";
 
 const merchantTypes: { value: Enums<"app_role">; label: string }[] = [
   { value: "supermarket", label: "سوپەرمارکێت" },
@@ -617,11 +617,45 @@ export default function StorePage() {
                     <input type="number" min="0" step="0.001" value={form.stock} onChange={(event) => setForm((old) => ({ ...old, stock: event.target.value }))} placeholder="بۆ نموونە: ٢٥" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                   </label>
                 </div>
-                <label className="block text-sm font-bold">
-                  <span className="flex items-center gap-2"><ImagePlus size={18}/> وێنەی کاڵا (JPG، PNG یان WebP، تا ١٠MB)</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={(event) => setImage(event.target.files?.[0] || null)} className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-sm"/>
-                  {editing?.image_path && !image && <small className="mt-1 block text-slate-500">وێنەی ئێستا دەمێنێتەوە؛ بۆ گۆڕینی، وێنەی نوێ هەڵبژێرە.</small>}
-                </label>
+                <div className="block text-sm font-bold">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex items-center gap-2"><ImagePlus size={18}/> وێنەی کاڵا</span>
+                    <span className="text-xs font-medium text-slate-500">JPG، PNG یان WebP · تا ١٠MB</span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <label className="group relative flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-shakh-blue/30 bg-blue-50 px-3 py-4 text-center transition hover:border-shakh-blue hover:bg-blue-100 focus-within:ring-2 focus-within:ring-shakh-blue">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => setImage(event.target.files?.[0] || null)}
+                        className="sr-only"
+                        aria-label="هەڵبژاردنی وێنە لە گەلەری یان فایلەکان"
+                      />
+                      <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-shakh-blue shadow-sm transition group-hover:scale-105">
+                        <ImagePlus size={23} strokeWidth={2.2}/>
+                      </span>
+                      <span className="text-sm font-black text-shakh-blue">هەڵبژاردنی وێنە</span>
+                      <span className="text-[11px] font-medium text-slate-500">گەلەری مۆبایل / فایلەکان</span>
+                    </label>
+                    <label className="group relative flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-shakh-orange/40 bg-orange-50 px-3 py-4 text-center transition hover:border-shakh-orange hover:bg-orange-100 focus-within:ring-2 focus-within:ring-shakh-orange">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(event) => setImage(event.target.files?.[0] || null)}
+                        className="sr-only"
+                        aria-label="کردنەوەی کامێرا بۆ وێنگرتن"
+                      />
+                      <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-shakh-orange shadow-sm transition group-hover:scale-105">
+                        <Camera size={23} strokeWidth={2.2}/>
+                      </span>
+                      <span className="text-sm font-black text-shakh-orange">وێنگرتن بە کامێرا</span>
+                      <span className="text-[11px] font-medium text-slate-500">کامێرای پێشەوە / دواوە</span>
+                    </label>
+                  </div>
+                  {image && <p className="mt-3 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2 text-xs font-bold text-green-800"><ImagePlus size={15}/> وێنە هەڵبژێردرا: <span className="min-w-0 truncate" dir="auto">{image.name}</span></p>}
+                  {editing?.image_path && !image && <small className="mt-2 block text-xs font-medium text-slate-500">وێنەی ئێستا دەمێنێتەوە؛ بۆ گۆڕینی، یەکێک لە دوو هەڵبژاردەکە بەکاربهێنە.</small>}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <button disabled={saving || !form.title.trim() || !form.price || (!isAdmin && walletBalance <= 0)} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
                     <Save size={17}/>{saving ? "پاشەکەوت دەکرێت..." : editing ? "پاشەکەوتکردنی گۆڕانکاری" : "زیادکردنی کاڵا"}
