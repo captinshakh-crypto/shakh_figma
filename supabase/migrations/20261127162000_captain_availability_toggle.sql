@@ -1,6 +1,6 @@
 -- Captain-controlled availability, enforced by the database for both self-claim and admin assignment.
 alter table public.captain_profiles
-  add column if not exists is_available boolean not null default false;
+  add column if not exists is_available boolean not null default true;
 
 create or replace function public.set_my_captain_availability(p_is_available boolean)
 returns void
