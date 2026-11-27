@@ -51,6 +51,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [requiresPhone, setRequiresPhone] = useState(false);
 
   async function load() {
     const supabase = createClient();
@@ -81,6 +82,7 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
+    setRequiresPhone(new URLSearchParams(window.location.search).get("require_phone") === "1");
     load().catch(() => { setMessage("نەتوانرا زانیاری پڕۆفایل باربکرێت."); setLoading(false); });
   }, []);
 
@@ -88,6 +90,8 @@ export default function ProfilePage() {
     event.preventDefault();
     setSaving(true);
     setMessage("");
+    if (!phone.trim()) { setMessage("ژمارەی مۆبایل مەرجە."); setSaving(false); return; }
+    if (phone.replace(/\\D/g, "").length < 7) { setMessage("ژمارەی مۆبایل دروست نییە."); setSaving(false); return; }
     try {
       const { error } = await createClient().rpc("update_my_profile", {
         p_full_name: name.trim(),
@@ -95,6 +99,8 @@ export default function ProfilePage() {
       });
       if (error) throw error;
       setMessage("زانیاری پڕۆفایلەکەت پاشەکەوت کرا.");
+      setRequiresPhone(false);
+      window.history.replaceState({}, "", window.location.pathname);
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "پاشەکەوتکردنی زانیاری سەرکەوتوو نەبوو.");
@@ -134,6 +140,7 @@ export default function ProfilePage() {
         <h1 className="mt-6 text-3xl font-black text-shakh-ink">پڕۆفایلی من</h1>
         <p className="mt-2 text-sm text-slate-500">زانیاری کەسی و داواکاری گۆڕینی ڕۆڵ لە شاخ</p>
 
+        {requiresPhone && <p role="alert" className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-900">بۆ بەردەوامبوون لە بەکارهێنانی شاخ، ژمارەی مۆبایلەکەت بنووسە. پشتڕاستکردنەوەی OTP پێویست نییە.</p>}
         {message && <p role="status" className="mt-5 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">{message}</p>}
         {loading ? <p className="mt-8">بارکردن...</p> : profile && <>
           <section className="mt-6 rounded-2xl bg-white p-6 shadow-soft">
@@ -162,7 +169,7 @@ export default function ProfilePage() {
                 <input required maxLength={120} value={name} onChange={(event) => setName(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
               </label>
               <label className="block text-sm font-bold">ژمارەی مۆبایل
-                <input type="tel" maxLength={30} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="07xxxxxxxxx" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
+                <input type="tel" inputMode="tel" autoComplete="tel" required maxLength={30} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="07xxxxxxxxx" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
               </label>
               <button disabled={saving} className="rounded-xl bg-shakh-blue px-5 py-3 font-bold text-white disabled:opacity-50">
                 {saving ? "تکایە چاوەڕێ بکە..." : "پاشەکەوتکردنی پڕۆفایل"}
