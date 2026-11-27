@@ -39,6 +39,8 @@ type OrderItem = {
   line_total_iqd: number;
   merchant_commission_per_unit_snapshot_iqd: number;
   merchant_commission_line_snapshot_iqd: number;
+  status: string;
+  rejection_reason: string | null;
 };
 
 type LiveLocation = { order_id: string; latitude: number; longitude: number; accuracy_m: number | null; updated_at: string };
@@ -149,7 +151,7 @@ export default function OrdersPage() {
     }
 
     const [itemResult, historyResult, merchantResult, zoneResult, locationResult] = await Promise.all([
-      supabase.from("order_items").select("id,order_id,product_title_snapshot,quantity,unit_price_iqd,line_total_iqd,merchant_commission_per_unit_snapshot_iqd,merchant_commission_line_snapshot_iqd").in("order_id", orderIds),
+      supabase.from("order_items").select("id,order_id,product_title_snapshot,quantity,unit_price_iqd,line_total_iqd,merchant_commission_per_unit_snapshot_iqd,merchant_commission_line_snapshot_iqd,status,rejection_reason").in("order_id", orderIds),
       supabase.from("order_status_history").select("id,order_id,from_status,to_status,actor_role,note,created_at").in("order_id", orderIds).order("created_at"),
       merchantIds.length ? supabase.from("merchant_profiles").select("id,user_id,business_name,address").in("id", merchantIds) : Promise.resolve({ data: [], error: null }),
       zoneIds.length ? supabase.from("service_zones").select("id,name").in("id", zoneIds) : Promise.resolve({ data: [], error: null }),
@@ -224,6 +226,21 @@ export default function OrdersPage() {
     };
   }, [load]);
 
+  async function rejectOrderItem(itemId: string) {
+    const reason = window.prompt("هۆکاری ڕەتکردنەوەی ئەم کاڵایە (ئارەزوومەندانە):");
+    if (reason === null) return;
+    setBusyId(itemId);
+    setMessage("");
+    const { error } = await createClient().rpc("merchant_reject_order_item", {
+      p_order_item_id: itemId,
+      p_reason: reason.trim() || null,
+    });
+    setBusyId("");
+    if (error) setMessage(error.message || "ڕەتکردنەوەی کاڵا سەرکەوتوو نەبوو.");
+    else setMessage("کاڵاکە ڕەتکرایەوە؛ کۆگا و کۆمسیۆن و جزدان بە شێوەی خۆکار ڕێکخران.");
+    await load();
+  }
+
   async function changeStatus(orderId: string, status: string) {
     setBusyId(orderId);
     setMessage("");
@@ -253,7 +270,7 @@ export default function OrdersPage() {
     if (!merchant) return null;
     const recipient = normalizeWhatsAppRecipient(merchant.phone);
     const total = Number(order.total_iqd ?? order.subtotal_iqd + order.delivery_fee_iqd);
-    const itemLines = orderItems.map((item) =>
+    const itemLines = orderItems.filter((item) => !["rejected", "cancelled"].includes(item.status)).map((item) =>
       `• ${item.product_title_snapshot} × ${Number(item.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} | یەکە: ${formatIQD(item.unit_price_iqd)} | کۆ: ${formatIQD(item.line_total_iqd)}`
     );
     const receipt = [
@@ -364,9 +381,15 @@ export default function OrdersPage() {
                       <h2 className="mt-4 font-black">کاڵاکان</h2>
                       <div className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-100">
                         {orderItems.map((item) => (
-                          <div key={item.id} className="flex justify-between gap-3 p-3 text-sm">
-                            <span>{item.product_title_snapshot} × {item.quantity}</span>
-                            <div className="text-right"><b>{formatIQD(item.line_total_iqd)}</b>{role !== "customer" && item.merchant_commission_line_snapshot_iqd > 0 && <p className="mt-1 text-xs text-orange-700">کۆمسیۆن: {formatIQD(item.merchant_commission_line_snapshot_iqd)}</p>}</div>
+                          <div key={item.id} className={`flex flex-wrap items-center justify-between gap-3 p-3 text-sm ${item.status === "rejected" || item.status === "cancelled" ? "bg-red-50/60" : ""}`}>
+                            <div className="min-w-0">
+                              <span>{item.product_title_snapshot} × {item.quantity}</span>
+                              {item.status === "rejected" && <p className="mt-1 text-xs font-bold text-red-700">ڕەتکرایەوە: {item.rejection_reason || "دوکان ناتوانێت ئەم کاڵایە دابین بکات."}</p>}
+                              {item.status === "cancelled" && <p className="mt-1 text-xs text-slate-500">هەڵوەشێندرایەوە</p>}
+                            </div>
+                            <div className="text-right"><b>{formatIQD(item.line_total_iqd)}</b>{role !== "customer" && item.merchant_commission_line_snapshot_iqd > 0 && <p className="mt-1 text-xs text-orange-700">کۆمسیۆن: {formatIQD(item.merchant_commission_line_snapshot_iqd)}</p>}
+                              {["supermarket", "restaurant", "butcher_poultry", "grocery"].includes(role) && order.status === "placed" && item.status === "pending" && <button type="button" disabled={busyId === item.id} onClick={() => void rejectOrderItem(item.id)} className="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 disabled:opacity-50">{busyId === item.id ? "..." : "ڕەتکردنەوەی ئەم کاڵایە"}</button>}
+                            </div>
                           </div>
                         ))}
                       </div>
