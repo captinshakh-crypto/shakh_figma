@@ -40,7 +40,7 @@ export default function LoginPage() {
   async function submit(e:FormEvent) {
     e.preventDefault(); setBusy(true); setMessage(""); setShowRecoveryLink(false);
     if (mode === "signup" && !phone.trim()) { setMessage("ژمارەی مۆبایل مەرجە."); setBusy(false); return; }
-    if (mode === "signup" && phone.replace(/\\D/g, "").length < 7) { setMessage("ژمارەی مۆبایل دروست نییە."); setBusy(false); return; }
+    if (mode === "signup" && phone.replace(/\D/g, "").length < 7) { setMessage("ژمارەی مۆبایل دروست نییە."); setBusy(false); return; }
     try {
       const supabase=createClient();
       const nextPath = getPostAuthPath();
