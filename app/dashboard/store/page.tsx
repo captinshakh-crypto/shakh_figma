@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Enums } from "@/lib/supabase/database.types";
+import type { Enums, Json } from "@/lib/supabase/database.types";
 import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Share2 } from "lucide-react";
 
 const merchantTypes: { value: Enums<"app_role">; label: string }[] = [
@@ -116,7 +116,7 @@ type Merchant = {
   address: string | null;
   description: string | null;
   approval_status: string;
-  operating_hours: StoreHours | null;
+  operating_hours: Json;
   manual_open: boolean;
 };
 
@@ -232,7 +232,7 @@ export default function StorePage() {
         .eq("user_id", user.id).maybeSingle();
       if (merchantError) throw merchantError;
       setMerchant(merchantData);
-      setStoreHours(merchantData?.operating_hours || defaultStoreHours);
+      setStoreHours(merchantData?.operating_hours ? merchantData.operating_hours as unknown as StoreHours : defaultStoreHours);
       setManualOpen(merchantData?.manual_open ?? true);
       if (merchantData?.approval_status !== "approved" || merchantData.merchant_type !== currentRole) {
         setProducts([]);
@@ -343,7 +343,7 @@ export default function StorePage() {
     setMessage("");
     try {
       const { error } = await createClient().rpc("update_my_store_schedule", {
-        p_operating_hours: storeHours,
+        p_operating_hours: storeHours as unknown as Json,
         p_manual_open: manualOpen,
       });
       if (error) throw error;
