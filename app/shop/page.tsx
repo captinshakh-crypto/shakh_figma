@@ -58,6 +58,7 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [referralCampaignId, setReferralCampaignId] = useState("");
   const [sharedProductId, setSharedProductId] = useState("");
+  const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -316,6 +317,7 @@ export default function ShopPage() {
                 ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
                 : null;
               const outOfStock = product.stock_quantity === 0;
+              const detailsOpen = expandedProductIds.includes(product.id);
 
               return (
                 <article key={product.id} className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
@@ -336,30 +338,44 @@ export default function ShopPage() {
                       onClick={() => shareProduct(product)}
                       aria-label="شێرکردنی کاڵا"
                       title="شێرکردن"
-                      className="absolute bottom-3 left-3 z-10 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-shakh-orange px-4 text-xs font-bold text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-orange-600"
+                      className="absolute right-3 top-16 z-10 grid h-10 w-10 place-items-center rounded-full bg-shakh-orange text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-orange-600"
                     >
-                      <Share2 size={16}/> شێرکردن
+                      <Share2 size={18}/>
                     </button>
                   </div>
-                  <div className="flex flex-col gap-1.5 p-3 sm:p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-1">
-                      <span className="text-xs font-bold text-shakh-orange">{storeLabel}</span>
-                      <span className="text-[11px] text-slate-400">{categoryLabels[product.category_key] || product.category_key}</span>
-                    </div>
-                    <p className="truncate text-xs text-slate-500">{storeName}</p>
-                    {storeAddress && <p className="flex items-center gap-1 truncate text-[11px] text-slate-500"><span aria-hidden="true">📍</span><span className="truncate">شوێنی دوکان: {storeAddress}</span></p>}
-                    <h2 className="line-clamp-2 font-bold leading-6">{product.title}</h2>
-                    {product.description && <p className="line-clamp-2 text-xs leading-5 text-slate-500">{product.description}</p>}
-                    {product.referral_commission_iqd > 0 && (
-                      <div className="mt-1 w-full rounded-xl border border-purple-100 bg-gradient-to-l from-purple-50 to-orange-50 px-2.5 py-2 text-xs font-black leading-5 text-purple-800">
-                        <span className="mr-1 inline-block">🎁</span>
-                        شێر بکە و {product.referral_commission_iqd.toLocaleString("en-US")} د.ع خەڵات وەربگرە / هەر دانە
+                  <div className="flex flex-col gap-2 p-3 sm:p-4">
+                    <p className="truncate text-sm font-semibold text-slate-600">{storeName}</p>
+                    <p className="font-black text-lg text-shakh-orange">{product.price_iqd.toLocaleString("en-US")} د.ع</p>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedProductIds((current) => detailsOpen ? current.filter((id) => id !== product.id) : [...current, product.id])}
+                      aria-expanded={detailsOpen}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-shakh-blue transition hover:bg-slate-100"
+                    >
+                      {detailsOpen ? "داخستنی زانیاری" : "زانیاری زیاتر"}
+                      <span aria-hidden="true" className={`text-base transition-transform ${detailsOpen ? "rotate-180" : ""}`}>⌄</span>
+                    </button>
+                    {detailsOpen && (
+                      <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-bold text-shakh-orange">{storeLabel}</span>
+                          <span className="text-xs text-slate-400">{categoryLabels[product.category_key] || product.category_key}</span>
+                        </div>
+                        <h2 className="font-bold leading-6 text-slate-800">{product.title}</h2>
+                        {product.description && <p className="text-xs leading-5 text-slate-500">{product.description}</p>}
+                        {storeAddress && <p className="flex items-start gap-1 text-xs text-slate-500"><span aria-hidden="true">📍</span><span>شوێنی دوکان: {storeAddress}</span></p>}
+                        <p className="text-xs text-slate-500">یەکە: {unitLabels[product.unit] || product.unit}</p>
+                        <p className={`text-xs ${outOfStock ? "text-red-600" : "text-green-700"}`}>
+                          {outOfStock ? "کۆگا تەواو بووە" : product.stock_quantity === null ? "بەردەست" : `ماوە: ${product.stock_quantity.toLocaleString("en-US")} ${unitLabels[product.unit] || product.unit}`}
+                        </p>
+                        {product.referral_commission_iqd > 0 && (
+                          <div className="w-full rounded-xl border border-purple-100 bg-gradient-to-l from-purple-50 to-orange-50 px-2.5 py-2 text-xs font-black leading-5 text-purple-800">
+                            <span className="mr-1 inline-block">🎁</span>
+                            شێر بکە و {product.referral_commission_iqd.toLocaleString("en-US")} د.ع خەڵات وەربگرە / هەر دانە
+                          </div>
+                        )}
                       </div>
                     )}
-                    <p className="mt-1 font-black text-shakh-orange">{product.price_iqd.toLocaleString("en-US")} د.ع <small className="font-medium text-slate-500">/ {unitLabels[product.unit] || product.unit}</small></p>
-                    <p className={`mt-1 text-xs ${outOfStock ? "text-red-600" : "text-green-700"}`}>
-                      {outOfStock ? "کۆگا تەواو بووە" : product.stock_quantity === null ? "بەردەست" : `ماوە: ${product.stock_quantity.toLocaleString("en-US")} ${unitLabels[product.unit] || product.unit}`}
-                    </p>
                   </div>
                 </article>
               );
