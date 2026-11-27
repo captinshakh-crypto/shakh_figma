@@ -93,6 +93,7 @@ export default function OrdersPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [showOrders, setShowOrders] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -223,6 +224,35 @@ export default function OrdersPage() {
       void supabase.removeChannel(channel);
     };
   }, [load]);
+
+  const merchantRoles = ["supermarket", "restaurant", "butcher_poultry", "grocery"];
+  const pendingMerchantOrders = orders.filter((order) => order.status === "placed");
+
+  function toggleSelectedOrder(orderId: string, checked: boolean) {
+    setSelectedOrderIds((current) => checked
+      ? (current.includes(orderId) ? current : [...current, orderId])
+      : current.filter((id) => id !== orderId));
+  }
+
+  async function rejectSelectedOrders() {
+    if (!selectedOrderIds.length) return;
+    const selected = orders.filter((order) => selectedOrderIds.includes(order.id) && order.status === "placed");
+    if (selected.length !== selectedOrderIds.length) {
+      setSelectedOrderIds([]);
+      setMessage("هەندێک ئۆردەر پێشتر گۆڕاوە؛ لیستەکە نوێ کراوەتەوە. تکایە دووبارە هەڵیبژێرە.");
+      await load();
+      return;
+    }
+    if (!window.confirm(`دڵنیایت لە ڕەتکردنەوەی ${selected.length} داواکاری؟ کۆگا و کۆمسیۆنی پێشوەختە بە شێوەی سیستەمی چارەسەر دەکرێنەوە.`)) return;
+    setBusyId("bulk-reject");
+    setMessage("");
+    const { data, error } = await createClient().rpc("merchant_reject_orders", { p_order_ids: selectedOrderIds });
+    setBusyId("");
+    if (error) { setMessage(error.message || "ڕەتکردنەوەی کۆمەڵە داواکاری سەرکەوتوو نەبوو."); return; }
+    setSelectedOrderIds([]);
+    setMessage(`${Number(data || 0).toLocaleString("ckb-IQ")} داواکاری بە سەرکەوتوویی ڕەتکرایەوە.`);
+    await load();
+  }
 
   async function changeStatus(orderId: string, status: string) {
     setBusyId(orderId);
