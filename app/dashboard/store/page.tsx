@@ -73,6 +73,7 @@ type Product = {
   approval_status: string;
   rejection_reason: string | null;
   created_at: string;
+  variants: ProductVariant[];
 };
 
 const emptyProduct = {
@@ -214,6 +215,26 @@ export default function StorePage() {
     if (error) throw error;
 
     const rows = data || [];
+    const productIds = rows.map((product) => product.id);
+    let variantRows: ProductVariant[] = [];
+    if (productIds.length > 0) {
+      const { data: variantsData, error: variantsError } = await supabase
+        .from("product_variants")
+        .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,is_active,sort_order")
+        .in("product_id", productIds).eq("is_active", true).order("sort_order");
+      if (variantsError) throw variantsError;
+      variantRows = (variantsData || []) as ProductVariant[];
+    }
+    const variantsByProduct = new Map<string, ProductVariant[]>();
+    for (const variant of variantRows) {
+      const group = variantsByProduct.get(variant.product_id) || [];
+      group.push(variant);
+      variantsByProduct.set(variant.product_id, group);
+    }
+    const productsWithVariants = rows.map((product) => ({
+      ...product,
+      variants: variantsByProduct.get(product.id) || [],
+    }));
     if (currentRole === "super_admin") {
       const merchantIds = [...new Set(rows.map((product) => product.merchant_id).filter((id): id is string => Boolean(id)))];
       if (merchantIds.length > 0) {
@@ -230,7 +251,7 @@ export default function StorePage() {
       setMerchantNames({});
     }
 
-    setProducts(rows);
+    setProducts(productsWithVariants);
     setLoading(false);
   }
 
