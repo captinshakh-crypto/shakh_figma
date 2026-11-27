@@ -126,6 +126,32 @@ const emptyProduct = {
   category: "general",
 };
 
+async function compressProductImage(file: File): Promise<File> {
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error("قەبارەی وێنە نابێت لە ١٠MB زیاتر بێت.");
+  }
+  if (typeof createImageBitmap !== "function") return file;
+  const bitmap = await createImageBitmap(file);
+  try {
+    const maxDimension = 1800;
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("نەتوانرا وێنە ئامادە بکرێت.");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((value) => value ? resolve(value) : reject(new Error("کەمکردنەوەی قەبارەی وێنە سەرکەوتوو نەبوو.")), "image/webp", 0.82);
+    });
+    const extension = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
+    const baseName = file.name.replace(/\\.[^.]+$/, "") || "product-image";
+    return new File([blob], baseName + "." + extension, { type: blob.type || "image/jpeg", lastModified: Date.now() });
+  } finally {
+    bitmap.close();
+  }
+}
+
 function formatIQD(value: number) {
   return value.toLocaleString("en-US") + " د.ع";
 }
@@ -306,8 +332,8 @@ export default function StorePage() {
       setMessage("بڕی کۆگا نابێت ژمارەیەکی نەرێنی یان نادروست بێت.");
       return;
     }
-    if (image && (!["image/jpeg", "image/png", "image/webp"].includes(image.type) || image.size > 5 * 1024 * 1024)) {
-      setMessage("وێنە دەبێت JPG یان PNG یان WebP بێت و قەبارەکەی زیاتر نەبێت لە ٥MB.");
+    if (image && (!["image/jpeg", "image/png", "image/webp"].includes(image.type) || image.size > 10 * 1024 * 1024)) {
+      setMessage("وێنە دەبێت JPG یان PNG یان WebP بێت و قەبارەکەی زیاتر نەبێت لە ١٠MB.");
       return;
     }
 
@@ -320,10 +346,12 @@ export default function StorePage() {
       if (!user) throw new Error("تکایە دووبارە بچۆ ژوورەوە.");
 
       if (image) {
-        const extension = image.type === "image/png" ? "png" : image.type === "image/webp" ? "webp" : "jpg";
+        const uploadFile = await compressProductImage(image);
+        if (uploadFile.size > 10 * 1024 * 1024) throw new Error("دوای گونجاندنیش قەبارەی وێنە لە ١٠MB زیاترە.");
+        const extension = uploadFile.type === "image/png" ? "png" : uploadFile.type === "image/webp" ? "webp" : "jpg";
         uploadedPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
-        const { error: uploadError } = await supabase.storage.from("product-images").upload(uploadedPath, image, {
-          contentType: image.type,
+        const { error: uploadError } = await supabase.storage.from("product-images").upload(uploadedPath, uploadFile, {
+          contentType: uploadFile.type,
           upsert: false,
         });
         if (uploadError) throw uploadError;
@@ -590,8 +618,8 @@ export default function StorePage() {
                   </label>
                 </div>
                 <label className="block text-sm font-bold">
-                  <span className="flex items-center gap-2"><ImagePlus size={18}/> وێنەی کاڵا (JPG، PNG یان WebP، تا ٥MB)</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setImage(event.target.files?.[0] || null)} className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-sm"/>
+                  <span className="flex items-center gap-2"><ImagePlus size={18}/> وێنەی کاڵا (JPG، PNG یان WebP، تا ١٠MB)</span>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={(event) => setImage(event.target.files?.[0] || null)} className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-sm"/>
                   {editing?.image_path && !image && <small className="mt-1 block text-slate-500">وێنەی ئێستا دەمێنێتەوە؛ بۆ گۆڕینی، وێنەی نوێ هەڵبژێرە.</small>}
                 </label>
                 <div className="flex flex-wrap gap-2">
