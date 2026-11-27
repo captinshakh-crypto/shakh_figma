@@ -15,52 +15,6 @@ const merchantTypes: { value: Enums<"app_role">; label: string }[] = [
 
 const roleNames: Record<string, string> = Object.fromEntries(merchantTypes.map((item) => [item.value, item.label]));
 
-const categorySets: Record<string, { value: string; label: string }[]> = {
-  supermarket: [
-    { value: "groceries", label: "خۆراک و پێداویستی ماڵ" },
-    { value: "dairy", label: "شیرەمەنی" },
-    { value: "beverages", label: "خواردنەوە" },
-    { value: "cleaning", label: "پاککەرەوە" },
-    { value: "personal_care", label: "چاودێری کەسی" },
-    { value: "frozen", label: "بەرهەمی ساردکراو" },
-  ],
-  restaurant: [
-    { value: "meals", label: "خواردنی سەرەکی" },
-    { value: "breakfast", label: "نانی بەیانی" },
-    { value: "sides", label: "پاڵاوتە و لاوەکی" },
-    { value: "drinks", label: "خواردنەوە" },
-    { value: "desserts", label: "شیرینی" },
-  ],
-  butcher_poultry: [
-    { value: "beef", label: "گۆشتی مانگا" },
-    { value: "lamb", label: "گۆشتی مەڕ" },
-    { value: "chicken", label: "گۆشتی مریشک" },
-    { value: "poultry", label: "باڵندە" },
-    { value: "spices", label: "سپیاتی و بەهارات" },
-  ],
-  grocery: [
-    { value: "tomatoes", label: "تەماتە" },
-    { value: "cucumbers", label: "خیار" },
-    { value: "vegetables", label: "سەوزەوات" },
-    { value: "fruits", label: "میوە" },
-    { value: "leafy_greens", label: "سەوزەی گەڵادار" },
-    { value: "herbs", label: "سەوزە و گیا بەهاراتییەکان" },
-    { value: "staples", label: "پێداویستی بنەڕەتی" },
-    { value: "other", label: "هی تر" },
-  ],
-  super_admin: [
-    { value: "restaurant", label: "چێشتخانە" },
-    { value: "grocery", label: "بەقالی" },
-    { value: "butcher_poultry", label: "گۆشت و سپیاتی" },
-    { value: "supermarket", label: "سوپەرمارکێت" },
-    { value: "general", label: "گشتی" },
-    { value: "household", label: "پێداویستی ماڵ" },
-    { value: "electronics", label: "ئەلیکترۆنیات" },
-    { value: "accessories", label: "ئاکسسوارات" },
-    { value: "other", label: "هی تر" },
-  ],
-};
-
 const units = [
   { value: "piece", label: "دانە" },
   { value: "kg", label: "کیلۆگرام" },
@@ -96,6 +50,10 @@ type Merchant = {
   approval_status: string;
 };
 
+type Category = { id: string; store_type: string; category_key: string; name: string; sort_order: number; is_active: boolean };
+type Subcategory = { id: string; category_id: string; subcategory_key: string; name: string; sort_order: number; is_active: boolean };
+type ProductVariant = { id: string; product_id: string; variant_label: string; color_name: string | null; color_hex: string | null; scent: string | null; size_label: string | null; unit: string | null; price_iqd: number; cost_price_iqd: number | null; stock_quantity: number | null; sku: string | null; is_active: boolean; sort_order: number };
+type VariantDraft = { id?: string; variant_label: string; color_name: string; color_hex: string; scent: string; size_label: string; unit: string; price: string; costPrice: string; stock: string; sku: string };
 type Product = {
   id: string;
   merchant_id: string | null;
@@ -108,6 +66,8 @@ type Product = {
   stock_quantity: number | null;
   unit: string;
   category_key: string;
+  category_id: string | null;
+  subcategory_id: string | null;
   image_path: string | null;
   is_available: boolean;
   approval_status: string;
@@ -123,7 +83,9 @@ const emptyProduct = {
   referralCommission: "",
   stock: "",
   unit: "piece",
-  category: "general",
+  category: "",
+  categoryId: "",
+  subcategoryId: "",
 };
 
 async function compressProductImage(file: File): Promise<File> {
@@ -162,6 +124,10 @@ export default function StorePage() {
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
   const [products, setProducts] = useState<Product[]>([]);
+  const [catalogCategories, setCatalogCategories] = useState<Category[]>([]);
+  const [catalogSubcategories, setCatalogSubcategories] = useState<Subcategory[]>([]);
+  const [formStoreType, setFormStoreType] = useState("shakh_store");
+  const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([]);
   const [business, setBusiness] = useState("");
   const [applicationType, setApplicationType] = useState<Enums<"app_role">>("restaurant");
   const [address, setAddress] = useState("");
@@ -175,11 +141,9 @@ export default function StorePage() {
   const [saving, setSaving] = useState(false);
 
   const isAdmin = role === "super_admin";
-  const categories = categorySets[role] || categorySets.super_admin;
-  const formCategories = categories.some((item) => item.value === form.category)
-    ? categories
-    : [...categories, { value: form.category, label: form.category }];
-  const formUnits = getUnitsForCategory(form.category);
+  const formCategories = catalogCategories.filter((item) => item.store_type === formStoreType && item.is_active);
+  const formSubcategories = catalogSubcategories.filter((item) => item.category_id === form.categoryId && item.is_active);
+  const formUnits = getUnitsForCategory(formStoreType);
 
   async function load() {
     const supabase = createClient();
@@ -192,6 +156,20 @@ export default function StorePage() {
 
     const currentRole = profile.role || "customer";
     setRole(currentRole);
+    const currentStoreType = currentRole === "super_admin" ? "shakh_store" : currentRole;
+    setFormStoreType(currentStoreType);
+    const [categoryResult, subcategoryResult] = await Promise.all([
+      supabase.from("product_categories").select("id,store_type,category_key,name,sort_order,is_active").order("sort_order"),
+      supabase.from("product_subcategories").select("id,category_id,subcategory_key,name,sort_order,is_active").order("sort_order"),
+    ]);
+    if (categoryResult.error) throw categoryResult.error;
+    if (subcategoryResult.error) throw subcategoryResult.error;
+    setCatalogCategories((categoryResult.data || []) as Category[]);
+    setCatalogSubcategories((subcategoryResult.data || []) as Subcategory[]);
+    if (!editing) {
+      const firstCategory = (categoryResult.data || []).find((item) => item.store_type === currentStoreType && item.is_active);
+      if (firstCategory) setForm((old) => old.categoryId ? old : ({ ...old, category: firstCategory.category_key, categoryId: firstCategory.id }));
+    }
     if (currentRole !== "super_admin") {
       const { data: wallet } = await supabase.from("wallets").select("balance_iqd").eq("user_id", user.id).maybeSingle();
       setWalletBalance(wallet?.balance_iqd || 0);
@@ -214,7 +192,7 @@ export default function StorePage() {
     }
 
     let query = supabase.from("products")
-      .select("id,merchant_id,is_shakh_store,title,description,price_iqd,cost_price_iqd,referral_commission_iqd,stock_quantity,unit,category_key,image_path,is_available,approval_status,rejection_reason,created_at")
+      .select("id,merchant_id,is_shakh_store,title,description,price_iqd,cost_price_iqd,referral_commission_iqd,stock_quantity,unit,category_key,category_id,subcategory_id,image_path,is_available,approval_status,rejection_reason,created_at")
       .order("created_at", { ascending: false });
 
     // Super Admin must see every product post here, including merchant-owned posts.
@@ -268,12 +246,17 @@ export default function StorePage() {
 
   function resetProductForm() {
     setEditing(null);
-    setForm({ ...emptyProduct, category: categories[0]?.value || "general" });
+    const firstCategory = formCategories[0];
+    setForm({ ...emptyProduct, category: firstCategory?.category_key || "", categoryId: firstCategory?.id || "" });
     setImage(null);
+    setVariantDrafts([]);
   }
 
   function startEditing(product: Product) {
     setEditing(product);
+    const productCategory = catalogCategories.find((item) => item.id === product.category_id)
+      || catalogCategories.find((item) => item.store_type === (product.is_shakh_store ? "shakh_store" : role) && item.category_key === product.category_key);
+    setFormStoreType(productCategory?.store_type || (product.is_shakh_store ? "shakh_store" : role));
     setForm({
       title: product.title,
       description: product.description || "",
@@ -283,8 +266,26 @@ export default function StorePage() {
       stock: product.stock_quantity === null ? "" : String(product.stock_quantity),
       unit: product.unit,
       category: product.category_key,
+      categoryId: productCategory?.id || "",
+      subcategoryId: product.subcategory_id || "",
     });
     setImage(null);
+    void createClient().from("product_variants").select("*").eq("product_id", product.id).order("sort_order").then(({ data, error }) => {
+      if (error) { setMessage("نەتوانرا جۆرەکانی کاڵا باربکرێن: " + error.message); return; }
+      setVariantDrafts(((data || []) as ProductVariant[]).map((variant) => ({
+        id: variant.id,
+        variant_label: variant.variant_label,
+        color_name: variant.color_name || "",
+        color_hex: variant.color_hex || "",
+        scent: variant.scent || "",
+        size_label: variant.size_label || "",
+        unit: variant.unit || product.unit,
+        price: String(variant.price_iqd),
+        costPrice: variant.cost_price_iqd === null ? "" : String(variant.cost_price_iqd),
+        stock: variant.stock_quantity === null ? "" : String(variant.stock_quantity),
+        sku: variant.sku || "",
+      })));
+    });
     setMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
