@@ -27,6 +27,7 @@ type Captain = {
   phone: string | null;
   captain_code: string;
   national_id_number: string | null;
+  identity_document_path: string | null;
   is_available: boolean;
 };
 
@@ -40,6 +41,7 @@ export default function CaptainsPage() {
   const [captains, setCaptains] = useState<Captain[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
+  const [identityUrls, setIdentityUrls] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState("");
 
@@ -56,7 +58,7 @@ export default function CaptainsPage() {
         .select("id,status,merchant_id,placed_at,delivery_address,delivery_phone,delivery_notes,subtotal_iqd,delivery_fee_iqd")
         .eq("status", "ready_for_pickup").order("placed_at"),
       supabase.from("captain_profiles")
-        .select("user_id,captain_type,merchant_id,is_available,captain_code,national_id_number").eq("is_active", true),
+        .select("user_id,captain_type,merchant_id,is_available,captain_code,national_id_number,identity_document_path").eq("is_active", true),
     ]);
     if (orderResult.error) throw orderResult.error;
     if (captainResult.error) throw captainResult.error;
@@ -67,6 +69,11 @@ export default function CaptainsPage() {
       : { data: [], error: null };
     if (profileResult.error) throw profileResult.error;
     const profileMap = Object.fromEntries((profileResult.data || []).map((profile) => [profile.id, profile]));
+    const identityEntries = await Promise.all((captainResult.data || []).filter((captain) => !!captain.identity_document_path).map(async (captain) => {
+      const { data: signed } = await supabase.storage.from("captain-documents").createSignedUrl(captain.identity_document_path!, 300);
+      return [captain.user_id, signed?.signedUrl || ""] as const;
+    }));
+    setIdentityUrls(Object.fromEntries(identityEntries.filter(([, url]) => !!url)));
     setCaptains((captainResult.data || []).filter((captain) => !!profileMap[captain.user_id])
       .map((captain) => ({ ...captain, ...profileMap[captain.user_id] })));
     
@@ -135,6 +142,7 @@ export default function CaptainsPage() {
                   <p className="mt-2 text-xs text-slate-500">Captain ID: <span dir="ltr" className="font-mono">{captain.captain_code || captain.user_id.slice(0, 8).toUpperCase()}</span></p>
                   {captain.phone && <p className="mt-1 text-sm" dir="ltr">{captain.phone}</p>}
                   {captain.national_id_number && <p className="mt-1 text-xs text-slate-600">ژمارەی ناسنامە: <span dir="ltr" className="font-mono">{captain.national_id_number}</span></p>}
+                  {identityUrls[captain.user_id] && <a href={identityUrls[captain.user_id]} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-800">بینینی بەڵگەنامەی ناسنامە</a>}
                   <p className="mt-1 text-xs text-slate-500">{captain.email || "—"} · {captainTypeLabel(captain)}</p>
                 </div>
               ))}
