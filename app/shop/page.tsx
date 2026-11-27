@@ -7,22 +7,53 @@ import { createClient } from "@/lib/supabase/client";
 import ShakhBrand from "@/components/shakh-brand";
 import { Headset } from "lucide-react";
 
+type ProductVariant = {
+  id: string;
+  product_id: string;
+  variant_label: string;
+  color_name: string | null;
+  color_hex: string | null;
+  scent: string | null;
+  size_label: string | null;
+  unit: string | null;
+  price_iqd: number;
+  stock_quantity: number | null;
+  is_active: boolean;
+};
+type ProductCategory = { id: string; store_type: string; category_key: string; name: string; is_active: boolean };
 type Product = {
   id: string;
   title: string;
   description: string | null;
   price_iqd: number;
   category_key: string;
+  category_id: string | null;
+  subcategory_id: string | null;
   merchant_id: string | null;
   is_shakh_store: boolean;
   image_path: string | null;
   referral_commission_iqd: number;
   stock_quantity: number | null;
   unit: string;
+  variants: ProductVariant[];
 };
 
 type Merchant = { id: string; business_name: string; merchant_type: string; address: string | null };
-type CartItem = { product_id: string; title: string; price_iqd: number; merchant_id: string | null; quantity: number; unit?: string; referral_campaign_id?: string | null };
+type CartItem = {
+  product_id: string;
+  variant_id?: string;
+  variant_label?: string;
+  color_name?: string | null;
+  scent?: string | null;
+  size_label?: string | null;
+  title: string;
+  price_iqd: number;
+  merchant_id: string | null;
+  quantity: number;
+  unit?: string;
+  stock_quantity?: number | null;
+  referral_campaign_id?: string | null;
+};
 
 const storeTypes = [
   { value: "all", label: "هەموو دوکانەکان" },
@@ -49,6 +80,10 @@ const categoryLabels: Record<string, string> = {
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
+  const [catalogCategories, setCatalogCategories] = useState<ProductCategory[]>([]);
+  const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState("");
+  const [variantQuantity, setVariantQuantity] = useState(1);
   const [cartCount, setCartCount] = useState(0);
   const [search, setSearch] = useState("");
   const [searchInitialized, setSearchInitialized] = useState(false);
@@ -69,19 +104,46 @@ export default function ShopPage() {
     const savedReferral = urlReferral || localStorage.getItem("shakh-referral-campaign") || "";
     if (urlReferral) localStorage.setItem("shakh-referral-campaign", urlReferral);
     setReferralCampaignId(savedReferral);
-    Promise.all([
-      supabase.from("products")
-        .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
-        .eq("is_available", true).eq("approval_status", "approved").order("created_at", { ascending: false }),
-      supabase.from("merchant_profiles")
-        .select("id,business_name,merchant_type,address").eq("approval_status", "approved"),
-    ]).then(([productResult, merchantResult]) => {
+
+    const refreshCatalog = async () => {
+      const [productResult, merchantResult, categoryResult] = await Promise.all([
+        supabase.from("products")
+          .select("id,title,description,price_iqd,category_key,category_id,subcategory_id,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
+          .eq("is_available", true).eq("approval_status", "approved").order("created_at", { ascending: false }),
+        supabase.from("merchant_profiles")
+          .select("id,business_name,merchant_type,address").eq("approval_status", "approved"),
+        supabase.from("product_categories")
+          .select("id,store_type,category_key,name,is_active").eq("is_active", true).order("sort_order").order("name"),
+      ]);
       if (!active) return;
-      if (productResult.error || merchantResult.error) setMessage("نەتوانرا زانیاری بازاڕ باربکرێن.");
-      setProducts(productResult.data || []);
+      if (productResult.error || merchantResult.error || categoryResult.error) {
+        setMessage("نەتوانرا زانیاری بازاڕ و کاتەگۆرییەکان باربکرێن.");
+        setLoading(false);
+        return;
+      }
+      const productRows = (productResult.data || []) as Omit<Product, "variants">[];
+      const productIds = productRows.map((product) => product.id);
+      let variantRows: ProductVariant[] = [];
+      if (productIds.length > 0) {
+        const { data, error } = await supabase.from("product_variants")
+          .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,stock_quantity,is_active")
+          .in("product_id", productIds).eq("is_active", true).order("sort_order");
+        if (error) setMessage("نوێکردنەوەی جۆرەکانی کاڵا سەرکەوتوو نەبوو.");
+        else variantRows = (data || []) as ProductVariant[];
+      }
+      const byProduct = new Map<string, ProductVariant[]>();
+      for (const variant of variantRows) {
+        const group = byProduct.get(variant.product_id) || [];
+        group.push(variant);
+        byProduct.set(variant.product_id, group);
+      }
+      setProducts(productRows.map((product) => ({ ...product, variants: byProduct.get(product.id) || [] })));
       setMerchants(merchantResult.data || []);
+      setCatalogCategories((categoryResult.data || []) as ProductCategory[]);
       setLoading(false);
-    }).catch(() => {
+    };
+
+    void refreshCatalog().catch(() => {
       if (active) { setMessage("نەتوانرا بازاڕ باربکرێت."); setLoading(false); }
     });
 
@@ -90,37 +152,19 @@ export default function ShopPage() {
       setCartCount(cart.reduce((total, item) => total + item.quantity, 0));
     } catch { setCartCount(0); }
 
-    const channel = supabase.channel("shakh-shop-product-visibility")
-      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => {
-        void supabase.from("products")
-          .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
-          .eq("is_available", true)
-          .eq("approval_status", "approved")
-          .order("created_at", { ascending: false })
-          .then(({ data, error }) => {
-            if (!active) return;
-            if (error) setMessage("نوێکردنەوەی دۆخی کاڵاکان سەرکەوتوو نەبوو.");
-            else setProducts(data || []);
-          });
-      }).subscribe();
-    const refreshProducts = () => {
-      void supabase.from("products")
-        .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
-        .eq("is_available", true)
-        .eq("approval_status", "approved")
-        .order("created_at", { ascending: false })
-        .then(({ data, error }) => {
-          if (!active) return;
-          if (error) setMessage("نوێکردنەوەی دۆخی کاڵاکان سەرکەوتوو نەبوو.");
-          else setProducts(data || []);
-        });
-    };
-    window.addEventListener("focus", refreshProducts);
-    window.addEventListener("pageshow", refreshProducts);
+    const channel = supabase.channel("shakh-shop-catalog-visibility")
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => { void refreshCatalog(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_variants" }, () => { void refreshCatalog(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_categories" }, () => { void refreshCatalog(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_subcategories" }, () => { void refreshCatalog(); })
+      .subscribe();
+    const refreshOnReturn = () => { void refreshCatalog(); };
+    window.addEventListener("focus", refreshOnReturn);
+    window.addEventListener("pageshow", refreshOnReturn);
     return () => {
       active = false;
-      window.removeEventListener("focus", refreshProducts);
-      window.removeEventListener("pageshow", refreshProducts);
+      window.removeEventListener("focus", refreshOnReturn);
+      window.removeEventListener("pageshow", refreshOnReturn);
       void supabase.removeChannel(channel);
     };
   }, []);
@@ -146,13 +190,10 @@ export default function ShopPage() {
   const typeForProduct = (product: Product) =>
     product.is_shakh_store ? "shakh_store" : merchantMap[product.merchant_id || ""]?.merchant_type || "all";
 
-  const categories = useMemo(() => {
-    if (storeType === "shakh_store") return shakhStoreCategoryKeys;
-    const keys = [...new Set(products
-      .filter((product) => storeType === "all" || typeForProduct(product) === storeType)
-      .map((product) => product.category_key))];
-    return keys.sort();
-  }, [products, storeType, merchantMap]);
+  const categories = useMemo(
+    () => catalogCategories.filter((item) => storeType === "all" || item.store_type === storeType),
+    [catalogCategories, storeType]
+  );
 
   const filtered = useMemo(() => products.filter((product) => {
     const merchant = product.merchant_id ? merchantMap[product.merchant_id] : null;
@@ -160,14 +201,15 @@ export default function ShopPage() {
     const matchesSearch = (product.title + " " + (product.description || "") + " " + storeName + " " + (merchant?.address || ""))
       .toLowerCase().includes(search.toLowerCase());
     const matchesType = storeType === "all" || typeForProduct(product) === storeType;
-    const matchesCategory = category === "all" || product.category_key === category;
+    const matchesCategory = category === "all" || product.category_id === category;
     const matchesSharedProduct = !sharedProductId || product.id === sharedProductId;
     return matchesSearch && matchesType && matchesCategory && matchesSharedProduct;
   }), [products, merchants, search, storeType, category, sharedProductId]);
 
-  function add(product: Product) {
-    if (product.stock_quantity === 0) {
-      setMessage("ئەم کاڵایە لە ئێستادا لە کۆگا نەماوە.");
+  function addToCart(product: Product, quantity = 1, variant?: ProductVariant) {
+    const availableStock = variant ? variant.stock_quantity : product.stock_quantity;
+    if (availableStock === 0 || (availableStock !== null && availableStock !== undefined && quantity > availableStock)) {
+      setMessage("ئەو بڕەی هەڵبژێردراو لە کۆگادا بەردەست نییە.");
       return;
     }
     try {
@@ -175,25 +217,56 @@ export default function ShopPage() {
       const activeReferral = referralCampaignId || cart.find((item) => item.referral_campaign_id)?.referral_campaign_id || null;
       const otherReferral = cart.find((item) => item.referral_campaign_id && item.referral_campaign_id !== activeReferral);
       if (otherReferral) { setMessage("سەبەتەکەت بە لینکی شێر و خەڵاتێکی ترە؛ تکایە یەک لینک بەکاربهێنە."); return; }
-      const existing = cart.find((item) => item.product_id === product.id);
-      if (existing) { existing.quantity += 1; if (activeReferral) existing.referral_campaign_id = activeReferral; }
-      else cart.push({
-        product_id: product.id,
-        title: product.title,
-        price_iqd: product.price_iqd,
-        merchant_id: product.merchant_id,
-        quantity: 1,
-        unit: product.unit,
-        referral_campaign_id: activeReferral,
-      });
+      const existing = cart.find((item) => item.product_id === product.id && (item.variant_id || "") === (variant?.id || ""));
+      if (existing) {
+        const nextQuantity = existing.quantity + quantity;
+        if (availableStock !== null && availableStock !== undefined && nextQuantity > availableStock) {
+          setMessage("کۆگای ئەم جۆرە بەشی ئەو بڕەی زیاتر نییە.");
+          return;
+        }
+        existing.quantity = nextQuantity;
+        existing.stock_quantity = availableStock;
+        if (activeReferral) existing.referral_campaign_id = activeReferral;
+      } else {
+        cart.push({
+          product_id: product.id,
+          ...(variant ? {
+            variant_id: variant.id,
+            variant_label: variant.variant_label,
+            color_name: variant.color_name,
+            scent: variant.scent,
+            size_label: variant.size_label,
+          } : {}),
+          title: product.title,
+          price_iqd: variant?.price_iqd ?? product.price_iqd,
+          merchant_id: product.merchant_id,
+          quantity,
+          unit: variant?.unit || product.unit,
+          stock_quantity: availableStock,
+          referral_campaign_id: activeReferral,
+        });
+      }
       localStorage.setItem("shakh-cart", JSON.stringify(cart));
       window.dispatchEvent(new Event("shakh:cart-updated"));
       setCartCount(cart.reduce((total, item) => total + item.quantity, 0));
-      setMessage("کاڵا زیاد کرا بۆ سەبەتە.");
+      setMessage(variant ? `جۆری «${variant.variant_label}» زیاد کرا بۆ سەبەتە.` : "کاڵا زیاد کرا بۆ سەبەتە.");
     } catch {
       setMessage("نەتوانرا کاڵا زیاد بکرێت بۆ سەبەتە.");
     }
   }
+
+  function add(product: Product) {
+    if (product.variants.length > 0) {
+      const firstAvailable = product.variants.find((variant) => variant.stock_quantity !== 0) || product.variants[0];
+      setVariantProduct(product);
+      setSelectedVariantId(firstAvailable.id);
+      setVariantQuantity(firstAvailable.unit === "kg" ? 0.5 : 1);
+      return;
+    }
+    addToCart(product);
+  }
+
+  const selectedVariant = variantProduct?.variants.find((variant) => variant.id === selectedVariantId) || null;
 
 
   function getShopShareUrl(productId?: string) {
@@ -295,12 +368,55 @@ export default function ShopPage() {
           <div className="mt-3">
             <select aria-label="بەشی کاڵا" value={category} onChange={(event) => setCategory(event.target.value)} className="w-full max-w-xs rounded-xl border border-slate-200 p-3 text-sm">
               <option value="all">هەموو بەشەکانی کاڵا</option>
-              {categories.map((key) => <option key={key} value={key}>{categoryLabels[key] || key}</option>)}
+              {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </div>
         </section>
 
         {message && <p role="status" className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">{message}</p>}
+
+        {variantProduct && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 sm:items-center" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setVariantProduct(null); }}>
+            <section role="dialog" aria-modal="true" aria-labelledby="variant-dialog-title" className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
+              <div className="flex items-start justify-between gap-3">
+                <div><p className="text-xs font-bold text-shakh-orange">هەڵبژاردنی جۆری کاڵا</p><h2 id="variant-dialog-title" className="mt-1 text-xl font-black">{variantProduct.title}</h2></div>
+                <button type="button" onClick={() => setVariantProduct(null)} className="rounded-full border p-2" aria-label="داخستن">×</button>
+              </div>
+              <div className="mt-4 space-y-2">
+                {variantProduct.variants.map((variant) => {
+                  const isSelected = selectedVariantId === variant.id;
+                  const exhausted = variant.stock_quantity === 0;
+                  const attributes = [variant.color_name, variant.scent, variant.size_label].filter(Boolean);
+                  return (
+                    <button key={variant.id} type="button" disabled={exhausted} onClick={() => { setSelectedVariantId(variant.id); setVariantQuantity(variant.unit === "kg" ? 0.5 : 1); }}
+                      className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-right transition ${isSelected ? "border-shakh-blue bg-blue-50 ring-1 ring-shakh-blue" : "border-slate-200"} ${exhausted ? "opacity-40" : ""}`}>
+                      {variant.color_hex ? <span className="h-8 w-8 shrink-0 rounded-full border border-slate-300" style={{ backgroundColor: variant.color_hex }}/> : <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-xs">✓</span>}
+                      <span className="min-w-0 flex-1"><b className="block text-sm">{variant.variant_label}</b><span className="block text-xs text-slate-500">{attributes.join(" · ") || "جۆری تایبەت"}</span><span className="mt-1 block text-[11px] text-slate-400">{exhausted ? "لە کۆگا نەماوە" : variant.stock_quantity === null ? "بەردەست" : `کۆگا: ${variant.stock_quantity}`}</span></span>
+                      <span className="shrink-0 text-sm font-black text-shakh-orange">{variant.price_iqd.toLocaleString("en-US")} د.ع</span>
+                      {isSelected && <span className="text-shakh-blue">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedVariant && (
+                <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-3"><b className="text-sm">بڕی داواکراو</b><span className="text-xs text-slate-500">{unitLabels[selectedVariant.unit || variantProduct.unit] || selectedVariant.unit || variantProduct.unit}</span></div>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={() => setVariantQuantity((q) => Math.max(selectedVariant.unit === "kg" ? 0.5 : 1, Math.round((q - (selectedVariant.unit === "kg" ? 0.5 : 1)) * 1000) / 1000))} className="h-10 w-10 rounded-xl border bg-white">−</button>
+                      <b className="min-w-10 text-center">{variantQuantity}</b>
+                      <button type="button" disabled={selectedVariant.stock_quantity !== null && variantQuantity + (selectedVariant.unit === "kg" ? 0.5 : 1) > selectedVariant.stock_quantity} onClick={() => setVariantQuantity((q) => Math.round((q + (selectedVariant.unit === "kg" ? 0.5 : 1)) * 1000) / 1000)} className="h-10 w-10 rounded-xl border bg-white disabled:opacity-40">+</button>
+                    </div>
+                    <b className="text-lg text-shakh-orange">{Math.round(selectedVariant.price_iqd * variantQuantity).toLocaleString("en-US")} د.ع</b>
+                  </div>
+                  <button type="button" disabled={selectedVariant.stock_quantity === 0 || (selectedVariant.stock_quantity !== null && variantQuantity > selectedVariant.stock_quantity)}
+                    onClick={() => { addToCart(variantProduct, variantQuantity, selectedVariant); setVariantProduct(null); }}
+                    className="mt-4 min-h-12 w-full rounded-xl bg-shakh-orange px-4 font-black text-white disabled:opacity-40">زیادکردن بۆ سەبەتە</button>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
         {loading ? <p className="mt-8">بارکردن...</p> : filtered.length === 0 ? (
           <div className="mt-8 rounded-2xl bg-white p-10 text-center text-slate-500">
             <Package size={32} className="mx-auto mb-3 text-slate-300"/>
@@ -316,7 +432,13 @@ export default function ShopPage() {
               const imageUrl = product.image_path
                 ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
                 : null;
-              const outOfStock = product.stock_quantity === 0;
+              const outOfStock = product.variants.length > 0
+                ? product.variants.every((variant) => variant.stock_quantity === 0)
+                : product.stock_quantity === 0;
+              const listedPrice = product.variants.length > 0
+                ? Math.min(...product.variants.map((variant) => variant.price_iqd))
+                : product.price_iqd;
+              const categoryName = catalogCategories.find((item) => item.id === product.category_id)?.name || categoryLabels[product.category_key] || product.category_key;
               const detailsOpen = expandedProductIds.includes(product.id);
 
               return (
@@ -345,7 +467,7 @@ export default function ShopPage() {
                   </div>
                   <div className="flex flex-col gap-2 p-3 sm:p-4">
                     <p className="truncate text-sm font-semibold text-slate-600">{storeName}</p>
-                    <p className="font-black text-lg text-shakh-orange">{product.price_iqd.toLocaleString("en-US")} د.ع</p>
+                    <p className="font-black text-lg text-shakh-orange">{product.variants.length > 0 ? "لە " : ""}{listedPrice.toLocaleString("en-US")} د.ع</p>
                     <button
                       type="button"
                       onClick={() => setExpandedProductIds((current) => detailsOpen ? current.filter((id) => id !== product.id) : [...current, product.id])}
@@ -359,15 +481,21 @@ export default function ShopPage() {
                       <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 text-sm">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="font-bold text-shakh-orange">{storeLabel}</span>
-                          <span className="text-xs text-slate-400">{categoryLabels[product.category_key] || product.category_key}</span>
+                          <span className="text-xs text-slate-400">{categoryName}</span>
                         </div>
                         <h2 className="font-bold leading-6 text-slate-800">{product.title}</h2>
                         {product.description && <p className="text-xs leading-5 text-slate-500">{product.description}</p>}
                         {storeAddress && <p className="flex items-start gap-1 text-xs text-slate-500"><span aria-hidden="true">📍</span><span>شوێنی دوکان: {storeAddress}</span></p>}
-                        <p className="text-xs text-slate-500">یەکە: {unitLabels[product.unit] || product.unit}</p>
-                        <p className={`text-xs ${outOfStock ? "text-red-600" : "text-green-700"}`}>
-                          {outOfStock ? "کۆگا تەواو بووە" : product.stock_quantity === null ? "بەردەست" : `ماوە: ${product.stock_quantity.toLocaleString("en-US")} ${unitLabels[product.unit] || product.unit}`}
-                        </p>
+                        {product.variants.length > 0 ? (
+                          <div className="rounded-xl bg-blue-50 p-2.5 text-xs text-blue-900">
+                            {product.variants.length} جۆری جیاواز هەیە · نرخ و کۆگای هەر جۆرێک جیاوازە
+                          </div>
+                        ) : <>
+                          <p className="text-xs text-slate-500">یەکە: {unitLabels[product.unit] || product.unit}</p>
+                          <p className={`text-xs ${outOfStock ? "text-red-600" : "text-green-700"}`}>
+                            {outOfStock ? "کۆگا تەواو بووە" : product.stock_quantity === null ? "بەردەست" : `ماوە: ${product.stock_quantity.toLocaleString("en-US")} ${unitLabels[product.unit] || product.unit}`}
+                          </p>
+                        </>}
                         {product.referral_commission_iqd > 0 && (
                           <div className="w-full rounded-xl border border-purple-100 bg-gradient-to-l from-purple-50 to-orange-50 px-2.5 py-2 text-xs font-black leading-5 text-purple-800">
                             <span className="mr-1 inline-block">🎁</span>
