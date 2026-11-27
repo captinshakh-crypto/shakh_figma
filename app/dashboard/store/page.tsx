@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Enums } from "@/lib/supabase/database.types";
-import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Camera, Share2 } from "lucide-react";
+import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Camera, Share2, Plus } from "lucide-react";
 
 const merchantTypes: { value: Enums<"app_role">; label: string }[] = [
   { value: "supermarket", label: "سوپەرمارکێت" },
@@ -653,19 +653,26 @@ export default function StorePage() {
                   <label className="block text-sm font-bold">ناوی کاڵا
                     <input required maxLength={180} value={form.title} onChange={(event) => setForm((old) => ({ ...old, title: event.target.value }))} placeholder="ناوی کاڵا" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                   </label>
-                  <label className="block text-sm font-bold">بەشی سەرەکی / جۆری کاڵا
-                    <select value={form.category} onChange={(event) => {
-                      const nextCategory = event.target.value;
-                      const nextUnits = getUnitsForCategory(nextCategory);
+                  <label className="block text-sm font-bold">کاتەگۆری سەرەکی
+                    <select required value={form.categoryId} onChange={(event) => {
+                      const selected = formCategories.find((item) => item.id === event.target.value);
                       setForm((old) => ({
                         ...old,
-                        category: nextCategory,
-                        unit: nextUnits.some((unit) => unit.value === old.unit) ? old.unit : nextUnits[0]?.value || "piece",
+                        categoryId: event.target.value,
+                        category: selected?.category_key || "",
+                        subcategoryId: "",
                       }));
                     }} className="mt-2 w-full rounded-xl border border-slate-200 p-3">
-                      {formCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                      <option value="">کاتەگۆری هەڵبژێرە</option>
+                      {formCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                     </select>
-                    {isAdmin && <small className="mt-1 block text-xs font-medium leading-5 text-slate-500">بە هەڵبژاردنی جۆری کاڵا، یەکەی فرۆشتن بە گونجاوی هەمان بەش دەگۆڕێت.</small>}
+                    <small className="mt-1 block text-xs font-medium leading-5 text-slate-500">هەمان لیستی ناوەندیی سوپەر ئەدمین بەکاردەهێنرێت.</small>
+                  </label>
+                  <label className="block text-sm font-bold">ژێرکاتەگۆری (ئارەزوومەندانە)
+                    <select value={form.subcategoryId} onChange={(event) => setForm((old) => ({ ...old, subcategoryId: event.target.value }))} disabled={!form.categoryId || formSubcategories.length === 0} className="mt-2 w-full rounded-xl border border-slate-200 p-3 disabled:bg-slate-50">
+                      <option value="">بێ ژێرکاتەگۆری</option>
+                      {formSubcategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </select>
                   </label>
                 </div>
                 <label className="block text-sm font-bold">وردەکاری کاڵا
@@ -688,10 +695,67 @@ export default function StorePage() {
                     <input type="number" min="0" step="1" value={form.referralCommission} onChange={(event) => setForm((old) => ({ ...old, referralCommission: event.target.value }))} placeholder="٠ = بێ خەڵات · نموونە: ٥٠٠ د.ع" className="mt-2 w-full rounded-xl border-2 border-purple-200 bg-purple-50 p-3 text-base font-black text-purple-900 focus:border-purple-500 focus:outline-none"/>
                     <small className="mt-2 block text-xs font-medium leading-6 text-slate-500">٠ دابنێ ئەگەر ناتەوێت ئەم کاڵایە خەڵاتی شێری هەبێت. تەنها کاتێک بڕێکی زیاتر لە سفر دابنێیت، ئەم کاڵایە لە پرۆگرامی شێر و خەڵاتدا دەردەکەوێت؛ خەڵاتەکە دوای گەیاندنی داواکاری زیاد دەکرێت.</small>
                   </label>
-                  <label className="block text-sm font-bold">بڕی کۆگا (بەتاڵ = بێ سنوور)
-                    <input type="number" min="0" step="0.001" value={form.stock} onChange={(event) => setForm((old) => ({ ...old, stock: event.target.value }))} placeholder="بۆ نموونە: ٢٥" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
-                  </label>
+                  {variantDrafts.length === 0
+                    ? <label className="block text-sm font-bold">بڕی کۆگا (بەتاڵ = بێ سنوور)
+                        <input type="number" min="0" step="0.001" value={form.stock} onChange={(event) => setForm((old) => ({ ...old, stock: event.target.value }))} placeholder="بۆ نموونە: ٢٥" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
+                      </label>
+                    : <div className="rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">کۆگا لەسەر هەر جۆرێک بە جیاوازی هەژمار دەکرێت؛ کۆگای بنەڕەتی بەکارناهێنرێت.</div>}
                 </div>
+                <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="font-black text-slate-900">جۆرەکانی کاڵا (ڕەنگ، بۆن، قەبارە، حەجم...)</h3>
+                      <p className="mt-1 text-xs leading-6 text-slate-600">ئەگەر کاڵاکە چەند جۆری هەیە، هەر جۆرێک بە نرخ و کۆگای تایبەتی زیاد بکە. ئەگەر هیچ جۆرێکی نییە، ئەم بەشە بەتاڵ بهێڵەوە.</p>
+                    </div>
+                    <button type="button" onClick={() => setVariantDrafts((current) => [...current, { variant_label: "", color_name: "", color_hex: "", scent: "", size_label: "", unit: form.unit, price: form.price, costPrice: "", stock: "", sku: "" }])} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-shakh-blue px-4 text-sm font-bold text-white">
+                      <Plus size={16}/> زیادکردنی جۆر
+                    </button>
+                  </div>
+                  {variantDrafts.length > 0 && <div className="mt-4 space-y-3">
+                    {variantDrafts.map((variant, index) => (
+                      <div key={variant.id || index} className="rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <b className="text-sm">جۆری ژمارە {index + 1}</b>
+                          <button type="button" onClick={() => setVariantDrafts((current) => current.filter((_, rowIndex) => rowIndex !== index))} className="rounded-lg border border-red-100 p-2 text-red-600" aria-label="سڕینەوەی جۆر"><Trash2 size={15}/></button>
+                        </div>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <label className="text-xs font-bold">ناوی جۆر (پێویستە)
+                            <input required value={variant.variant_label} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, variant_label: event.target.value } : row))} placeholder="نموونە: بۆنی گوڵ · ١٠٠ گرام" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">کۆدی SKU (ئارەزوومەندانە)
+                            <input dir="ltr" value={variant.sku} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, sku: event.target.value } : row))} placeholder="HERO-ROSE-100" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">ڕەنگ
+                            <input value={variant.color_name} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, color_name: event.target.value } : row))} placeholder="ڕەش، سپی، سوور..." className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">کۆدی ڕەنگ (#RRGGBB)
+                            <input dir="ltr" value={variant.color_hex} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, color_hex: event.target.value } : row))} placeholder="#F4A261" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">بۆن یان تام
+                            <input value={variant.scent} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, scent: event.target.value } : row))} placeholder="گوڵ، لیمۆ، لاڤەندەر..." className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">قەبارە / حەجم
+                            <input value={variant.size_label} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, size_label: event.target.value } : row))} placeholder="١٠٠ گرام، ٥٠٠ مل..." className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">نرخ (د.ع)
+                            <input required type="number" min="1" step="1" value={variant.price} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, price: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          {isAdmin && <label className="text-xs font-bold">نرخی کڕین (د.ع)
+                            <input type="number" min="0" step="1" value={variant.costPrice} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, costPrice: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>}
+                          <label className="text-xs font-bold">کۆگای ئەم جۆرە (بەتاڵ = بێ سنوور)
+                            <input type="number" min="0" step="0.001" value={variant.stock} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, stock: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          </label>
+                          <label className="text-xs font-bold">یەکە
+                            <select value={variant.unit} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, unit: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm">
+                              {units.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
+                            </select>
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>}
+                </section>
                 <div className="block text-sm font-bold">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="flex items-center gap-2"><ImagePlus size={18}/> وێنەی کاڵا</span>
