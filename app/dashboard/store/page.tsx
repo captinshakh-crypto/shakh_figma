@@ -261,9 +261,12 @@ export default function StorePage() {
 
   const filteredProducts = useMemo(() => products.filter((product) => {
     const matchesSearch = (product.title + " " + (product.description || "")).toLowerCase().includes(search.toLowerCase());
+    const outOfStock = product.variants.length > 0
+      ? product.variants.every((variant) => variant.stock_quantity === 0)
+      : product.stock_quantity === 0;
     const matchesAvailability = availabilityFilter === "all"
-      || (availabilityFilter === "available" && product.is_available && product.stock_quantity !== 0)
-      || (availabilityFilter === "unavailable" && (!product.is_available || product.stock_quantity === 0));
+      || (availabilityFilter === "available" && product.is_available && !outOfStock)
+      || (availabilityFilter === "unavailable" && (!product.is_available || outOfStock));
     return matchesSearch && matchesAvailability;
   }), [products, search, availabilityFilter]);
 
@@ -875,7 +878,13 @@ export default function StorePage() {
                     const publicImage = product.image_path
                       ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
                       : null;
-                    const outOfStock = product.stock_quantity === 0;
+                    const outOfStock = product.variants.length > 0
+                       ? product.variants.every((variant) => variant.stock_quantity === 0)
+                       : product.stock_quantity === 0;
+                     const lowestVariantPrice = product.variants.length > 0
+                       ? Math.min(...product.variants.map((variant) => variant.price_iqd))
+                       : product.price_iqd;
+                     const availableVariantCount = product.variants.filter((variant) => variant.stock_quantity !== 0).length;
                     return (
                       <article key={product.id} className="overflow-hidden rounded-2xl bg-white shadow-soft">
                         <div className="flex gap-4 p-4">
@@ -887,13 +896,17 @@ export default function StorePage() {
                               <h3 className="font-black">{product.title}</h3>
                               <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${product.approval_status === "pending" ? "bg-amber-50 text-amber-800" : product.approval_status === "rejected" ? "bg-red-50 text-red-700" : product.is_available && !outOfStock ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{product.approval_status === "pending" ? "چاوەڕوانی پەسەندکردن" : product.approval_status === "rejected" ? "ڕەفزکراو" : outOfStock ? "کۆگا تەواو بووە" : product.is_available ? "بەردەست" : "ناچالاک"}</span>
                             </div>
-                            {isAdmin && <p className="mt-1 text-xs font-semibold text-slate-500">نرخی کڕین: {product.cost_price_iqd === null ? "تۆمار نەکراوە" : formatIQD(product.cost_price_iqd)} · قازانجی هەر دانە: {product.cost_price_iqd === null ? "—" : formatIQD(product.price_iqd - product.cost_price_iqd)}</p>}
+                            {isAdmin && <p className="mt-1 text-xs font-semibold text-slate-500">{product.variants.length > 0
+                               ? `${product.variants.length} جۆری تایبەت · تێچوو و قازانج بەپێی هەر جۆرێک لە ئۆردەر تۆمار دەکرێت`
+                               : `نرخی کڕین: ${product.cost_price_iqd === null ? "تۆمار نەکراوە" : formatIQD(product.cost_price_iqd)} · قازانجی هەر دانە: ${product.cost_price_iqd === null ? "—" : formatIQD(product.price_iqd - product.cost_price_iqd)}`}</p>}
                             {isAdmin && !product.is_shakh_store && <p className="mt-1 rounded-lg bg-blue-50 px-2 py-1 text-xs font-bold text-blue-800">خاوەنی پۆست: {merchantNames[product.merchant_id || ""] || "دوکانداری نەناسراو"}</p>}
                             {product.referral_commission_iqd > 0
                               ? <p className="mt-1 rounded-lg bg-purple-50 px-2 py-1 text-xs font-black text-purple-800">خەڵاتی شێر بۆ هەر دانە: {formatIQD(product.referral_commission_iqd)}</p>
                               : <p className="mt-1 rounded-lg bg-slate-50 px-2 py-1 text-xs font-medium text-slate-500">ئەم کاڵایە بە شێوەی ئاسایی دەفرۆشرێت؛ شێر و خەڵاتی نییە.</p>}
-                            <p className="mt-1 text-lg font-black text-shakh-orange">{formatIQD(product.price_iqd)} <small className="text-xs font-medium text-slate-500">/ {units.find((unit) => unit.value === product.unit)?.label || product.unit}</small></p>
-                            <p className="mt-1 text-sm text-slate-500">کۆگا: {product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}</p>
+                            <p className="mt-1 text-lg font-black text-shakh-orange">{product.variants.length > 0 ? "لە " : ""}{formatIQD(lowestVariantPrice)} <small className="text-xs font-medium text-slate-500">/ {units.find((unit) => unit.value === product.unit)?.label || product.unit}</small></p>
+                            <p className="mt-1 text-sm text-slate-500">{product.variants.length > 0
+                               ? `کۆگا: ${availableVariantCount} لە ${product.variants.length} جۆر بەردەستن`
+                               : `کۆگا: ${product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}`}</p>
                             {product.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>}{product.rejection_reason && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">هۆکاری ڕەفز: {product.rejection_reason}</p>}
                           </div>
                         </div>
