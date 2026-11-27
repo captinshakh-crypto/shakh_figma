@@ -117,6 +117,7 @@ export type Database = {
           captain_type: Database["public"]["Enums"]["captain_type"]
           created_at: string
           is_active: boolean
+          is_available: boolean
           merchant_id: string | null
           user_id: string
         }
@@ -126,6 +127,7 @@ export type Database = {
           captain_type: Database["public"]["Enums"]["captain_type"]
           created_at?: string
           is_active?: boolean
+          is_available?: boolean
           merchant_id?: string | null
           user_id: string
         }
@@ -135,6 +137,7 @@ export type Database = {
           captain_type?: Database["public"]["Enums"]["captain_type"]
           created_at?: string
           is_active?: boolean
+          is_available?: boolean
           merchant_id?: string | null
           user_id?: string
         }
@@ -1311,6 +1314,10 @@ export type Database = {
           p_longitude: number
           p_order_id: string
         }
+        Returns: undefined
+      }
+      set_my_captain_availability: {
+        Args: { p_is_available: boolean }
         Returns: undefined
       }
       update_my_profile: {
