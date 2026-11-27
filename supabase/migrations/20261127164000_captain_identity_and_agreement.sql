@@ -194,8 +194,12 @@ begin
   )
   returning id into v_id;
 
-  insert into public.captain_agreement_acceptances(user_id,application_id,agreement_version,accepted_user_agent)
-  values(auth.uid(),v_id,p_agreement_version,left(coalesce(p_user_agent,''),500));
+  insert into public.captain_agreement_acceptances(user_id,application_id,agreement_version,accepted_at,accepted_user_agent)
+  values(auth.uid(),v_id,p_agreement_version,now(),left(coalesce(p_user_agent,''),500))
+  on conflict(user_id,agreement_version) do update set
+    application_id=excluded.application_id,
+    accepted_at=excluded.accepted_at,
+    accepted_user_agent=excluded.accepted_user_agent;
 
   insert into public.notifications(user_id,title,body,kind)
   select id,'داواکاری کاپتن نێردرا','داواکاری بوون بە کاپتن بۆ پەسەندکردن نێردرا.','captain_application'
