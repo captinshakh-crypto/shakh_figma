@@ -10,6 +10,10 @@ type Application = {
   captain_type: "shakh" | "merchant";
   merchant_id: string | null;
   note: string | null;
+  national_id_number: string | null;
+  identity_document_path: string | null;
+  agreement_version: string | null;
+  agreement_accepted_at: string | null;
   created_at: string;
 };
 type Profile = { id: string; full_name: string | null; email: string | null; phone: string | null };
@@ -19,6 +23,7 @@ export default function CaptainApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [merchants, setMerchants] = useState<Record<string, string>>({});
+  const [documentUrls, setDocumentUrls] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
@@ -31,7 +36,7 @@ export default function CaptainApplicationsPage() {
     if (admin?.role !== "super_admin") { window.location.href = "/dashboard"; return; }
 
     const { data, error } = await supabase.from("captain_applications")
-      .select("id,user_id,captain_type,merchant_id,note,created_at")
+      .select("id,user_id,captain_type,merchant_id,note,national_id_number,identity_document_path,agreement_version,agreement_accepted_at,created_at")
       .eq("status", "pending").order("created_at", { ascending: true });
     if (error) throw error;
 
@@ -42,6 +47,11 @@ export default function CaptainApplicationsPage() {
       merchantIds.length ? supabase.from("merchant_profiles").select("id,business_name").in("id", merchantIds) : Promise.resolve({ data: [], error: null }),
     ]);
 
+    const documentEntries = await Promise.all((data || []).filter((item) => !!item.identity_document_path).map(async (item) => {
+      const { data: signed } = await supabase.storage.from("captain-documents").createSignedUrl(item.identity_document_path!, 300);
+      return [item.id, signed?.signedUrl || ""] as const;
+    }));
+    setDocumentUrls(Object.fromEntries(documentEntries.filter(([, url]) => !!url)));
     setApplications(data || []);
     setProfiles(Object.fromEntries((profileResult.data || []).map((item) => [item.id, item])));
     setMerchants(Object.fromEntries((merchantResult.data || []).map((item) => [item.id, item.business_name])));
@@ -88,6 +98,12 @@ export default function CaptainApplicationsPage() {
                 <span className="rounded-full bg-orange-50 px-3 py-2 text-sm font-bold text-shakh-orange">
                   {application.captain_type === "shakh" ? "کاپتنی شاخ" : "کاپتنی تایبەت بە دوکان"}
                 </span>
+              </div>
+              <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm">
+                <p><b>ژمارەی ناسنامە:</b> <span dir="ltr">{application.national_id_number || "تۆمار نەکراوە"}</span></p>
+                <p className="mt-1"><b>بەڵێننامە:</b> {application.agreement_version || "پەسەند نەکراوە"}</p>
+                {application.agreement_accepted_at && <p className="mt-1 text-xs text-slate-500">کاتی پەسەندکردن: {new Date(application.agreement_accepted_at).toLocaleString("ckb-IQ")}</p>}
+                {documentUrls[application.id] && <a href={documentUrls[application.id]} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg bg-blue-100 px-3 py-2 text-xs font-bold text-blue-800">بینینی بەڵگەنامەی ناسنامە</a>}
               </div>
               {application.captain_type === "merchant" && (
                 <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">دوکان: {application.merchant_id ? merchants[application.merchant_id] || "دوکان نەدۆزرایەوە" : "—"}</p>
