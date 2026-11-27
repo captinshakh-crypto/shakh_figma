@@ -48,6 +48,9 @@ export default function ProfilePage() {
   const [captainType, setCaptainType] = useState<Enums<"captain_type">>("shakh");
   const [merchantId, setMerchantId] = useState("");
   const [note, setNote] = useState("");
+  const [nationalIdNumber, setNationalIdNumber] = useState("");
+  const [identityDocument, setIdentityDocument] = useState<File | null>(null);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -113,17 +116,51 @@ export default function ProfilePage() {
     event.preventDefault();
     setSaving(true);
     setMessage("");
+    let uploadedPath: string | null = null;
     try {
-      const { error } = await createClient().rpc("request_captain_application", {
+      const normalizedId = nationalIdNumber.replace(/\\D/g, "");
+      if (normalizedId.length < 5 || normalizedId.length > 20) throw new Error("ژمارەی ناسنامە دەبێت لە ٥ تا ٢٠ ژمارە بێت.");
+      if (!identityDocument) throw new Error("وێنە یان PDF ـی ناسنامە باربکە.");
+      if (identityDocument.size > 10 * 1024 * 1024) throw new Error("قەبارەی ناسنامە نابێت لە ١٠MB زیاتر بێت.");
+      if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(identityDocument.type)) {
+        throw new Error("فایلی ناسنامە دەبێت JPG، PNG، WebP یان PDF بێت.");
+      }
+      if (!agreementAccepted) throw new Error("پێویستە بەڵێننامەی کاپتن پەسەند بکەیت.");
+
+      const supabase = createClient();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error("تکایە دووبارە بچۆ ژوورەوە.");
+
+      const extension = identityDocument.type === "application/pdf" ? "pdf"
+        : identityDocument.type === "image/png" ? "png"
+        : identityDocument.type === "image/webp" ? "webp" : "jpg";
+      uploadedPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from("captain-documents").upload(uploadedPath, identityDocument, {
+        contentType: identityDocument.type,
+        upsert: false,
+      });
+      if (uploadError) throw uploadError;
+
+      const { error } = await supabase.rpc("request_captain_application_v2", {
         p_captain_type: captainType,
-        ...(captainType === "merchant" ? { p_merchant_id: merchantId } : {}),
+        p_merchant_id: captainType === "merchant" ? merchantId : null,
         p_note: note.trim(),
+        p_national_id_number: normalizedId,
+        p_identity_document_path: uploadedPath,
+        p_agreement_version: "shakh-captain-terms-v1",
+        p_user_agent: navigator.userAgent,
       });
       if (error) throw error;
-      setMessage("داواکاری کاپتن نێردرا. دوای پەسەندکردنی سوپەر ئەدمین ڕۆڵەکەت دەگۆڕدرێت.");
+      uploadedPath = null;
+      setMessage("داواکاری کاپتن لەگەڵ ناسنامە و پەسەندکردنی بەڵێننامە نێردرا. دوای پەسەندکردنی سوپەر ئەدمین ڕۆڵەکەت دەگۆڕدرێت.");
       setNote("");
+      setNationalIdNumber("");
+      setIdentityDocument(null);
+      setAgreementAccepted(false);
       await load();
     } catch (error) {
+      if (uploadedPath) await createClient().storage.from("captain-documents").remove([uploadedPath]);
       setMessage(error instanceof Error ? error.message : "ناردنی داواکاری سەرکەوتوو نەبوو.");
     } finally {
       setSaving(false);
@@ -204,6 +241,31 @@ export default function ProfilePage() {
                       {merchants.length === 0 && <small className="mt-2 block text-amber-700">هیچ دوکانێکی پەسەندکراو ئامادە نییە.</small>}
                     </label>
                   )}
+
+                  <label className="block text-sm font-bold">ژمارەی ناسنامەی فەرمی
+                    <input required inputMode="numeric" maxLength={20} value={nationalIdNumber} onChange={(event) => setNationalIdNumber(event.target.value)} placeholder="ژمارەی ناسنامە" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
+                  </label>
+                  <label className="block text-sm font-bold">وێنەی ناسنامە (JPG، PNG، WebP یان PDF — تا ١٠MB)
+                    <input required type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={(event) => setIdentityDocument(event.target.files?.[0] || null)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/>
+                    <small className="mt-1 block text-xs font-normal text-slate-500">تەنها سوپەر ئەدمین دەتوانێت ئەم بەڵگەنامەیە ببینێت.</small>
+                  </label>
+
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-7 text-blue-950">
+                    <b className="block text-base">بەڵێننامەی کاپتن — شاخ</b>
+                    <ol className="mt-2 list-decimal space-y-1 pr-5">
+                      <li>کەلوپەل و داواکارییەکانی کڕیار و دوکاندار بە ئەمانەت و پارێزراوی دەگەیەنم.</li>
+                      <li>پارە و کاڵا بە دروستی ڕادەستی خاوەنەکەیان دەکەم.</li>
+                      <li>ڕێز لە کڕیار و دوکاندار دەگرم و زانیاری تایبەتییان دەپارێزم.</li>
+                      <li>پابەندی یاسا، ڕێنمایی سەلامەتی هاتوچۆ و ڕێساکانی شاخ دەبم.</li>
+                      <li>هەر زیان، ونبوون، کێشە یان دواخستنێک بە خێرایی بە شاخ ڕادەگەیەنم.</li>
+                      <li>بەرپرسیارێتی هەڵسوکەوتی خۆم لە چوارچێوەی یاسا و بەڵگە پەیوەندیدارەکاندا دەگرمە ئەستۆ.</li>
+                    </ol>
+                    <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-blue-200 pt-3 font-bold">
+                      <input type="checkbox" required checked={agreementAccepted} onChange={(event) => setAgreementAccepted(event.target.checked)} className="mt-1"/>
+                      <span>بەڵێننامەکەم خوێندووەتەوە و پەسەندی دەکەم.</span>
+                    </label>
+                    <p className="mt-2 text-xs text-blue-800">وەشانی بەڵێننامە: shakh-captain-terms-v1 · کاتی پەسەندکردن بە ئۆتۆماتیکی لە سیستەم تۆمار دەکرێت.</p>
+                  </div>
 
                   <label className="block text-sm font-bold">تێبینی (ئارەزوومەندانە)
                     <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} maxLength={500} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" placeholder="زانیاری زیادە بۆ داواکاری..."/>
