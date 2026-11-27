@@ -74,6 +74,7 @@ export default function ProfilePage() {
 
     if (p.error) throw p.error;
     if (roleResult.error) throw roleResult.error;
+    if (agreementResult.error) throw agreementResult.error;
     setProfile({
       ...p.data,
       role: roleResult.data || p.data.role,
