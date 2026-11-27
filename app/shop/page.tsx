@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ShoppingCart, Store, Search, Package, SlidersHorizontal, Share2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import type { Json } from "@/lib/supabase/database.types";
 import ShakhBrand from "@/components/shakh-brand";
 import { Headset } from "lucide-react";
 
@@ -21,7 +22,7 @@ type Product = {
   unit: string;
 };
 
-type Merchant = { id: string; business_name: string; merchant_type: string; address: string | null };
+type Merchant = { id: string; business_name: string; merchant_type: string; address: string | null; operating_hours: Json; manual_open: boolean };
 type CartItem = { product_id: string; title: string; price_iqd: number; merchant_id: string | null; quantity: number; unit?: string; referral_campaign_id?: string | null };
 
 const storeTypes = [
@@ -45,6 +46,20 @@ const categoryLabels: Record<string, string> = {
   staples: "پێداویستی بنەڕەتی", snacks: "خواردنی سووک", household: "پێداویستی ماڵ", tomatoes: "تەماتە", cucumbers: "خیار", vegetables: "سەوزەوات", fruits: "میوە", leafy_greens: "سەوزەی گەڵادار", herbs: "سەوزە و گیا بەهاراتییەکان",
   general: "گشتی", electronics: "ئەلیکترۆنیات", accessories: "ئاکسسوارات", other: "هی تر",
 };
+
+function isMerchantOpen(merchant: Merchant) {
+  if (!merchant.manual_open) return false;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Baghdad", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const dayKey = ({ Mon: "mon", Tue: "tue", Wed: "wed", Thu: "thu", Fri: "fri", Sat: "sat", Sun: "sun" } as Record<string, string>)[values.weekday] || "mon";
+  const hours = merchant.operating_hours as unknown as Record<string, { open: string; close: string; closed: boolean }>;
+  const today = hours?.[dayKey];
+  if (!today || today.closed) return false;
+  const current = `${values.hour}:${values.minute}`;
+  return current >= today.open && current < today.close;
+}
 
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -73,7 +88,7 @@ export default function ShopPage() {
         .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
         .eq("is_available", true).eq("approval_status", "approved").order("created_at", { ascending: false }),
       supabase.from("merchant_profiles")
-        .select("id,business_name,merchant_type,address").eq("approval_status", "approved"),
+        .select("id,business_name,merchant_type,address,operating_hours,manual_open").eq("approval_status", "approved"),
     ]).then(([productResult, merchantResult]) => {
       if (!active) return;
       if (productResult.error || merchantResult.error) setMessage("نەتوانرا زانیاری بازاڕ باربکرێن.");
@@ -101,7 +116,18 @@ export default function ShopPage() {
             if (error) setMessage("نوێکردنەوەی دۆخی کاڵاکان سەرکەوتوو نەبوو.");
             else setProducts(data || []);
           });
-      }).subscribe();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "merchant_profiles" }, () => {
+        void supabase.from("merchant_profiles")
+          .select("id,business_name,merchant_type,address,operating_hours,manual_open")
+          .eq("approval_status", "approved")
+          .then(({ data, error }) => {
+            if (!active) return;
+            if (error) setMessage("نوێکردنەوەی کاتی دوکان سەرکەوتوو نەبوو.");
+            else setMerchants(data || []);
+          });
+      })
+      .subscribe();
     const refreshProducts = () => {
       void supabase.from("products")
         .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
@@ -165,6 +191,8 @@ export default function ShopPage() {
   }), [products, merchants, search, storeType, category, sharedProductId]);
 
   function add(product: Product) {
+    const merchant = product.merchant_id ? merchantMap[product.merchant_id] : null;
+    if (merchant && !isMerchantOpen(merchant)) { setMessage("ئەم دوکانە لە ئێستادا داخراوە؛ لە کاتی کردنەوەیدا دەتوانیت ئۆردەر بنێریت."); return; }
     if (product.stock_quantity === 0) {
       setMessage("ئەم کاڵایە لە ئێستادا لە کۆگا نەماوە.");
       return;
@@ -316,6 +344,7 @@ export default function ShopPage() {
                 ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
                 : null;
               const outOfStock = product.stock_quantity === 0;
+              const storeOpen = product.is_shakh_store || !merchant || isMerchantOpen(merchant);
 
               return (
                 <article key={product.id} className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
@@ -328,6 +357,7 @@ export default function ShopPage() {
                       <span className="text-[11px] text-slate-400">{categoryLabels[product.category_key] || product.category_key}</span>
                     </div>
                     <p className="mt-1 min-h-5 truncate text-xs text-slate-500">{storeName}</p>
+                    {!product.is_shakh_store && <p className={`mt-1 text-[11px] font-bold ${storeOpen ? "text-green-700" : "text-red-600"}`}>{storeOpen ? "دوکان کراوە" : "دوکان داخراوە"}</p>}
                     <p className="mt-1 flex min-h-5 items-center gap-1 truncate text-[11px] text-slate-500">{storeAddress ? <><span aria-hidden="true">📍</span><span className="truncate">شوێنی دوکان: {storeAddress}</span></> : "\u00a0"}</p>
                     <h2 className="mt-1 min-h-12 line-clamp-2 font-bold">{product.title}</h2>
                     <p className="mt-1 min-h-9 line-clamp-2 text-xs text-slate-500">{product.description || "\u00a0"}</p>
@@ -348,8 +378,8 @@ export default function ShopPage() {
                         className="flex h-12 items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2 text-xs font-bold text-orange-800 transition hover:bg-orange-100">
                         <Share2 size={16}/> شێرکردن
                       </button>
-                      <button disabled={outOfStock} onClick={() => add(product)} className="h-12 rounded-xl bg-shakh-blue px-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
-                        {outOfStock ? "لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
+                      <button disabled={outOfStock || !storeOpen} onClick={() => add(product)} className="h-12 rounded-xl bg-shakh-blue px-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
+                        {outOfStock ? "لە کۆگا نەماوە" : !storeOpen ? "دوکان داخراوە" : "زیادکردن بۆ سەبەتە"}
                       </button>
                     </div>
                   </div>

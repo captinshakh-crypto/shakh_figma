@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Enums } from "@/lib/supabase/database.types";
+import type { Enums, Json } from "@/lib/supabase/database.types";
 import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Share2 } from "lucide-react";
 
 const merchantTypes: { value: Enums<"app_role">; label: string }[] = [
@@ -87,6 +87,28 @@ function getUnitsForCategory(category: string) {
   return allowed ? units.filter((unit) => allowed.includes(unit.value)) : units;
 }
 
+type StoreDayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+type StoreDayHours = { open: string; close: string; closed: boolean };
+type StoreHours = Record<StoreDayKey, StoreDayHours>;
+const defaultStoreHours: StoreHours = {
+  mon: { open: "00:00", close: "23:59", closed: false },
+  tue: { open: "00:00", close: "23:59", closed: false },
+  wed: { open: "00:00", close: "23:59", closed: false },
+  thu: { open: "00:00", close: "23:59", closed: false },
+  fri: { open: "00:00", close: "23:59", closed: false },
+  sat: { open: "00:00", close: "23:59", closed: false },
+  sun: { open: "00:00", close: "23:59", closed: false },
+};
+const storeDays: { key: StoreDayKey; label: string }[] = [
+  { key: "sat", label: "شەممە" },
+  { key: "sun", label: "یەکشەممە" },
+  { key: "mon", label: "دووشەممە" },
+  { key: "tue", label: "سێشەممە" },
+  { key: "wed", label: "چوارشەممە" },
+  { key: "thu", label: "پێنجشەممە" },
+  { key: "fri", label: "هەینی" },
+];
+
 type Merchant = {
   id: string;
   business_name: string;
@@ -94,6 +116,8 @@ type Merchant = {
   address: string | null;
   description: string | null;
   approval_status: string;
+  operating_hours: Json;
+  manual_open: boolean;
 };
 
 type Product = {
@@ -126,6 +150,32 @@ const emptyProduct = {
   category: "general",
 };
 
+async function compressProductImage(file: File): Promise<File> {
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error("قەبارەی وێنە نابێت لە ١٠MB زیاتر بێت.");
+  }
+  if (typeof createImageBitmap !== "function") return file;
+  const bitmap = await createImageBitmap(file);
+  try {
+    const maxDimension = 1800;
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("نەتوانرا وێنە ئامادە بکرێت.");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((value) => value ? resolve(value) : reject(new Error("کەمکردنەوەی قەبارەی وێنە سەرکەوتوو نەبوو.")), "image/webp", 0.82);
+    });
+    const extension = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "product-image";
+    return new File([blob], baseName + "." + extension, { type: blob.type || "image/jpeg", lastModified: Date.now() });
+  } finally {
+    bitmap.close();
+  }
+}
+
 function formatIQD(value: number) {
   return value.toLocaleString("en-US") + " د.ع";
 }
@@ -134,6 +184,8 @@ export default function StorePage() {
   const [role, setRole] = useState("");
   const [walletBalance, setWalletBalance] = useState(0);
   const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const [storeHours, setStoreHours] = useState<StoreHours>(defaultStoreHours);
+  const [manualOpen, setManualOpen] = useState(true);
   const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
   const [products, setProducts] = useState<Product[]>([]);
   const [business, setBusiness] = useState("");
@@ -176,10 +228,12 @@ export default function StorePage() {
     } else {
       const { data: merchantData, error: merchantError } = await supabase
         .from("merchant_profiles")
-        .select("id,business_name,merchant_type,address,description,approval_status")
+        .select("id,business_name,merchant_type,address,description,approval_status,operating_hours,manual_open")
         .eq("user_id", user.id).maybeSingle();
       if (merchantError) throw merchantError;
       setMerchant(merchantData);
+      setStoreHours(merchantData?.operating_hours ? merchantData.operating_hours as unknown as StoreHours : defaultStoreHours);
+      setManualOpen(merchantData?.manual_open ?? true);
       if (merchantData?.approval_status !== "approved" || merchantData.merchant_type !== currentRole) {
         setProducts([]);
         setLoading(false);
@@ -284,6 +338,44 @@ export default function StorePage() {
     }
   }
 
+  async function toggleManualStoreOpen() {
+    const nextValue = !manualOpen;
+    setSaving(true);
+    setMessage("");
+    try {
+      const { error } = await createClient().rpc("update_my_store_schedule", {
+        p_operating_hours: storeHours as unknown as Json,
+        p_manual_open: nextValue,
+      });
+      if (error) throw error;
+      setManualOpen(nextValue);
+      setMessage(nextValue ? "دوکان بە پێی خشتەی کاتەکان کراوە." : "دوکان بە دەستی داخرا؛ کڕیار ناتوانێت ئۆردەر بنێرێت.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "گۆڕینی دۆخی دوکان سەرکەوتوو نەبوو.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveStoreSchedule() {
+    setSaving(true);
+    setMessage("");
+    try {
+      const { error } = await createClient().rpc("update_my_store_schedule", {
+        p_operating_hours: storeHours as unknown as Json,
+        p_manual_open: manualOpen,
+      });
+      if (error) throw error;
+      setMessage("کاتی کردنەوە و داخستنی دوکان پاشەکەوت کرا.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "پاشەکەوتکردنی کاتی دوکان سەرکەوتوو نەبوو.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const price = Number(form.price);
@@ -306,8 +398,8 @@ export default function StorePage() {
       setMessage("بڕی کۆگا نابێت ژمارەیەکی نەرێنی یان نادروست بێت.");
       return;
     }
-    if (image && (!["image/jpeg", "image/png", "image/webp"].includes(image.type) || image.size > 5 * 1024 * 1024)) {
-      setMessage("وێنە دەبێت JPG یان PNG یان WebP بێت و قەبارەکەی زیاتر نەبێت لە ٥MB.");
+    if (image && (!["image/jpeg", "image/png", "image/webp"].includes(image.type) || image.size > 10 * 1024 * 1024)) {
+      setMessage("وێنە دەبێت JPG یان PNG یان WebP بێت و قەبارەکەی زیاتر نەبێت لە ١٠MB.");
       return;
     }
 
@@ -320,10 +412,12 @@ export default function StorePage() {
       if (!user) throw new Error("تکایە دووبارە بچۆ ژوورەوە.");
 
       if (image) {
-        const extension = image.type === "image/png" ? "png" : image.type === "image/webp" ? "webp" : "jpg";
+        const uploadFile = await compressProductImage(image);
+        if (uploadFile.size > 10 * 1024 * 1024) throw new Error("دوای گونجاندنیش قەبارەی وێنە لە ١٠MB زیاترە.");
+        const extension = uploadFile.type === "image/png" ? "png" : uploadFile.type === "image/webp" ? "webp" : "jpg";
         uploadedPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
-        const { error: uploadError } = await supabase.storage.from("product-images").upload(uploadedPath, image, {
-          contentType: image.type,
+        const { error: uploadError } = await supabase.storage.from("product-images").upload(uploadedPath, uploadFile, {
+          contentType: uploadFile.type,
           upsert: false,
         });
         if (uploadError) throw uploadError;
@@ -510,6 +604,26 @@ export default function StorePage() {
         </header>
 
         {message && <p role="status" className="mt-5 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">{message}</p>}
+        {!isAdmin && merchant?.approval_status === "approved" && (
+          <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="text-lg font-black">کاتی کارکردنی دوکان</h2><p className="mt-1 text-xs text-slate-500">کاتەکان بە کاتی عێراق (Asia/Baghdad) هەژمار دەکرێن.</p></div>
+              <button type="button" onClick={() => void toggleManualStoreOpen()} disabled={saving} className={`rounded-xl px-4 py-2 text-sm font-bold ${manualOpen ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{manualOpen ? "داخستنی دەستی دوکان" : "کردنەوەی دەستی دوکان"}</button>
+            </div>
+            <p className={`mt-3 rounded-xl p-3 text-sm font-bold ${manualOpen ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>{manualOpen ? "دوکان بە پێی خشتەی کاتەکان کار دەکات." : "دوکان بە دەستی داخراوە و کڕیار ناتوانێت ئۆردەر بنێرێت."}</p>
+            <div className="mt-4 space-y-3">
+              {storeDays.map((day) => (
+                <div key={day.key} className="grid grid-cols-1 items-center gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-[100px_1fr_1fr_auto]">
+                  <b className="text-sm">{day.label}</b>
+                  <label className="text-xs text-slate-500">کردنەوە<input type="time" disabled={storeHours[day.key].closed} value={storeHours[day.key].open} onChange={(event) => setStoreHours((old) => ({ ...old, [day.key]: { ...old[day.key], open: event.target.value } }))} className="mt-1 w-full rounded-lg border bg-white p-2 text-sm text-slate-900"/></label>
+                  <label className="text-xs text-slate-500">داخستن<input type="time" disabled={storeHours[day.key].closed} value={storeHours[day.key].close} onChange={(event) => setStoreHours((old) => ({ ...old, [day.key]: { ...old[day.key], close: event.target.value } }))} className="mt-1 w-full rounded-lg border bg-white p-2 text-sm text-slate-900"/></label>
+                  <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={storeHours[day.key].closed} onChange={(event) => setStoreHours((old) => ({ ...old, [day.key]: { ...old[day.key], closed: event.target.checked } }))}/> داخراوە</label>
+                </div>
+              ))}
+            </div>
+            <button type="button" disabled={saving} onClick={() => void saveStoreSchedule()} className="mt-4 rounded-xl bg-shakh-blue px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{saving ? "پاشەکەوت دەکرێت..." : "پاشەکەوتکردنی خشتەی کات"}</button>
+          </section>
+        )}
         {!isAdmin && merchant?.approval_status === "approved" && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><b>ڕێسای کۆمسیۆنی پۆست:</b> هەر پۆستێکی نوێ تا سوپەر ئەدمین کۆمسیۆنی هەر دانەیەکی دیاری نەکات، ناچالاک و نادیار دەمێنێتەوە. دوای دیاریکردنی کۆمسیۆن، پۆستەکە چالاک دەبێت. کۆمسیۆن لە کاتی فرۆشتن و تەواوبوونی گەیاندن لە جزدان کەم دەکرێتەوە.</div>}
 
         {!isAdmin && merchant?.approval_status === "approved" && walletBalance <= 0 && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">بۆ پۆستکردن یان دەستکاریکردنی کاڵا، جزدانەکەت نابێت بەتاڵ بێت. باڵانسی ئێستا: {walletBalance.toLocaleString("en-US")} د.ع. <Link href="/dashboard/wallet" className="font-black underline">پڕکردنەوەی جزدان</Link></div>}
@@ -590,8 +704,8 @@ export default function StorePage() {
                   </label>
                 </div>
                 <label className="block text-sm font-bold">
-                  <span className="flex items-center gap-2"><ImagePlus size={18}/> وێنەی کاڵا (JPG، PNG یان WebP، تا ٥MB)</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setImage(event.target.files?.[0] || null)} className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-sm"/>
+                  <span className="flex items-center gap-2"><ImagePlus size={18}/> وێنەی کاڵا (JPG، PNG یان WebP، تا ١٠MB)</span>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={(event) => setImage(event.target.files?.[0] || null)} className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-sm"/>
                   {editing?.image_path && !image && <small className="mt-1 block text-slate-500">وێنەی ئێستا دەمێنێتەوە؛ بۆ گۆڕینی، وێنەی نوێ هەڵبژێرە.</small>}
                 </label>
                 <div className="flex flex-wrap gap-2">

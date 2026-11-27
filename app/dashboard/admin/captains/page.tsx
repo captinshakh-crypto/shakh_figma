@@ -24,6 +24,12 @@ type Captain = {
   merchant_id: string | null;
   full_name: string | null;
   email: string | null;
+  phone: string | null;
+  captain_code: string;
+  national_id_number: string | null;
+  identity_document_path: string | null;
+  is_available: boolean;
+  agreement_accepted: boolean;
 };
 
 type Item = { id: string; order_id: string; product_title_snapshot: string; quantity: number };
@@ -36,6 +42,7 @@ export default function CaptainsPage() {
   const [captains, setCaptains] = useState<Captain[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
+  const [identityUrls, setIdentityUrls] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState("");
 
@@ -47,24 +54,32 @@ export default function CaptainsPage() {
     if (adminError) throw adminError;
     if (admin?.role !== "super_admin") { window.location.href = "/dashboard"; return; }
 
-    const [orderResult, captainResult] = await Promise.all([
+    const [orderResult, captainResult, agreementResult] = await Promise.all([
       supabase.from("orders")
         .select("id,status,merchant_id,placed_at,delivery_address,delivery_phone,delivery_notes,subtotal_iqd,delivery_fee_iqd")
         .eq("status", "ready_for_pickup").order("placed_at"),
       supabase.from("captain_profiles")
-        .select("user_id,captain_type,merchant_id").eq("is_active", true),
+        .select("user_id,captain_type,merchant_id,is_available,captain_code,national_id_number,identity_document_path").eq("is_active", true),
+      supabase.from("captain_agreement_acceptances").select("user_id").eq("agreement_version", "shakh-captain-terms-v1"),
     ]);
     if (orderResult.error) throw orderResult.error;
     if (captainResult.error) throw captainResult.error;
+    if (agreementResult.error) throw agreementResult.error;
 
     const userIds = [...new Set((captainResult.data || []).map((captain) => captain.user_id))];
     const profileResult = userIds.length
-      ? await supabase.from("profiles").select("id,full_name,email").in("id", userIds).eq("role", "captain").eq("is_active", true)
+      ? await supabase.from("profiles").select("id,full_name,email,phone").in("id", userIds).eq("role", "captain").eq("is_active", true)
       : { data: [], error: null };
     if (profileResult.error) throw profileResult.error;
     const profileMap = Object.fromEntries((profileResult.data || []).map((profile) => [profile.id, profile]));
+    const agreementIds = new Set((agreementResult.data || []).map((item) => item.user_id));
+    const identityEntries = await Promise.all((captainResult.data || []).filter((captain) => !!captain.identity_document_path).map(async (captain) => {
+      const { data: signed } = await supabase.storage.from("captain-documents").createSignedUrl(captain.identity_document_path!, 300);
+      return [captain.user_id, signed?.signedUrl || ""] as const;
+    }));
+    setIdentityUrls(Object.fromEntries(identityEntries.filter(([, url]) => !!url)));
     setCaptains((captainResult.data || []).filter((captain) => !!profileMap[captain.user_id])
-      .map((captain) => ({ ...captain, ...profileMap[captain.user_id] })));
+      .map((captain) => ({ ...captain, ...profileMap[captain.user_id], agreement_accepted: agreementIds.has(captain.user_id) })));
     
     const rows = orderResult.data || [];
     setOrders(rows);
@@ -118,10 +133,31 @@ export default function CaptainsPage() {
         </div>
         {message && <p role="status" className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">{message}</p>}
 
+        <section className="mt-6 rounded-2xl bg-white p-5 shadow-soft">
+          <h2 className="text-lg font-black">کاپتنەکان و زانیاری ناسنامە</h2>
+          {captains.length === 0 ? <p className="mt-3 text-sm text-slate-500">هیچ کاپتنێکی چالاک نییە.</p> : (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {captains.map((captain) => (
+                <div key={captain.user_id} className="rounded-xl border border-slate-100 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <b>{captain.full_name || "بێ ناو"}</b>
+                    <span className={`rounded-full px-2 py-1 text-xs font-bold ${!captain.agreement_accepted ? "bg-amber-50 text-amber-800" : captain.is_available ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-600"}`}>{!captain.agreement_accepted ? "بەڵێننامە پەسەند نەکراوە" : captain.is_available ? "بەردەست" : "ناچالاک"}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">Captain ID: <span dir="ltr" className="font-mono">{captain.captain_code || captain.user_id.slice(0, 8).toUpperCase()}</span></p>
+                  {captain.phone && <p className="mt-1 text-sm" dir="ltr">{captain.phone}</p>}
+                  {captain.national_id_number && <p className="mt-1 text-xs text-slate-600">ژمارەی ناسنامە: <span dir="ltr" className="font-mono">{captain.national_id_number}</span></p>}
+                  {identityUrls[captain.user_id] && <a href={identityUrls[captain.user_id]} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-800">بینینی بەڵگەنامەی ناسنامە</a>}
+                  <p className="mt-1 text-xs text-slate-500">{captain.email || "—"} · {captainTypeLabel(captain)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         {orders.map((order) => {
           const eligible = captains.filter((captain) =>
-            captain.captain_type === "shakh" ||
-            (captain.captain_type === "merchant" && captain.merchant_id === order.merchant_id)
+            captain.is_available && captain.agreement_accepted && (captain.captain_type === "shakh" ||
+            (captain.captain_type === "merchant" && captain.merchant_id === order.merchant_id))
           );
           const orderItems = items.filter((item) => item.order_id === order.id);
           return (
@@ -156,7 +192,7 @@ export default function CaptainsPage() {
                     ))}
                   </select>
                   {busyId === order.id && <p className="mt-2 text-xs text-slate-500">دیاریکردن...</p>}
-                  {eligible.length === 0 && <p className="mt-2 text-sm text-amber-700">کاپتنێکی چالاک و شیاو بۆ ئەم دوکانە نییە.</p>}
+                  {eligible.length === 0 && <p className="mt-2 text-sm text-amber-700">کاپتنێکی چالاک و بەردەست بۆ ئەم دوکانە نییە.</p>}
                 </aside>
               </div>
             </article>

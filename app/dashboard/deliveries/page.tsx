@@ -50,6 +50,8 @@ export default function DeliveriesPage() {
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -58,6 +60,11 @@ export default function DeliveriesPage() {
     const { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (profileError) throw profileError;
     if (profile?.role !== "captain") { window.location.href = "/dashboard"; return; }
+    const { data: captainProfile, error: captainProfileError } = await supabase
+      .from("captain_profiles").select("is_active,is_available").eq("user_id", user.id).maybeSingle();
+    if (captainProfileError) throw captainProfileError;
+    if (!captainProfile?.is_active) { window.location.href = "/dashboard"; return; }
+    setIsAvailable(!!captainProfile.is_available);
 
     const { data, error } = await supabase.from("orders")
       .select("id,merchant_id,status,delivery_fee_iqd,platform_delivery_share_iqd,captain_delivery_share_iqd,placed_at,delivery_address,delivery_phone,delivery_notes,total_iqd,settled_at")
@@ -197,6 +204,20 @@ export default function DeliveriesPage() {
     setTrackingMessage(error ? "شوێنکەوتن لە ئامێرەکەت وەستا؛ نەتوانرا شوێنی پاشماوە لە سێرڤەر بسڕدرێتەوە." : "نیشاندانی شوێن وەستێنرا.");
   }
 
+  async function toggleAvailability() {
+    setAvailabilityBusy(true);
+    setMessage("");
+    const nextValue = !isAvailable;
+    const { error } = await createClient().rpc("set_my_captain_availability", { p_is_available: nextValue });
+    if (error) {
+      setMessage(error.message || "گۆڕینی دۆخی کاپتن سەرکەوتوو نەبوو.");
+    } else {
+      setIsAvailable(nextValue);
+      setMessage(nextValue ? "تۆ ئێستا کاپتنی بەردەستیت و دەتوانیت گەیاندنی نوێ وەربگریت." : "تۆ ئێستا ناچالاکیت؛ گەیاندنی نوێ بۆت نانێردرێت.");
+    }
+    setAvailabilityBusy(false);
+  }
+
   async function claimDelivery(id: string) {
     setBusyId(id);
     setMessage("");
@@ -245,6 +266,15 @@ export default function DeliveriesPage() {
           <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-sm font-bold"><RefreshCw size={15}/> نوێکردنەوە</button>
         </div>
         {message && <p role="status" className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">{message}</p>}
+        <section className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-soft">
+          <div>
+            <p className="font-black">دۆخی بەردەستبوونی کاپتن</p>
+            <p className={`mt-1 text-sm font-bold ${isAvailable ? "text-green-700" : "text-slate-500"}`}>{isAvailable ? "چالاک — دەتوانیت گەیاندنی نوێ وەربگریت" : "ناچالاک — گەیاندنی نوێ بۆت نانێردرێت"}</p>
+          </div>
+          <button type="button" disabled={availabilityBusy} onClick={() => void toggleAvailability()} className={`rounded-xl px-5 py-3 text-sm font-black text-white disabled:opacity-50 ${isAvailable ? "bg-slate-600" : "bg-green-600"}`}>
+            {availabilityBusy ? "تکایە چاوەڕێ بکە..." : isAvailable ? "ناچالاککردنی خۆم" : "چالاککردنی خۆم"}
+          </button>
+        </section>
         {trackingMessage && <p role="status" className="mt-3 rounded-xl bg-sky-50 p-3 text-sm text-sky-800">{trackingMessage}</p>}
         {loading ? <p className="mt-6 text-slate-500">بارکردن...</p> : orders.length === 0 ? (
           <div className="mt-6 rounded-2xl bg-white p-9 text-center text-slate-500">هێشتا هیچ گەیاندنێکت بۆ دیاری نەکراوە.</div>
@@ -284,8 +314,8 @@ export default function DeliveriesPage() {
                       <p className="mt-3 text-xs text-slate-500">بەشی کاپتن</p><b className="mt-1 block text-lg text-shakh-blue">{order.captain_delivery_share_iqd.toLocaleString("en-US")} د.ع</b>
                       <p className="mt-3 text-xs text-slate-500">بەشی شاخ</p><b className="mt-1 block text-lg text-shakh-orange">{order.platform_delivery_share_iqd.toLocaleString("en-US")} د.ع</b>
                       {order.status === "ready_for_pickup" && (
-                        <button disabled={busyId === order.id} onClick={() => void claimDelivery(order.id)} className="mt-5 w-full rounded-xl bg-shakh-orange p-3 text-sm font-bold text-white disabled:opacity-50">
-                          {busyId === order.id ? "تکایە چاوەڕێ بکە..." : "وەرگرتنی ئەم گەیاندنە"}
+                        <button disabled={!isAvailable || busyId === order.id} onClick={() => void claimDelivery(order.id)} className="mt-5 w-full rounded-xl bg-shakh-orange p-3 text-sm font-bold text-white disabled:opacity-50">
+                          {busyId === order.id ? "تکایە چاوەڕێ بکە..." : isAvailable ? "وەرگرتنی ئەم گەیاندنە" : "بۆ وەرگرتنی گەیاندن چالاک ببە"}
                         </button>
                       )}
                       {order.status === "assigned" && <button disabled={busyId === order.id} onClick={() => void updateStatus(order.id, "picked_up")} className="mt-5 w-full rounded-xl bg-shakh-blue p-3 text-sm font-bold text-white disabled:opacity-50">{busyId === order.id ? "تکایە چاوەڕێ بکە..." : "وەرگرتنی داواکاری"}</button>}

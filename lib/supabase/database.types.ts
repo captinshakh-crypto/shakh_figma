@@ -59,6 +59,10 @@ export type Database = {
           id: string
           merchant_id: string | null
           note: string | null
+          national_id_number: string | null
+          identity_document_path: string | null
+          agreement_version: string | null
+          agreement_accepted_at: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["record_status"]
@@ -70,6 +74,10 @@ export type Database = {
           id?: string
           merchant_id?: string | null
           note?: string | null
+          national_id_number?: string | null
+          identity_document_path?: string | null
+          agreement_version?: string | null
+          agreement_accepted_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["record_status"]
@@ -81,6 +89,10 @@ export type Database = {
           id?: string
           merchant_id?: string | null
           note?: string | null
+          national_id_number?: string | null
+          identity_document_path?: string | null
+          agreement_version?: string | null
+          agreement_accepted_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["record_status"]
@@ -110,13 +122,62 @@ export type Database = {
           },
         ]
       }
+      captain_agreement_acceptances: {
+        Row: {
+          accepted_at: string
+          accepted_user_agent: string | null
+          agreement_version: string
+          application_id: string | null
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          accepted_user_agent?: string | null
+          agreement_version: string
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          accepted_user_agent?: string | null
+          agreement_version?: string
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captain_agreement_acceptances_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "captain_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captain_agreement_acceptances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       captain_profiles: {
         Row: {
           approved_at: string
           approved_by: string | null
           captain_type: Database["public"]["Enums"]["captain_type"]
           created_at: string
+          captain_code: string
+          national_id_number: string | null
+          identity_document_path: string | null
           is_active: boolean
+          is_available: boolean
           merchant_id: string | null
           user_id: string
         }
@@ -125,7 +186,11 @@ export type Database = {
           approved_by?: string | null
           captain_type: Database["public"]["Enums"]["captain_type"]
           created_at?: string
+          captain_code?: string
+          national_id_number?: string | null
+          identity_document_path?: string | null
           is_active?: boolean
+          is_available?: boolean
           merchant_id?: string | null
           user_id: string
         }
@@ -134,7 +199,11 @@ export type Database = {
           approved_by?: string | null
           captain_type?: Database["public"]["Enums"]["captain_type"]
           created_at?: string
+          captain_code?: string
+          national_id_number?: string | null
+          identity_document_path?: string | null
           is_active?: boolean
+          is_available?: boolean
           merchant_id?: string | null
           user_id?: string
         }
@@ -206,6 +275,8 @@ export type Database = {
           description: string | null
           id: string
           merchant_type: Database["public"]["Enums"]["app_role"]
+          manual_open: boolean
+          operating_hours: Json
           service_zone_ids: string[] | null
           user_id: string
         }
@@ -216,7 +287,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          manual_open?: boolean
           merchant_type: Database["public"]["Enums"]["app_role"]
+          operating_hours?: Json
           service_zone_ids?: string[] | null
           user_id: string
         }
@@ -227,7 +300,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          manual_open?: boolean
           merchant_type?: Database["public"]["Enums"]["app_role"]
+          operating_hours?: Json
           service_zone_ids?: string[] | null
           user_id?: string
         }
@@ -291,6 +366,10 @@ export type Database = {
           product_title_snapshot: string
           quantity: number
           referral_commission_snapshot_iqd: number
+          status: string
+          rejection_reason: string | null
+          rejected_at: string | null
+          rejected_by: string | null
           unit_price_iqd: number
         }
         Insert: {
@@ -304,6 +383,10 @@ export type Database = {
           product_title_snapshot: string
           quantity: number
           referral_commission_snapshot_iqd?: number
+          status?: string
+          rejection_reason?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
           unit_price_iqd: number
         }
         Update: {
@@ -317,6 +400,10 @@ export type Database = {
           product_title_snapshot?: string
           quantity?: number
           referral_commission_snapshot_iqd?: number
+          status?: string
+          rejection_reason?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
           unit_price_iqd?: number
         }
         Relationships: [
@@ -1244,6 +1331,26 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_super_admin: { Args: never; Returns: boolean }
+      accept_current_captain_agreement: {
+        Args: { p_user_agent?: string | null }
+        Returns: undefined
+      }
+      merchant_reject_order_item: {
+        Args: { p_order_item_id: string; p_reason?: string | null }
+        Returns: undefined
+      }
+      request_captain_application_v2: {
+        Args: {
+          p_agreement_version: string
+          p_captain_type: Database["public"]["Enums"]["captain_type"]
+          p_identity_document_path: string
+          p_merchant_id?: string | null
+          p_national_id_number: string
+          p_note?: string | null
+          p_user_agent?: string | null
+        }
+        Returns: string
+      }
       request_captain_application: {
         Args: {
           p_captain_type: Database["public"]["Enums"]["captain_type"]
@@ -1311,6 +1418,14 @@ export type Database = {
           p_longitude: number
           p_order_id: string
         }
+        Returns: undefined
+      }
+      set_my_captain_availability: {
+        Args: { p_is_available: boolean }
+        Returns: undefined
+      }
+      update_my_store_schedule: {
+        Args: { p_manual_open: boolean; p_operating_hours: Json }
         Returns: undefined
       }
       update_my_profile: {

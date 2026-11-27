@@ -17,7 +17,25 @@ export async function middleware(request: NextRequest) {
       }
     }
   });
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  const pathname = request.nextUrl.pathname;
+  const isProtectedAppPath = pathname.startsWith("/dashboard") || pathname.startsWith("/cart") || pathname.startsWith("/checkout");
+  const isProfileCompletionPath = pathname === "/dashboard/profile";
+  if (user && isProtectedAppPath && !isProfileCompletionPath) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("phone")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!profile?.phone?.trim()) {
+      const target = request.nextUrl.clone();
+      target.pathname = "/dashboard/profile";
+      target.search = "?require_phone=1";
+      const redirect = NextResponse.redirect(target);
+      response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+      return redirect;
+    }
+  }
   return response;
 }
 export const config = { matcher: ["/dashboard/:path*", "/cart/:path*", "/reset-password/:path*"] };
