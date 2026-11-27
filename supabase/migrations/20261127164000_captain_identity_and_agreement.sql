@@ -10,6 +10,13 @@ alter table public.captain_profiles
   add column if not exists national_id_number text,
   add column if not exists identity_document_path text;
 
+-- Identity numbers and document paths are visible only to the captain and super admins.
+drop policy if exists captain_profiles_read_self_admin_store on public.captain_profiles;
+drop policy if exists captain_profiles_read_self_admin on public.captain_profiles;
+create policy captain_profiles_read_self_admin
+on public.captain_profiles for select to authenticated
+using (user_id=auth.uid() or public.is_super_admin());
+
 create unique index if not exists captain_profiles_captain_code_uidx
   on public.captain_profiles(captain_code);
 
