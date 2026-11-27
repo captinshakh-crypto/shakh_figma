@@ -59,6 +59,10 @@ export type Database = {
           id: string
           merchant_id: string | null
           note: string | null
+          national_id_number: string | null
+          identity_document_path: string | null
+          agreement_version: string | null
+          agreement_accepted_at: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["record_status"]
@@ -70,6 +74,10 @@ export type Database = {
           id?: string
           merchant_id?: string | null
           note?: string | null
+          national_id_number?: string | null
+          identity_document_path?: string | null
+          agreement_version?: string | null
+          agreement_accepted_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["record_status"]
@@ -81,6 +89,10 @@ export type Database = {
           id?: string
           merchant_id?: string | null
           note?: string | null
+          national_id_number?: string | null
+          identity_document_path?: string | null
+          agreement_version?: string | null
+          agreement_accepted_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["record_status"]
@@ -116,6 +128,9 @@ export type Database = {
           approved_by: string | null
           captain_type: Database["public"]["Enums"]["captain_type"]
           created_at: string
+          captain_code: string
+          national_id_number: string | null
+          identity_document_path: string | null
           is_active: boolean
           is_available: boolean
           merchant_id: string | null
@@ -126,6 +141,9 @@ export type Database = {
           approved_by?: string | null
           captain_type: Database["public"]["Enums"]["captain_type"]
           created_at?: string
+          captain_code?: string
+          national_id_number?: string | null
+          identity_document_path?: string | null
           is_active?: boolean
           is_available?: boolean
           merchant_id?: string | null
@@ -136,6 +154,9 @@ export type Database = {
           approved_by?: string | null
           captain_type?: Database["public"]["Enums"]["captain_type"]
           created_at?: string
+          captain_code?: string
+          national_id_number?: string | null
+          identity_document_path?: string | null
           is_active?: boolean
           is_available?: boolean
           merchant_id?: string | null
@@ -1253,6 +1274,18 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_super_admin: { Args: never; Returns: boolean }
+      request_captain_application_v2: {
+        Args: {
+          p_agreement_version: string
+          p_captain_type: Database["public"]["Enums"]["captain_type"]
+          p_identity_document_path: string
+          p_merchant_id?: string | null
+          p_national_id_number: string
+          p_note?: string | null
+          p_user_agent?: string | null
+        }
+        Returns: string
+      }
       request_captain_application: {
         Args: {
           p_captain_type: Database["public"]["Enums"]["captain_type"]
