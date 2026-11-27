@@ -49,8 +49,8 @@ grant execute on function public.complete_my_phone(text) to authenticated;
 
 -- Store schedule and temporary closure switch; days use ISO weekday numbers 1=Mon ... 7=Sun.
 alter table public.merchant_profiles
-  add column if not exists opening_time time not null default '09:00'::time,
-  add column if not exists closing_time time not null default '22:00'::time,
+  add column if not exists opening_time time not null default '00:00'::time,
+  add column if not exists closing_time time not null default '23:59'::time,
   add column if not exists opening_days smallint[] not null default array[1,2,3,4,5,6,7]::smallint[],
   add column if not exists is_manually_closed boolean not null default false;
 
