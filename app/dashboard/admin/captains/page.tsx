@@ -24,6 +24,8 @@ type Captain = {
   merchant_id: string | null;
   full_name: string | null;
   email: string | null;
+  phone: string | null;
+  national_id_number: string | null;
 };
 
 type Item = { id: string; order_id: string; product_title_snapshot: string; quantity: number };
@@ -58,13 +60,24 @@ export default function CaptainsPage() {
     if (captainResult.error) throw captainResult.error;
 
     const userIds = [...new Set((captainResult.data || []).map((captain) => captain.user_id))];
-    const profileResult = userIds.length
-      ? await supabase.from("profiles").select("id,full_name,email").in("id", userIds).eq("role", "captain").eq("is_active", true)
-      : { data: [], error: null };
+    const [profileResult, identityResult] = await Promise.all([
+      userIds.length
+        ? supabase.from("profiles").select("id,full_name,email,phone").in("id", userIds).eq("role", "captain").eq("is_active", true)
+        : Promise.resolve({ data: [], error: null }),
+      userIds.length
+        ? supabase.from("captain_identity_details").select("user_id,national_id_number").in("user_id", userIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
     if (profileResult.error) throw profileResult.error;
+    if (identityResult.error) throw identityResult.error;
     const profileMap = Object.fromEntries((profileResult.data || []).map((profile) => [profile.id, profile]));
+    const identityMap = Object.fromEntries((identityResult.data || []).map((identity) => [identity.user_id, identity.national_id_number]));
     setCaptains((captainResult.data || []).filter((captain) => !!profileMap[captain.user_id])
-      .map((captain) => ({ ...captain, ...profileMap[captain.user_id] })));
+      .map((captain) => ({
+        ...captain,
+        ...profileMap[captain.user_id],
+        national_id_number: identityMap[captain.user_id] || null,
+      })));
     
     const rows = orderResult.data || [];
     setOrders(rows);
@@ -117,6 +130,29 @@ export default function CaptainsPage() {
           <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-sm font-bold"><RefreshCw size={15}/> نوێکردنەوە</button>
         </div>
         {message && <p role="status" className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">{message}</p>}
+
+        <section className="mt-6 rounded-2xl bg-white p-5 shadow-soft">
+          <h2 className="text-xl font-black">ناسنامە و پەیوەندیی کاپتنە چالاکەکان</h2>
+          <p className="mt-1 text-sm leading-7 text-slate-500">تەنها کاپتنە چالاکەکان لەم لیستەدا دەردەکەون. ژمارەی ناسنامە تەنها بۆ سوپەر ئەدمین پیشان دەدرێت.</p>
+          {captains.length === 0 ? (
+            <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">هیچ کاپتنێکی چالاک نییە.</p>
+          ) : (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {captains.map((captain) => (
+                <article key={captain.user_id} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <b className="font-black">{captain.full_name || "بێ ناو"}</b>
+                    <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-black text-green-700">چالاک</span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">{captainTypeLabel(captain)}</p>
+                  <p className="mt-2 flex items-center gap-2 text-sm"><Phone size={15} className="text-shakh-blue"/>{captain.phone ? <a href={`tel:${captain.phone}`} dir="ltr">{captain.phone}</a> : "ژمارەی مۆبایل تۆمار نەکراوە"}</p>
+                  <p className="mt-2 text-sm"><b>ناسنامە:</b> <span dir="ltr" className="font-mono">{captain.national_id_number || "تۆمار نەکراوە"}</span></p>
+                  <p className="mt-2 break-all text-[10px] text-slate-400">ID: {captain.user_id}</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
         {orders.map((order) => {
           const eligible = captains.filter((captain) =>

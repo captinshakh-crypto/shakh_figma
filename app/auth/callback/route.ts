@@ -48,5 +48,37 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.redirect(failureUrl);
   }
+  const privacyVersion = requestUrl.searchParams.get("privacy_policy_version");
+  const privacyMethod = requestUrl.searchParams.get("privacy_method");
+  if (
+    privacyVersion === "2026-11-26" &&
+    (privacyMethod === "email_signup" || privacyMethod === "google_signup")
+  ) {
+    const { error: acceptanceError } = await supabase.rpc("record_shakh_privacy_policy_acceptance", {
+      p_policy_version: privacyVersion,
+      p_method: privacyMethod,
+    });
+    if (acceptanceError) {
+      console.error("[auth/callback] privacy acceptance record failed", {
+        code: acceptanceError.code,
+      });
+    }
+  }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!recovery && user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("phone")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile?.phone) {
+      const completionUrl = new URL("/complete-profile", request.url);
+      completionUrl.searchParams.set("next", next);
+      response.headers.set("Location", completionUrl.toString());
+      return response;
+    }
+  }
+
   return response;
 }

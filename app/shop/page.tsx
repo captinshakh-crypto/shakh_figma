@@ -21,7 +21,22 @@ type Product = {
   unit: string;
 };
 
-type Merchant = { id: string; business_name: string; merchant_type: string; address: string | null };
+type Merchant = { id: string; business_name: string; merchant_type: string; address: string | null; opening_time: string; closing_time: string; opening_days: number[]; is_manually_closed: boolean };
+
+function isMerchantOpenNow(merchant: Merchant) {
+  if (merchant.is_manually_closed) return false;
+  const now = new Date();
+  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Asia/Baghdad" }).format(now);
+  const day = ({ Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 } as Record<string, number>)[weekday] || 1;
+  const previousDay = day === 1 ? 7 : day - 1;
+  const parts = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Asia/Baghdad" }).formatToParts(now);
+  const current = Number(parts.find((part) => part.type === "hour")?.value || 0) * 60 + Number(parts.find((part) => part.type === "minute")?.value || 0);
+  const opening = Number(merchant.opening_time.slice(0,2)) * 60 + Number(merchant.opening_time.slice(3,5));
+  const closing = Number(merchant.closing_time.slice(0,2)) * 60 + Number(merchant.closing_time.slice(3,5));
+  if (opening < closing) return merchant.opening_days.includes(day) && current >= opening && current < closing;
+  if (opening > closing) return (merchant.opening_days.includes(day) && current >= opening) || (merchant.opening_days.includes(previousDay) && current < closing);
+  return merchant.opening_days.includes(day);
+}
 type CartItem = { product_id: string; title: string; price_iqd: number; merchant_id: string | null; quantity: number; unit?: string; referral_campaign_id?: string | null };
 
 const storeTypes = [
@@ -73,7 +88,7 @@ export default function ShopPage() {
         .select("id,title,description,price_iqd,category_key,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
         .eq("is_available", true).eq("approval_status", "approved").order("created_at", { ascending: false }),
       supabase.from("merchant_profiles")
-        .select("id,business_name,merchant_type,address").eq("approval_status", "approved"),
+        .select("id,business_name,merchant_type,address,opening_time,closing_time,opening_days,is_manually_closed").eq("approval_status", "approved"),
     ]).then(([productResult, merchantResult]) => {
       if (!active) return;
       if (productResult.error || merchantResult.error) setMessage("نەتوانرا زانیاری بازاڕ باربکرێن.");
@@ -165,6 +180,11 @@ export default function ShopPage() {
   }), [products, merchants, search, storeType, category, sharedProductId]);
 
   function add(product: Product) {
+    const owningStore = product.merchant_id ? merchantMap[product.merchant_id] : null;
+    if (owningStore && !isMerchantOpenNow(owningStore)) {
+      setMessage("ئەم دوکانە لە ئێستادا داخراوە؛ لە کاتی کردنەوەی دووبارە داواکاری بنێرە.");
+      return;
+    }
     if (product.stock_quantity === 0) {
       setMessage("ئەم کاڵایە لە ئێستادا لە کۆگا نەماوە.");
       return;
@@ -316,6 +336,7 @@ export default function ShopPage() {
                 ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
                 : null;
               const outOfStock = product.stock_quantity === 0;
+              const storeClosed = Boolean(merchant && !isMerchantOpenNow(merchant));
 
               return (
                 <article key={product.id} className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
@@ -328,6 +349,7 @@ export default function ShopPage() {
                       <span className="text-[11px] text-slate-400">{categoryLabels[product.category_key] || product.category_key}</span>
                     </div>
                     <p className="mt-1 min-h-5 truncate text-xs text-slate-500">{storeName}</p>
+                    {!product.is_shakh_store && <span className={`mt-2 inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-black ${storeClosed ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{storeClosed ? "دوکان داخراوە" : "دوکان کراوەیە"}</span>}
                     <p className="mt-1 flex min-h-5 items-center gap-1 truncate text-[11px] text-slate-500">{storeAddress ? <><span aria-hidden="true">📍</span><span className="truncate">شوێنی دوکان: {storeAddress}</span></> : "\u00a0"}</p>
                     <h2 className="mt-1 min-h-12 line-clamp-2 font-bold">{product.title}</h2>
                     <p className="mt-1 min-h-9 line-clamp-2 text-xs text-slate-500">{product.description || "\u00a0"}</p>
@@ -348,8 +370,8 @@ export default function ShopPage() {
                         className="flex h-12 items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2 text-xs font-bold text-orange-800 transition hover:bg-orange-100">
                         <Share2 size={16}/> شێرکردن
                       </button>
-                      <button disabled={outOfStock} onClick={() => add(product)} className="h-12 rounded-xl bg-shakh-blue px-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
-                        {outOfStock ? "لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
+                      <button disabled={outOfStock || storeClosed} onClick={() => add(product)} className="h-12 rounded-xl bg-shakh-blue px-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
+                        {outOfStock ? "لە کۆگا نەماوە" : storeClosed ? "دوکان داخراوە" : "زیادکردن بۆ سەبەتە"}
                       </button>
                     </div>
                   </div>

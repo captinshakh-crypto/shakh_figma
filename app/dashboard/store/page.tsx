@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Enums } from "@/lib/supabase/database.types";
-import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Share2 } from "lucide-react";
+import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Share2, Camera, Clock3, CalendarClock } from "lucide-react";
 
 const merchantTypes: { value: Enums<"app_role">; label: string }[] = [
   { value: "supermarket", label: "سوپەرمارکێت" },
@@ -94,7 +94,65 @@ type Merchant = {
   address: string | null;
   description: string | null;
   approval_status: string;
+  opening_time: string;
+  closing_time: string;
+  opening_days: number[];
+  is_manually_closed: boolean;
 };
+
+const openingWeekdays = [
+  { value: 1, label: "دووشەممە" }, { value: 2, label: "سێشەممە" },
+  { value: 3, label: "چوارشەممە" }, { value: 4, label: "پێنجشەممە" },
+  { value: 5, label: "هەینی" }, { value: 6, label: "شەممە" },
+  { value: 7, label: "یەکشەممە" },
+];
+
+function merchantOpenAtCurrentTime(opening: string, closing: string, days: number[], manuallyClosed: boolean) {
+  if (manuallyClosed) return false;
+  const now = new Date();
+  const weekdayName = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Asia/Baghdad" }).format(now);
+  const day = ({ Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 } as Record<string, number>)[weekdayName] || 1;
+  const previousDay = day === 1 ? 7 : day - 1;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Asia/Baghdad"
+  }).formatToParts(now);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value || 0);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value || 0);
+  const currentMinutes = hour * 60 + minute;
+  const openMinutes = Number(opening.slice(0, 2)) * 60 + Number(opening.slice(3, 5));
+  const closeMinutes = Number(closing.slice(0, 2)) * 60 + Number(closing.slice(3, 5));
+  if (openMinutes < closeMinutes) return days.includes(day) && currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+  if (openMinutes > closeMinutes) return (days.includes(day) && currentMinutes >= openMinutes) || (days.includes(previousDay) && currentMinutes < closeMinutes);
+  return days.includes(day);
+}
+
+async function compressProductImage(file: File): Promise<File> {
+  const maxInputBytes = 10 * 1024 * 1024;
+  if (!file.type.startsWith("image/") || file.size > maxInputBytes) {
+    throw new Error("وێنە دەبێت جۆری وێنە بێت و قەبارەی سەرەکییەکەی زیاتر نەبێت لە ١٠MB.");
+  }
+  const bitmap = await createImageBitmap(file);
+  const maxDimension = 2200;
+  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext("2d");
+  if (!context) {
+    bitmap.close();
+    throw new Error("نەتوانرا وێنەکە ئامادە بکرێت.");
+  }
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  const toBlob = (quality: number) => new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("گۆڕینی قەبارەی وێنە سەرکەوتوو نەبوو.")), "image/webp", quality);
+  });
+  let blob = await toBlob(0.86);
+  if (blob.size > 8 * 1024 * 1024) blob = await toBlob(0.76);
+  if (blob.size > maxInputBytes) throw new Error("وێنەکە دوای کەمکردنەوەش زۆر گەورەیە؛ تکایە وێنەیەکی بچووکتر هەڵبژێرە.");
+  return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webp", { type: "image/webp", lastModified: Date.now() });
+}
 
 type Product = {
   id: string;
@@ -141,6 +199,10 @@ export default function StorePage() {
   const [address, setAddress] = useState("");
   const [form, setForm] = useState(emptyProduct);
   const [image, setImage] = useState<File | null>(null);
+  const [openingTime, setOpeningTime] = useState("00:00");
+  const [closingTime, setClosingTime] = useState("23:59");
+  const [openingDays, setOpeningDays] = useState<number[]>([1,2,3,4,5,6,7]);
+  const [manuallyClosed, setManuallyClosed] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available" | "unavailable">("all");
@@ -176,10 +238,16 @@ export default function StorePage() {
     } else {
       const { data: merchantData, error: merchantError } = await supabase
         .from("merchant_profiles")
-        .select("id,business_name,merchant_type,address,description,approval_status")
+        .select("id,business_name,merchant_type,address,description,approval_status,opening_time,closing_time,opening_days,is_manually_closed")
         .eq("user_id", user.id).maybeSingle();
       if (merchantError) throw merchantError;
       setMerchant(merchantData);
+      if (merchantData) {
+        setOpeningTime((merchantData.opening_time || "00:00").slice(0,5));
+        setClosingTime((merchantData.closing_time || "23:59").slice(0,5));
+        setOpeningDays(merchantData.opening_days || [1,2,3,4,5,6,7]);
+        setManuallyClosed(Boolean(merchantData.is_manually_closed));
+      }
       if (merchantData?.approval_status !== "approved" || merchantData.merchant_type !== currentRole) {
         setProducts([]);
         setLoading(false);
@@ -263,6 +331,39 @@ export default function StorePage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  async function saveStoreHours(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setMessage("");
+    try {
+      const { error } = await createClient().rpc("update_my_store_hours", {
+        p_opening_time: openingTime,
+        p_closing_time: closingTime,
+        p_opening_days: openingDays,
+        p_is_manually_closed: manuallyClosed,
+      });
+      if (error) throw error;
+      setMessage("کاتژمێری کردنەوە و داخستنی دوکان نوێ کرایەوە.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "پاشەکەوتکردنی کاتژمێری دوکان سەرکەوتوو نەبوو.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function setImageFromInput(event: ChangeEvent<HTMLInputElement>) {
+    const selected = event.target.files?.[0] || null;
+    setImage(selected);
+    event.target.value = "";
+    if (selected && selected.size > 10 * 1024 * 1024) {
+      setImage(null);
+      setMessage("قەبارەی وێنەی سەرەکی نابێت زیاتر بێت لە ١٠MB.");
+    } else if (selected) {
+      setMessage("وێنە هەڵبژێردرا؛ لە کاتی ئەپلۆدکردندا قەبارەکەی بە WebP کەم دەکرێتەوە.");
+    }
+  }
+
   async function applyForStore(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
@@ -306,8 +407,8 @@ export default function StorePage() {
       setMessage("بڕی کۆگا نابێت ژمارەیەکی نەرێنی یان نادروست بێت.");
       return;
     }
-    if (image && (!["image/jpeg", "image/png", "image/webp"].includes(image.type) || image.size > 5 * 1024 * 1024)) {
-      setMessage("وێنە دەبێت JPG یان PNG یان WebP بێت و قەبارەکەی زیاتر نەبێت لە ٥MB.");
+    if (image && (!image.type.startsWith("image/") || image.size > 10 * 1024 * 1024)) {
+      setMessage("وێنە دەبێت جۆری وێنە بێت و قەبارەکەی زیاتر نەبێت لە ١٠MB.");
       return;
     }
 
@@ -320,10 +421,10 @@ export default function StorePage() {
       if (!user) throw new Error("تکایە دووبارە بچۆ ژوورەوە.");
 
       if (image) {
-        const extension = image.type === "image/png" ? "png" : image.type === "image/webp" ? "webp" : "jpg";
-        uploadedPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
-        const { error: uploadError } = await supabase.storage.from("product-images").upload(uploadedPath, image, {
-          contentType: image.type,
+        const optimizedImage = await compressProductImage(image);
+        uploadedPath = `${user.id}/${crypto.randomUUID()}.webp`;
+        const { error: uploadError } = await supabase.storage.from("product-images").upload(uploadedPath, optimizedImage, {
+          contentType: "image/webp",
           upsert: false,
         });
         if (uploadError) throw uploadError;
@@ -505,7 +606,9 @@ export default function StorePage() {
             {!isAdmin && merchant && <p className="mt-2 text-sm text-slate-600">شوێنی دوکان: {merchant.address?.trim() || "شوێن تۆمار نەکراوە"}</p>}
           </div>
           {(isAdmin || merchant?.approval_status === "approved") && (
-            <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-bold text-green-700">دوکان چالاکە</span>
+            <span className={`rounded-full px-4 py-2 text-sm font-bold ${!isAdmin && merchant && !merchantOpenAtCurrentTime(openingTime,closingTime,openingDays,manuallyClosed) ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+              {isAdmin ? "دوکانەکان" : merchant && merchantOpenAtCurrentTime(openingTime,closingTime,openingDays,manuallyClosed) ? "دوکان کراوەیە" : "دوکان داخراوە"}
+            </span>
           )}
         </header>
 
@@ -534,6 +637,51 @@ export default function StorePage() {
 
         {(isAdmin || merchant?.approval_status === "approved") && (
           <>
+            {!isAdmin && merchant?.approval_status === "approved" && (
+              <section className="mt-6 rounded-2xl border border-blue-100 bg-white p-5 shadow-soft">
+                <div className="flex items-center gap-2">
+                  <CalendarClock size={21} className="text-shakh-orange"/>
+                  <h2 className="text-lg font-black">کاتژمێری کردنەوە و داخستنی دوکان</h2>
+                </div>
+                <p className="mt-1 text-sm leading-7 text-slate-500">کڕیار تەنها لە کاتەکانی کارکردندا دەتوانێت داواکاری بنێرێت. کاتەکان بە کاتی عێراق (Asia/Baghdad) هەژمار دەکرێن.</p>
+                <form onSubmit={saveStoreHours} className="mt-4 space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="text-sm font-bold">کاتی کردنەوە
+                      <input required type="time" value={openingTime} onChange={(event) => setOpeningTime(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
+                    </label>
+                    <label className="text-sm font-bold">کاتی داخستن
+                      <input required type="time" value={closingTime} onChange={(event) => setClosingTime(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
+                    </label>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-sm font-bold">ڕۆژەکانی کردنەوە</p>
+                    <div className="flex flex-wrap gap-2">
+                      {openingWeekdays.map((day) => (
+                        <label key={day.value} className={`cursor-pointer rounded-full border px-3 py-2 text-xs font-bold ${openingDays.includes(day.value) ? "border-[#f47721] bg-orange-50 text-orange-800" : "border-slate-200 bg-white text-slate-500"}`}>
+                          <input type="checkbox" className="sr-only" checked={openingDays.includes(day.value)}
+                            onChange={(event) => setOpeningDays((current) => event.target.checked
+                              ? [...current, day.value].sort((a,b) => a-b)
+                              : current.filter((value) => value !== day.value))}/>
+                          {day.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm leading-7 text-red-800">
+                    <input type="checkbox" checked={manuallyClosed} onChange={(event) => setManuallyClosed(event.target.checked)} className="mt-1 h-4 w-4 accent-red-600"/>
+                    <span><b className="block">دوکان بە شێوەی دەستی داخە</b><small>ئەگەر چالاک بێت، تەنانەت لە کاتی کارکردنیشدا کڕیار ناتوانێت ئۆردەر بنێرێت.</small></span>
+                  </label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button disabled={saving || openingDays.length === 0 || openingTime === closingTime} className="rounded-xl bg-shakh-blue px-5 py-3 text-sm font-black text-white disabled:opacity-50">
+                      {saving ? "پاشەکەوت دەکرێت..." : "پاشەکەوتی کاتژمێرەکان"}
+                    </button>
+                    <span className={`text-xs font-black ${merchantOpenAtCurrentTime(openingTime,closingTime,openingDays,manuallyClosed) ? "text-green-700" : "text-red-700"}`}>
+                      {merchantOpenAtCurrentTime(openingTime,closingTime,openingDays,manuallyClosed) ? "ئێستا کراوەیە" : "ئێستا داخراوە"}
+                    </span>
+                  </div>
+                </form>
+              </section>
+            )}
             <section className="mt-6 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl bg-white p-5 shadow-soft"><p className="text-sm text-slate-500">کۆی کاڵاکان</p><b className="mt-1 block text-2xl">{products.length}</b></div>
               <div className="rounded-2xl bg-white p-5 shadow-soft"><p className="text-sm text-slate-500">کاڵای بەردەست</p><b className="mt-1 block text-2xl text-green-700">{availableCount}</b></div>
@@ -589,11 +737,20 @@ export default function StorePage() {
                     <input type="number" min="0" step="0.001" value={form.stock} onChange={(event) => setForm((old) => ({ ...old, stock: event.target.value }))} placeholder="بۆ نموونە: ٢٥" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                   </label>
                 </div>
-                <label className="block text-sm font-bold">
-                  <span className="flex items-center gap-2"><ImagePlus size={18}/> وێنەی کاڵا (JPG، PNG یان WebP، تا ٥MB)</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setImage(event.target.files?.[0] || null)} className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-sm"/>
-                  {editing?.image_path && !image && <small className="mt-1 block text-slate-500">وێنەی ئێستا دەمێنێتەوە؛ بۆ گۆڕینی، وێنەی نوێ هەڵبژێرە.</small>}
-                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm font-bold">
+                    <span className="flex items-center gap-2"><ImagePlus size={18}/> هەڵبژاردنی وێنە</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={setImageFromInput} className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-sm"/>
+                    <small className="mt-1 block text-xs font-medium text-slate-500">JPG، PNG یان WebP · تا ١٠MB</small>
+                  </label>
+                  <label className="block text-sm font-bold">
+                    <span className="flex items-center gap-2"><Camera size={18}/> وێنەگرتن بە کامێرا</span>
+                    <input type="file" accept="image/*" capture="environment" onChange={setImageFromInput} className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-sm"/>
+                    <small className="mt-1 block text-xs font-medium text-slate-500">لە مۆبایلەوە کامێرای پشتەوە بکەرەوە.</small>
+                  </label>
+                </div>
+                {image && <p className="rounded-lg bg-blue-50 p-3 text-xs font-bold text-blue-800">وێنە هەڵبژێردرا: {image.name} · {(image.size / 1024 / 1024).toFixed(2)}MB. لە کاتی ئەپلۆدکردندا بە WebP کەم دەکرێتەوە.</p>}
+                {editing?.image_path && !image && <small className="block text-slate-500">وێنەی ئێستا دەمێنێتەوە؛ بۆ گۆڕینی، وێنەی نوێ هەڵبژێرە.</small>}
                 <div className="flex flex-wrap gap-2">
                   <button disabled={saving || !form.title.trim() || !form.price || (!isAdmin && walletBalance <= 0)} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
                     <Save size={17}/>{saving ? "پاشەکەوت دەکرێت..." : editing ? "پاشەکەوتکردنی گۆڕانکاری" : "زیادکردنی کاڵا"}

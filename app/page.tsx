@@ -321,6 +321,8 @@ export default function HomePage() {
           <Link href="/shop" className="hover:text-[#f47721]">بازاڕ</Link>
           <Link href="/cart" className="hover:text-[#f47721]">سەبەتە</Link>
           <Link href="/support" className="hover:text-[#f47721]">پشتگیری</Link>
+          <Link href="/faq" className="hover:text-[#f47721]">پرسیارە باوەکان</Link>
+          <Link href="/privacy" className="hover:text-[#f47721]">سیاسەتی تایبەتمەندی</Link>
           <Link href={accountHref} className="hover:text-[#f47721]">هەژمار</Link>
         </div>
       </footer>
