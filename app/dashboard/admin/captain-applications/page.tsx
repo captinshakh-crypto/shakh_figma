@@ -131,25 +131,7 @@ export default function CaptainApplicationsPage() {
                   </div>
                 );
               })()}
-              {(() => {
-                const terms = application.pledge_terms && typeof application.pledge_terms === "object" && !Array.isArray(application.pledge_terms)
-                  ? application.pledge_terms as Record<string, Json>
-                  : {};
-                return (
-                  <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50/70 p-4">
-                    <h3 className="font-black text-[#0a3157]">پەیمانی کاپتن</h3>
-                    <p className="mt-2 text-sm">واژۆ: <b>{application.pledge_full_name || "تۆمار نەکراوە"}</b></p>
-                    <p className="mt-1 text-xs text-slate-500">وەشان: {application.pledge_version || "—"} {application.pledge_accepted_at ? `· واژۆکراوە لە ${new Date(application.pledge_accepted_at).toLocaleString("ckb-IQ")}` : ""}</p>
-                    <ul className="mt-3 space-y-1 text-sm text-slate-700">
-                      <li>{terms.protect_goods === true ? "✓" : "—"} پاراستنی کەل و پەل و کاڵا</li>
-                      <li>{terms.honest_delivery === true ? "✓" : "—"} ڕاستگۆیی و گەیاندنی سەلامەت</li>
-                      <li>{terms.respect_community === true ? "✓" : "—"} ڕێزگرتن لە بەها کۆمەڵایەتییەکان</li>
-                      <li>{terms.protect_privacy === true ? "✓" : "—"} پاراستنی نهێنی و زانیاری</li>
-                      <li>{terms.follow_rules === true ? "✓" : "—"} پابەندبوون بە ڕێنمایی شاخ</li>
-                    </ul>
-                  </div>
-                );
-              })()}
+
               <p className="mt-3 text-xs text-slate-400">{new Date(application.created_at).toLocaleString("ckb-IQ")}</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <button disabled={busyId === application.id} onClick={() => review(application.id, true)} className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">پەسەندکردن</button>
