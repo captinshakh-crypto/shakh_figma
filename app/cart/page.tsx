@@ -340,7 +340,7 @@ export default function CartPage() {
                     <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-shakh-orange">ئۆردەری سەربەخۆ</span>
                   </div>
                   {group.items.map((item) => (
-                    <div key={item.product_id} className="flex items-center justify-between gap-3 border-b py-3">
+                    <div key={`${item.product_id}:${item.variant_id || "base"}`} className="flex items-center justify-between gap-3 border-b py-3">
                       <div className="min-w-0">
                         <b>{item.title}</b>
                         {item.variant_label && <p className="mt-1 text-xs font-bold text-shakh-blue">{item.variant_label}{[item.color_name, item.scent, item.size_label].filter(Boolean).length ? " · " + [item.color_name, item.scent, item.size_label].filter(Boolean).join(" · ") : ""}</p>}
