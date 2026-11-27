@@ -112,7 +112,7 @@ export default function ProfilePage() {
     event.preventDefault();
     setSaving(true);
     setMessage("");
-    if (!/^\\+?(964)?0?7[0-9]{9}$/.test(phone.trim())) {
+    if (!/^\+?(964)?0?7[0-9]{9}$/.test(phone.trim())) {
       setMessage("ژمارەی مۆبایلی عێراقی بە شێوەی دروست بنووسە.");
       setSaving(false);
       return;
@@ -136,7 +136,7 @@ export default function ProfilePage() {
     event.preventDefault();
     setSaving(true);
     setMessage("");
-    if (!/^\\+?(964)?0?7[0-9]{9}$/.test(phone.trim())) {
+    if (!/^\+?(964)?0?7[0-9]{9}$/.test(phone.trim())) {
       setMessage("پێش داواکاری کاپتن، ژمارەی مۆبایلت لە پڕۆفایل تەواو بکە.");
       setSaving(false);
       return;
@@ -243,7 +243,7 @@ export default function ProfilePage() {
                 <input required maxLength={120} value={name} onChange={(event) => setName(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
               </label>
               <label className="block text-sm font-bold">ژمارەی مۆبایل
-                <input required type="tel" maxLength={16} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="0750XXXXXXX" pattern="(\\+?(964)?0?7[0-9]{9})" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
+                <input required type="tel" maxLength={16} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="0750XXXXXXX" pattern="(\+?(964)?0?7[0-9]{9})" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
               </label>
               <button disabled={saving} className="rounded-xl bg-shakh-blue px-5 py-3 font-bold text-white disabled:opacity-50">
                 {saving ? "تکایە چاوەڕێ بکە..." : "پاشەکەوتکردنی پڕۆفایل"}
