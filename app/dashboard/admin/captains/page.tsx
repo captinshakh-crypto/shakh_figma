@@ -24,6 +24,8 @@ type Captain = {
   merchant_id: string | null;
   full_name: string | null;
   email: string | null;
+  phone: string | null;
+  is_available: boolean;
 };
 
 type Item = { id: string; order_id: string; product_title_snapshot: string; quantity: number };
@@ -52,14 +54,14 @@ export default function CaptainsPage() {
         .select("id,status,merchant_id,placed_at,delivery_address,delivery_phone,delivery_notes,subtotal_iqd,delivery_fee_iqd")
         .eq("status", "ready_for_pickup").order("placed_at"),
       supabase.from("captain_profiles")
-        .select("user_id,captain_type,merchant_id").eq("is_active", true),
+        .select("user_id,captain_type,merchant_id,is_available").eq("is_active", true),
     ]);
     if (orderResult.error) throw orderResult.error;
     if (captainResult.error) throw captainResult.error;
 
     const userIds = [...new Set((captainResult.data || []).map((captain) => captain.user_id))];
     const profileResult = userIds.length
-      ? await supabase.from("profiles").select("id,full_name,email").in("id", userIds).eq("role", "captain").eq("is_active", true)
+      ? await supabase.from("profiles").select("id,full_name,email,phone").in("id", userIds).eq("role", "captain").eq("is_active", true)
       : { data: [], error: null };
     if (profileResult.error) throw profileResult.error;
     const profileMap = Object.fromEntries((profileResult.data || []).map((profile) => [profile.id, profile]));
@@ -117,6 +119,25 @@ export default function CaptainsPage() {
           <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-sm font-bold"><RefreshCw size={15}/> نوێکردنەوە</button>
         </div>
         {message && <p role="status" className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">{message}</p>}
+
+        <section className="mt-6 rounded-2xl bg-white p-5 shadow-soft">
+          <h2 className="text-lg font-black">کاپتنەکان و زانیاری ناسنامە</h2>
+          {captains.length === 0 ? <p className="mt-3 text-sm text-slate-500">هیچ کاپتنێکی چالاک نییە.</p> : (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {captains.map((captain) => (
+                <div key={captain.user_id} className="rounded-xl border border-slate-100 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <b>{captain.full_name || "بێ ناو"}</b>
+                    <span className={`rounded-full px-2 py-1 text-xs font-bold ${captain.is_available ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-600"}`}>{captain.is_available ? "بەردەست" : "ناچالاک"}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">Captain ID: <span dir="ltr" className="font-mono">{captain.user_id.slice(0, 8).toUpperCase()}</span></p>
+                  {captain.phone && <p className="mt-1 text-sm" dir="ltr">{captain.phone}</p>}
+                  <p className="mt-1 text-xs text-slate-500">{captain.email || "—"} · {captainTypeLabel(captain)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
         {orders.map((order) => {
           const eligible = captains.filter((captain) =>
