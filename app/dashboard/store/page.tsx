@@ -145,7 +145,7 @@ async function compressProductImage(file: File): Promise<File> {
       canvas.toBlob((value) => value ? resolve(value) : reject(new Error("کەمکردنەوەی قەبارەی وێنە سەرکەوتوو نەبوو.")), "image/webp", 0.82);
     });
     const extension = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
-    const baseName = file.name.replace(/\\.[^.]+$/, "") || "product-image";
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "product-image";
     return new File([blob], baseName + "." + extension, { type: blob.type || "image/jpeg", lastModified: Date.now() });
   } finally {
     bitmap.close();
