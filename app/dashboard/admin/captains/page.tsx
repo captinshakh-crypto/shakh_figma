@@ -25,6 +25,8 @@ type Captain = {
   full_name: string | null;
   email: string | null;
   phone: string | null;
+  captain_code: string;
+  national_id_number: string | null;
   is_available: boolean;
 };
 
@@ -54,7 +56,7 @@ export default function CaptainsPage() {
         .select("id,status,merchant_id,placed_at,delivery_address,delivery_phone,delivery_notes,subtotal_iqd,delivery_fee_iqd")
         .eq("status", "ready_for_pickup").order("placed_at"),
       supabase.from("captain_profiles")
-        .select("user_id,captain_type,merchant_id,is_available").eq("is_active", true),
+        .select("user_id,captain_type,merchant_id,is_available,captain_code,national_id_number").eq("is_active", true),
     ]);
     if (orderResult.error) throw orderResult.error;
     if (captainResult.error) throw captainResult.error;
@@ -130,8 +132,9 @@ export default function CaptainsPage() {
                     <b>{captain.full_name || "بێ ناو"}</b>
                     <span className={`rounded-full px-2 py-1 text-xs font-bold ${captain.is_available ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-600"}`}>{captain.is_available ? "بەردەست" : "ناچالاک"}</span>
                   </div>
-                  <p className="mt-2 text-xs text-slate-500">Captain ID: <span dir="ltr" className="font-mono">{captain.user_id.slice(0, 8).toUpperCase()}</span></p>
+                  <p className="mt-2 text-xs text-slate-500">Captain ID: <span dir="ltr" className="font-mono">{captain.captain_code || captain.user_id.slice(0, 8).toUpperCase()}</span></p>
                   {captain.phone && <p className="mt-1 text-sm" dir="ltr">{captain.phone}</p>}
+                  {captain.national_id_number && <p className="mt-1 text-xs text-slate-600">ژمارەی ناسنامە: <span dir="ltr" className="font-mono">{captain.national_id_number}</span></p>}
                   <p className="mt-1 text-xs text-slate-500">{captain.email || "—"} · {captainTypeLabel(captain)}</p>
                 </div>
               ))}
