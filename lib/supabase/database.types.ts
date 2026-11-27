@@ -209,6 +209,8 @@ export type Database = {
           description: string | null
           id: string
           merchant_type: Database["public"]["Enums"]["app_role"]
+          manual_open: boolean
+          operating_hours: Json
           service_zone_ids: string[] | null
           user_id: string
         }
@@ -219,7 +221,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          manual_open?: boolean
           merchant_type: Database["public"]["Enums"]["app_role"]
+          operating_hours?: Json
           service_zone_ids?: string[] | null
           user_id: string
         }
@@ -230,7 +234,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          manual_open?: boolean
           merchant_type?: Database["public"]["Enums"]["app_role"]
+          operating_hours?: Json
           service_zone_ids?: string[] | null
           user_id?: string
         }
@@ -1318,6 +1324,10 @@ export type Database = {
       }
       set_my_captain_availability: {
         Args: { p_is_available: boolean }
+        Returns: undefined
+      }
+      update_my_store_schedule: {
+        Args: { p_manual_open: boolean; p_operating_hours: Json }
         Returns: undefined
       }
       update_my_profile: {
