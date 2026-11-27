@@ -319,6 +319,15 @@ export default function StorePage() {
       setMessage("نرخ دەبێت ژمارەیەکی تەواوی زیاتر لە سفر بێت.");
       return;
     }
+    if (!form.categoryId || !form.category) {
+      setMessage("تکایە کاتەگۆرییەکی چالاک هەڵبژێرە.");
+      return;
+    }
+    const chosenCategory = catalogCategories.find((item) => item.id === form.categoryId && item.store_type === formStoreType && item.is_active);
+    if (!chosenCategory) {
+      setMessage("کاتەگۆرییەکە لە لیستی ناوەندی چالاک نییە؛ دووبارە هەڵیبژێرە.");
+      return;
+    }
     const costPrice = form.costPrice.trim() === "" ? null : Number(form.costPrice);
     const referralCommission = Number(form.referralCommission || 0);
     if (!Number.isSafeInteger(referralCommission) || referralCommission < 0) {
@@ -333,6 +342,41 @@ export default function StorePage() {
       setMessage("بڕی کۆگا نابێت ژمارەیەکی نەرێنی یان نادروست بێت.");
       return;
     }
+    const parsedVariants = variantDrafts.map((variant) => ({
+      id: variant.id,
+      variant_label: variant.variant_label.trim(),
+      color_name: variant.color_name.trim() || null,
+      color_hex: variant.color_hex.trim() || null,
+      scent: variant.scent.trim() || null,
+      size_label: variant.size_label.trim() || null,
+      unit: variant.unit || form.unit,
+      price_iqd: Number(variant.price),
+      cost_price_iqd: variant.costPrice.trim() === "" ? null : Number(variant.costPrice),
+      stock_quantity: variant.stock.trim() === "" ? null : Number(variant.stock),
+      sku: variant.sku.trim() || null,
+    }));
+    for (const variant of parsedVariants) {
+      if (!variant.variant_label || !Number.isSafeInteger(variant.price_iqd) || variant.price_iqd <= 0) {
+        setMessage("هەر جۆرێک دەبێت ناو و نرخی دروستی هەبێت.");
+        return;
+      }
+      if (variant.stock_quantity !== null && (!Number.isFinite(variant.stock_quantity) || variant.stock_quantity < 0 || variant.stock_quantity > 100000000)) {
+        setMessage("کۆگای هەر جۆرێک دەبێت سفر یان زیاتر بێت.");
+        return;
+      }
+      if (variant.cost_price_iqd !== null && (!Number.isSafeInteger(variant.cost_price_iqd) || variant.cost_price_iqd < 0)) {
+        setMessage("نرخی کڕینی جۆرەکان دەبێت ژمارەیەکی دروست بێت.");
+        return;
+      }
+      if (variant.color_hex && !/^#[0-9a-fA-F]{6}$/.test(variant.color_hex)) {
+        setMessage("کۆدی ڕەنگ دەبێت بە شێوەی #RRGGBB بێت.");
+        return;
+      }
+    }
+    if (new Set(parsedVariants.filter((v) => v.sku).map((v) => v.sku)).size !== parsedVariants.filter((v) => v.sku).length) {
+      setMessage("کۆدی SKU نابێت لە نێوان دوو جۆردا دووبارە بێت.");
+      return;
+    }
     if (image && (!["image/jpeg", "image/png", "image/webp"].includes(image.type) || image.size > 10 * 1024 * 1024)) {
       setMessage("وێنە دەبێت JPG یان PNG یان WebP بێت و قەبارەکەی زیاتر نەبێت لە ١٠MB.");
       return;
@@ -342,6 +386,7 @@ export default function StorePage() {
     setMessage("");
     const supabase = createClient();
     let uploadedPath: string | null = null;
+    let keepUploadedPath = false;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("تکایە دووبارە بچۆ ژوورەوە.");
@@ -361,35 +406,64 @@ export default function StorePage() {
       const payload = {
         title: form.title.trim(),
         description: form.description.trim() || null,
-        price_iqd: price,
+        price_iqd: parsedVariants.length ? Math.min(...parsedVariants.map((v) => v.price_iqd)) : price,
         ...(isAdmin ? { cost_price_iqd: costPrice } : {}),
         referral_commission_iqd: referralCommission,
-        stock_quantity: stock,
+        stock_quantity: parsedVariants.length ? null : stock,
         unit: form.unit,
-        category_key: form.category,
+        category_key: chosenCategory.category_key,
+        category_id: chosenCategory.id,
+        subcategory_id: form.subcategoryId || null,
         ...(uploadedPath ? { image_path: uploadedPath } : {}),
       };
 
       const result = editing
-        ? await supabase.from("products").update(payload).eq("id", editing.id)
+        ? await supabase.from("products").update(payload).eq("id", editing.id).select("id").single()
         : await supabase.from("products").insert({
             ...payload,
             merchant_id: isAdmin ? null : merchant?.id,
             is_shakh_store: isAdmin,
             is_available: true,
-          });
-
+          }).select("id").single();
       if (result.error) throw result.error;
+      const productId = result.data.id;
+      keepUploadedPath = true;
+
+      // Keep removed option rows inactive so prior order snapshots stay traceable.
+      const { error: deactivateError } = await supabase.from("product_variants")
+        .update({ is_active: false }).eq("product_id", productId);
+      if (deactivateError) throw deactivateError;
+
+      if (parsedVariants.length) {
+        const variantPayload = parsedVariants.map((variant, index) => ({
+          ...(variant.id ? { id: variant.id } : {}),
+          product_id: productId,
+          variant_label: variant.variant_label,
+          color_name: variant.color_name,
+          color_hex: variant.color_hex,
+          scent: variant.scent,
+          size_label: variant.size_label,
+          unit: variant.unit,
+          price_iqd: variant.price_iqd,
+          cost_price_iqd: variant.cost_price_iqd,
+          stock_quantity: variant.stock_quantity,
+          sku: variant.sku,
+          sort_order: index,
+          is_active: true,
+        }));
+        const { error: variantsError } = await supabase.from("product_variants").upsert(variantPayload);
+        if (variantsError) throw variantsError;
+      }
 
       if (uploadedPath && editing?.image_path) {
         await supabase.storage.from("product-images").remove([editing.image_path]);
       }
 
-      setMessage(editing ? "کاڵاکە نوێکرایەوە." : isAdmin ? "کاڵا بۆ شاخ ستۆر زیاد کرا." : "پۆستەکەت نێردرا بۆ سوپەر ئەدمین. تا دیاریکردنی کۆمسیۆن، ناچالاک و نادیار دەمێنێتەوە؛ ئاگادارکردنەوەش بۆت نێردرا.");
+      setMessage(editing ? "کاڵا و جۆرەکانی نوێ کرانەوە." : isAdmin ? "کاڵا و جۆرەکانی بۆ شاخ ستۆر زیاد کران." : "پۆستەکەت نێردرا بۆ سوپەر ئەدمین. تا دیاریکردنی کۆمسیۆن، ناچالاک و نادیار دەمێنێتەوە؛ ئاگادارکردنەوەش بۆت نێردرا.");
       resetProductForm();
       await load();
     } catch (error) {
-      if (uploadedPath) await supabase.storage.from("product-images").remove([uploadedPath]);
+      if (uploadedPath && !keepUploadedPath) await supabase.storage.from("product-images").remove([uploadedPath]);
       setMessage(error instanceof Error ? error.message : "پاشەکەوتکردنی کاڵا سەرکەوتوو نەبوو.");
     } finally {
       setSaving(false);
