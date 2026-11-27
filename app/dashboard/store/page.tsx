@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Enums } from "@/lib/supabase/database.types";
 import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Share2, Camera, Clock3, CalendarClock } from "lucide-react";
@@ -352,7 +352,7 @@ export default function StorePage() {
     }
   }
 
-  function setImageFromInput(event: React.ChangeEvent<HTMLInputElement>) {
+  function setImageFromInput(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0] || null;
     setImage(selected);
     event.target.value = "";
