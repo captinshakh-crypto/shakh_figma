@@ -25,7 +25,6 @@ export default function CaptainApplicationsPage() {
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [merchants, setMerchants] = useState<Record<string, string>>({});
   const [identities, setIdentities] = useState<Record<string, string>>({});
-  const [identities, setIdentities] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
@@ -56,7 +55,6 @@ export default function CaptainApplicationsPage() {
     setApplications(data || []);
     setProfiles(Object.fromEntries((profileResult.data || []).map((item) => [item.id, item])));
     setMerchants(Object.fromEntries((merchantResult.data || []).map((item) => [item.id, item.business_name])));
-    setIdentities(Object.fromEntries((identityResult.data || []).map((item) => [item.user_id, item.national_id_number])));
     setIdentities(Object.fromEntries((identityResult.data || []).map((item) => [item.user_id, item.national_id_number])));
     setLoading(false);
   }
