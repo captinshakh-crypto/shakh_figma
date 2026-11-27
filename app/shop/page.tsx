@@ -338,7 +338,7 @@ export default function ShopPage() {
                       onClick={() => shareProduct(product)}
                       aria-label="شێرکردنی کاڵا"
                       title="شێرکردن"
-                      className="absolute right-3 top-16 z-10 grid h-10 w-10 place-items-center rounded-full bg-shakh-orange text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-orange-600"
+                      className="absolute right-3 top-[3.5rem] z-10 grid h-10 w-10 place-items-center rounded-full bg-shakh-orange text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-orange-600"
                     >
                       <Share2 size={18}/>
                     </button>
