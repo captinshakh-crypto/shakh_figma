@@ -325,6 +325,9 @@ export default function StorePage() {
           sku: variant.sku || "",
         })));
       })
+      .catch(() => {
+        if (requestId === variantLoadRequest.current) setMessage("هەڵەیەک ڕوویدا لە بارکردنی جۆرەکانی کاڵا.");
+      })
       .finally(() => {
         if (requestId === variantLoadRequest.current) setLoadingVariants(false);
       });
