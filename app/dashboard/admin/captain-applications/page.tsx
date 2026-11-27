@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/supabase/database.types";
-import type { Json } from "@/lib/supabase/database.types";
 
 type Application = {
   id: string;
@@ -13,10 +12,6 @@ type Application = {
   merchant_id: string | null;
   note: string | null;
   created_at: string;
-  pledge_version: string | null;
-  pledge_full_name: string | null;
-  pledge_accepted_at: string | null;
-  pledge_terms: Json | null;
   pledge_version: string | null;
   pledge_full_name: string | null;
   pledge_accepted_at: string | null;
