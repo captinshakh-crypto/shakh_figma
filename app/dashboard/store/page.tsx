@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Enums } from "@/lib/supabase/database.types";
 import { PackagePlus, Pencil, Trash2, Eye, EyeOff, X, Save, Store, ImagePlus, Camera, Share2, Plus } from "lucide-react";
@@ -128,6 +128,8 @@ export default function StorePage() {
   const [catalogSubcategories, setCatalogSubcategories] = useState<Subcategory[]>([]);
   const [formStoreType, setFormStoreType] = useState("shakh_store");
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([]);
+  const [loadingVariants, setLoadingVariants] = useState(false);
+  const variantLoadRequest = useRef(0);
   const [business, setBusiness] = useState("");
   const [applicationType, setApplicationType] = useState<Enums<"app_role">>("restaurant");
   const [address, setAddress] = useState("");
@@ -245,11 +247,14 @@ export default function StorePage() {
   }), [products, search, availabilityFilter]);
 
   function resetProductForm() {
+    variantLoadRequest.current += 1;
     setEditing(null);
-    const firstCategory = formCategories[0];
+    setLoadingVariants(false);
+    setVariantDrafts([]);
+    setFormStoreType(isAdmin ? "shakh_store" : role);
+    const firstCategory = catalogCategories.find((item) => item.store_type === (isAdmin ? "shakh_store" : role) && item.is_active);
     setForm({ ...emptyProduct, category: firstCategory?.category_key || "", categoryId: firstCategory?.id || "" });
     setImage(null);
-    setVariantDrafts([]);
   }
 
   function startEditing(product: Product) {
@@ -270,22 +275,35 @@ export default function StorePage() {
       subcategoryId: product.subcategory_id || "",
     });
     setImage(null);
-    void createClient().from("product_variants").select("*").eq("product_id", product.id).order("sort_order").then(({ data, error }) => {
-      if (error) { setMessage("نەتوانرا جۆرەکانی کاڵا باربکرێن: " + error.message); return; }
-      setVariantDrafts(((data || []) as ProductVariant[]).map((variant) => ({
-        id: variant.id,
-        variant_label: variant.variant_label,
-        color_name: variant.color_name || "",
-        color_hex: variant.color_hex || "",
-        scent: variant.scent || "",
-        size_label: variant.size_label || "",
-        unit: variant.unit || product.unit,
-        price: String(variant.price_iqd),
-        costPrice: variant.cost_price_iqd === null ? "" : String(variant.cost_price_iqd),
-        stock: variant.stock_quantity === null ? "" : String(variant.stock_quantity),
-        sku: variant.sku || "",
-      })));
-    });
+    const requestId = ++variantLoadRequest.current;
+    setLoadingVariants(true);
+    setVariantDrafts([]);
+    void createClient().from("product_variants")
+      .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,is_active,sort_order")
+      .eq("product_id", product.id).order("sort_order")
+      .then(({ data, error }) => {
+        if (requestId !== variantLoadRequest.current) return;
+        if (error) {
+          setMessage("نەتوانرا جۆرەکانی کاڵا باربکرێن: " + error.message);
+          return;
+        }
+        setVariantDrafts(((data || []) as ProductVariant[]).filter((variant) => variant.is_active).map((variant) => ({
+          id: variant.id,
+          variant_label: variant.variant_label,
+          color_name: variant.color_name || "",
+          color_hex: variant.color_hex || "",
+          scent: variant.scent || "",
+          size_label: variant.size_label || "",
+          unit: variant.unit || product.unit,
+          price: String(variant.price_iqd),
+          costPrice: variant.cost_price_iqd === null ? "" : String(variant.cost_price_iqd),
+          stock: variant.stock_quantity === null ? "" : String(variant.stock_quantity),
+          sku: variant.sku || "",
+        })));
+      })
+      .finally(() => {
+        if (requestId === variantLoadRequest.current) setLoadingVariants(false);
+      });
     setMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -317,6 +335,10 @@ export default function StorePage() {
     const stock = form.stock.trim() === "" ? null : Number(form.stock);
     if (!Number.isSafeInteger(price) || price <= 0) {
       setMessage("نرخ دەبێت ژمارەیەکی تەواوی زیاتر لە سفر بێت.");
+      return;
+    }
+    if (loadingVariants) {
+      setMessage("تکایە چاوەڕێی بارکردنی جۆرەکانی کاڵا بکە پێش پاشەکەوتکردن.");
       return;
     }
     if (!form.categoryId || !form.category) {
@@ -429,11 +451,6 @@ export default function StorePage() {
       const productId = result.data.id;
       keepUploadedPath = true;
 
-      // Keep removed option rows inactive so prior order snapshots stay traceable.
-      const { error: deactivateError } = await supabase.from("product_variants")
-        .update({ is_active: false }).eq("product_id", productId);
-      if (deactivateError) throw deactivateError;
-
       if (parsedVariants.length) {
         const variantPayload = parsedVariants.map((variant, index) => ({
           ...(variant.id ? { id: variant.id } : {}),
@@ -453,6 +470,18 @@ export default function StorePage() {
         }));
         const { error: variantsError } = await supabase.from("product_variants").upsert(variantPayload);
         if (variantsError) throw variantsError;
+      }
+
+      // Only deactivate removed options after all submitted options were saved successfully.
+      const { data: savedVariantRows, error: variantListError } = await supabase
+        .from("product_variants").select("id").eq("product_id", productId);
+      if (variantListError) throw variantListError;
+      const retainedVariantIds = new Set(parsedVariants.map((variant) => variant.id).filter((id): id is string => !!id));
+      const removedVariantIds = (savedVariantRows || []).map((variant) => variant.id).filter((id) => !retainedVariantIds.has(id));
+      if (removedVariantIds.length) {
+        const { error: deactivateError } = await supabase.from("product_variants")
+          .update({ is_active: false }).in("id", removedVariantIds);
+        if (deactivateError) throw deactivateError;
       }
 
       if (uploadedPath && editing?.image_path) {
@@ -701,6 +730,7 @@ export default function StorePage() {
                       </label>
                     : <div className="rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">کۆگا لەسەر هەر جۆرێک بە جیاوازی هەژمار دەکرێت؛ کۆگای بنەڕەتی بەکارناهێنرێت.</div>}
                 </div>
+                {loadingVariants && <p className="rounded-xl bg-blue-50 p-3 text-xs font-bold text-blue-800">بارکردنی جۆرەکانی ئەم کاڵایە...</p>}
                 <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -796,7 +826,7 @@ export default function StorePage() {
                   {editing?.image_path && !image && <small className="mt-2 block text-xs font-medium text-slate-500">وێنەی ئێستا دەمێنێتەوە؛ بۆ گۆڕینی، یەکێک لە دوو هەڵبژاردەکە بەکاربهێنە.</small>}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button disabled={saving || !form.title.trim() || !form.price || (!isAdmin && walletBalance <= 0)} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
+                  <button disabled={saving || loadingVariants || !form.title.trim() || !form.price || (!isAdmin && walletBalance <= 0)} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
                     <Save size={17}/>{saving ? "پاشەکەوت دەکرێت..." : editing ? "پاشەکەوتکردنی گۆڕانکاری" : "زیادکردنی کاڵا"}
                   </button>
                   {editing && <button type="button" onClick={resetProductForm} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 font-bold text-slate-700"><X size={17}/> هەڵوەشاندنەوە</button>}
