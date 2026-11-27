@@ -199,8 +199,8 @@ export default function StorePage() {
   const [address, setAddress] = useState("");
   const [form, setForm] = useState(emptyProduct);
   const [image, setImage] = useState<File | null>(null);
-  const [openingTime, setOpeningTime] = useState("09:00");
-  const [closingTime, setClosingTime] = useState("22:00");
+  const [openingTime, setOpeningTime] = useState("00:00");
+  const [closingTime, setClosingTime] = useState("23:59");
   const [openingDays, setOpeningDays] = useState<number[]>([1,2,3,4,5,6,7]);
   const [manuallyClosed, setManuallyClosed] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -243,8 +243,8 @@ export default function StorePage() {
       if (merchantError) throw merchantError;
       setMerchant(merchantData);
       if (merchantData) {
-        setOpeningTime((merchantData.opening_time || "09:00").slice(0,5));
-        setClosingTime((merchantData.closing_time || "22:00").slice(0,5));
+        setOpeningTime((merchantData.opening_time || "00:00").slice(0,5));
+        setClosingTime((merchantData.closing_time || "23:59").slice(0,5));
         setOpeningDays(merchantData.opening_days || [1,2,3,4,5,6,7]);
         setManuallyClosed(Boolean(merchantData.is_manually_closed));
       }
