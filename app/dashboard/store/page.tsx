@@ -338,6 +338,26 @@ export default function StorePage() {
     }
   }
 
+  async function toggleManualStoreOpen() {
+    const nextValue = !manualOpen;
+    setSaving(true);
+    setMessage("");
+    try {
+      const { error } = await createClient().rpc("update_my_store_schedule", {
+        p_operating_hours: storeHours as unknown as Json,
+        p_manual_open: nextValue,
+      });
+      if (error) throw error;
+      setManualOpen(nextValue);
+      setMessage(nextValue ? "دوکان بە پێی خشتەی کاتەکان کراوە." : "دوکان بە دەستی داخرا؛ کڕیار ناتوانێت ئۆردەر بنێرێت.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "گۆڕینی دۆخی دوکان سەرکەوتوو نەبوو.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveStoreSchedule() {
     setSaving(true);
     setMessage("");
@@ -588,7 +608,7 @@ export default function StorePage() {
           <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><h2 className="text-lg font-black">کاتی کارکردنی دوکان</h2><p className="mt-1 text-xs text-slate-500">کاتەکان بە کاتی عێراق (Asia/Baghdad) هەژمار دەکرێن.</p></div>
-              <button type="button" onClick={() => setManualOpen((value) => !value)} className={`rounded-xl px-4 py-2 text-sm font-bold ${manualOpen ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{manualOpen ? "داخستنی دەستی دوکان" : "کردنەوەی دەستی دوکان"}</button>
+              <button type="button" onClick={() => void toggleManualStoreOpen()} disabled={saving} className={`rounded-xl px-4 py-2 text-sm font-bold ${manualOpen ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{manualOpen ? "داخستنی دەستی دوکان" : "کردنەوەی دەستی دوکان"}</button>
             </div>
             <p className={`mt-3 rounded-xl p-3 text-sm font-bold ${manualOpen ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>{manualOpen ? "دوکان بە پێی خشتەی کاتەکان کار دەکات." : "دوکان بە دەستی داخراوە و کڕیار ناتوانێت ئۆردەر بنێرێت."}</p>
             <div className="mt-4 space-y-3">
