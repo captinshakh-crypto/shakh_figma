@@ -360,7 +360,10 @@ begin
          'Recognized from actual wallet debit'
   from public.wallet_ledger wl
   where wl.reference_id=v_order.id and wl.direction='debit'
-    and wl.entry_type::text in ('merchant_commission','platform_delivery_share')
+    and (
+      (wl.entry_type::text='merchant_commission' and wl.reference_type='delivered_order_product_commission')
+      or (wl.entry_type::text='platform_delivery_share' and wl.reference_type='captain_delivery_commission')
+    )
   on conflict(source_ledger_id) do nothing;
 
   if v_order.reward_campaign_id is not null and v_order.reward_amount_iqd>0 then
