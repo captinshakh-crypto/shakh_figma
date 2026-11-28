@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ShoppingCart, ShoppingBasket, Store, Search, Package, SlidersHorizontal, Share2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ShoppingCart, ShoppingBasket, Store, Search, Package, SlidersHorizontal, Share2, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ShakhBrand from "@/components/shakh-brand";
 import { Headset } from "lucide-react";
@@ -30,7 +30,9 @@ type Product = {
   referral_commission_iqd: number;
   stock_quantity: number | null;
   unit: string;
+  views_count: number;
   variants: ProductVariant[];
+  variants_loaded: boolean;
 };
 
 type Merchant = { id: string; business_name: string; merchant_type: string; address: string | null };
@@ -85,7 +87,8 @@ export default function ShopPage() {
   const [subcategory, setSubcategory] = useState("all");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [catalogActionsReady, setCatalogActionsReady] = useState(false);
+  const [loadingVariantProductId, setLoadingVariantProductId] = useState<string | null>(null);
+  const trackedProductViews = useRef(new Set<string>());
   const [referralCampaignId, setReferralCampaignId] = useState("");
   const [sharedProductId, setSharedProductId] = useState("");
   const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
@@ -95,7 +98,6 @@ export default function ShopPage() {
     let active = true;
     let refreshing = false;
     let refreshAgain = false;
-    let hasLoadedDetails = false;
     let refreshTimer: number | null = null;
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -121,7 +123,7 @@ export default function ShopPage() {
       refreshing = true;
       try {
         const productResult = await supabase.from("products")
-          .select("id,title,description,price_iqd,category_key,category_id,subcategory_id,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
+          .select("id,title,description,price_iqd,category_key,category_id,subcategory_id,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit,views_count")
           .eq("is_available", true)
           .eq("approval_status", "approved")
           .order("created_at", { ascending: false })
@@ -134,26 +136,27 @@ export default function ShopPage() {
           return;
         }
 
-        const productRows = (productResult.data || []) as Omit<Product, "variants">[];
+        const productRows = (productResult.data || []) as Omit<Product, "variants" | "variants_loaded">[];
         setProducts((current) => {
-          const variantsByProduct = new Map(current.map((product) => [product.id, product.variants]));
-          return productRows.map((product) => ({ ...product, variants: variantsByProduct.get(product.id) || [] }));
+          const previousById = new Map(current.map((product) => [product.id, product]));
+          return productRows.map((product) => {
+            const previous = previousById.get(product.id);
+            return {
+              ...product,
+              variants: previous?.variants || [],
+              variants_loaded: previous?.variants_loaded || false,
+            };
+          });
         });
         setLoading(false);
 
-        const productIds = productRows.map((product) => product.id);
-        const [merchantResult, categoryResult, subcategoryResult, variantResult] = await Promise.all([
+        const [merchantResult, categoryResult, subcategoryResult] = await Promise.all([
           supabase.from("merchant_profiles")
             .select("id,business_name,merchant_type,address").eq("approval_status", "approved"),
           supabase.from("product_categories")
             .select("id,store_type,category_key,name,is_active").eq("is_active", true).order("sort_order").order("name"),
           supabase.from("product_subcategories")
             .select("id,category_id,subcategory_key,name,is_active").eq("is_active", true).order("sort_order").order("name"),
-          productIds.length > 0
-            ? supabase.from("product_variants")
-                .select("id,product_id,variant_label,image_path,price_iqd")
-                .in("product_id", productIds).eq("is_active", true).order("sort_order")
-            : Promise.resolve({ data: [], error: null }),
         ]);
         if (!active) return;
 
@@ -161,26 +164,11 @@ export default function ShopPage() {
         if (!categoryResult.error) setCatalogCategories((categoryResult.data || []) as ProductCategory[]);
         if (!subcategoryResult.error) setCatalogSubcategories((subcategoryResult.data || []) as ProductSubcategory[]);
 
-        if (variantResult.error) {
-          setMessage("هەندێک جۆری کاڵا نەکرا باربکرێت؛ بەڵام پۆستەکان لە بازاڕدا دەردەکەون.");
-          if (!hasLoadedDetails) setCatalogActionsReady(false);
-        } else {
-          const byProduct = new Map<string, ProductVariant[]>();
-          for (const variant of (variantResult.data || []) as ProductVariant[]) {
-            const group = byProduct.get(variant.product_id) || [];
-            group.push(variant);
-            byProduct.set(variant.product_id, group);
-          }
-          setProducts(productRows.map((product) => ({ ...product, variants: byProduct.get(product.id) || [] })));
-          setCatalogActionsReady(true);
-        }
-
         if (merchantResult.error || categoryResult.error || subcategoryResult.error) {
           setMessage("کاڵاکان پیشان دراون؛ بەڵام هەندێک زانیاریی کاتەگۆری یان دوکان بارنەکرا.");
-        } else if (!variantResult.error) {
+        } else {
           setMessage((current) => current.includes("نەتوانرا پۆست") ? current : "");
         }
-        hasLoadedDetails = true;
       } catch {
         if (active) {
           setMessage("پۆستەکان پیشان دراون، بەڵام نوێکردنەوەی وردەکارییەکان سەرکەوتوو نەبوو.");
@@ -264,6 +252,34 @@ export default function ShopPage() {
     return matchesSearch && matchesType && matchesCategory && matchesSubcategory && matchesSharedProduct;
   }), [products, merchants, search, storeType, category, subcategory, sharedProductId]);
 
+  const visibleProductIds = filtered.map((product) => product.id).join(",");
+  useEffect(() => {
+    if (!visibleProductIds || typeof IntersectionObserver === "undefined") return;
+
+    const viewClient = createClient();
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.5) continue;
+        const productId = (entry.target as HTMLElement).dataset.productViewId;
+        if (!productId || trackedProductViews.current.has(productId)) continue;
+
+        trackedProductViews.current.add(productId);
+        observer.unobserve(entry.target);
+        void viewClient.rpc("increment_product_view", { p_product_id: productId }).then(({ data, error }) => {
+          const nextCount = Number(data);
+          if (error || !Number.isFinite(nextCount)) return;
+          setProducts((current) => current.map((product) =>
+            product.id === productId ? { ...product, views_count: nextCount } : product
+          ));
+        });
+      }
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll<HTMLElement>("[data-product-view-id]").forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, [visibleProductIds]);
+
+
   function addToCart(product: Product, quantity = 1, variant?: ProductVariant) {
     const availableStock = product.stock_quantity;
     if (availableStock === 0 || (availableStock !== null && availableStock !== undefined && quantity > availableStock)) {
@@ -313,19 +329,40 @@ export default function ShopPage() {
     }
   }
 
-  function add(product: Product) {
-    if (!catalogActionsReady) {
-      setMessage("تکایە چاوەڕێ بکە تا جۆرەکانی کاڵا باربکرێن.");
-      return;
+  async function add(product: Product) {
+    if (loadingVariantProductId) return;
+    setLoadingVariantProductId(product.id);
+    try {
+      let readyProduct = product;
+      if (!product.variants_loaded) {
+        const { data, error } = await createClient()
+          .from("product_variants")
+          .select("id,product_id,variant_label,image_path,price_iqd")
+          .eq("product_id", product.id)
+          .eq("is_active", true)
+          .order("sort_order");
+        if (error) throw error;
+
+        readyProduct = {
+          ...product,
+          variants: (data || []) as ProductVariant[],
+          variants_loaded: true,
+        };
+        setProducts((current) => current.map((item) => item.id === product.id ? readyProduct : item));
+      }
+
+      if (readyProduct.variants.length > 0) {
+        setVariantProduct(readyProduct);
+        setSelectedVariantId(readyProduct.variants[0].id);
+        setVariantQuantity(readyProduct.unit === "kg" ? 0.5 : 1);
+      } else {
+        addToCart(readyProduct);
+      }
+    } catch {
+      setMessage("نەتوانرا جۆرەکانی ئەم کاڵایە باربکرێن؛ تکایە دووبارە هەوڵ بدە.");
+    } finally {
+      setLoadingVariantProductId(null);
     }
-    if (product.variants.length > 0) {
-      const firstAvailable = product.variants[0];
-      setVariantProduct(product);
-      setSelectedVariantId(firstAvailable.id);
-      setVariantQuantity(product.unit === "kg" ? 0.5 : 1);
-      return;
-    }
-    addToCart(product);
   }
 
   const selectedVariant = variantProduct?.variants.find((variant) => variant.id === selectedVariantId) || null;
@@ -518,33 +555,37 @@ export default function ShopPage() {
               const detailsOpen = expandedProductIds.includes(product.id);
 
               return (
-                <article key={product.id} className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
+                <article key={product.id} data-product-view-id={product.id} className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
                   <div className="relative grid aspect-square w-full shrink-0 place-items-center overflow-hidden bg-shakh-mist text-shakh-blue">
                     {imageUrl ? <img src={imageUrl} alt={product.title} loading="lazy" className="h-full w-full object-contain p-2 sm:p-3"/> : <Store size={36}/>}
                     <button
                       type="button"
                       onClick={() => add(product)}
-                      disabled={outOfStock || !catalogActionsReady}
-                      aria-label={outOfStock ? "ئەم کاڵایە لە کۆگا نەماوە" : !catalogActionsReady ? "بارکردنی جۆرەکان..." : "زیادکردن بۆ سەبەتە"}
-                      title={outOfStock ? "لە کۆگا نەماوە" : !catalogActionsReady ? "بارکردنی جۆرەکان..." : "زیادکردن بۆ سەبەتە"}
-                      className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-full bg-shakh-blue text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:opacity-75"
+                      disabled={outOfStock || Boolean(loadingVariantProductId)}
+                      aria-label={outOfStock ? "ئەم کاڵایە لە کۆگا نەماوە" : loadingVariantProductId === product.id ? "بارکردنی جۆرەکان..." : "زیادکردن بۆ سەبەتە"}
+                      title={outOfStock ? "لە کۆگا نەماوە" : loadingVariantProductId === product.id ? "بارکردنی جۆرەکان..." : "زیادکردن بۆ سەبەتە"}
+                      className="absolute right-2.5 top-2.5 z-10 grid h-8 w-8 place-items-center rounded-full bg-shakh-blue text-white shadow-md ring-2 ring-white/90 transition hover:scale-105 hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:opacity-75"
                     >
-                      <ShoppingBasket size={20} strokeWidth={2.4}/>
+                      <ShoppingBasket size={16} strokeWidth={2.3}/>
                     </button>
                     <button
                       type="button"
                       onClick={() => shareProduct(product)}
                       aria-label="شێرکردنی کاڵا"
                       title="شێرکردن"
-                      className="absolute right-3 top-[3.5rem] z-10 grid h-10 w-10 place-items-center rounded-full bg-shakh-orange text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-orange-600"
+                      className="absolute right-2.5 top-[2.9rem] z-10 grid h-8 w-8 place-items-center rounded-full bg-shakh-orange text-white shadow-md ring-2 ring-white/90 transition hover:scale-105 hover:bg-orange-600"
                     >
-                      <Share2 size={18}/>
+                      <Share2 size={15}/>
                     </button>
                   </div>
                   <div className="flex flex-col gap-2 p-3 sm:p-4">
                     <p className="truncate text-sm font-semibold text-slate-600">{storeName}</p>
                     <p className="text-xs text-slate-500">{categoryName}{subcategoryName ? " · " + subcategoryName : ""}</p>
                     <p className="font-black text-lg text-shakh-orange">{product.variants.length > 0 ? "لە " : ""}{listedPrice.toLocaleString("en-US")} د.ع</p>
+                    <p className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500" aria-label={`بینراوە ${product.views_count.toLocaleString("en-US")} جار`}>
+                      <Eye size={14} className="text-slate-400" />
+                      {Number(product.views_count || 0).toLocaleString("en-US")} بینین
+                    </p>
                     <button
                       type="button"
                       onClick={() => setExpandedProductIds((current) => detailsOpen ? current.filter((id) => id !== product.id) : [...current, product.id])}
