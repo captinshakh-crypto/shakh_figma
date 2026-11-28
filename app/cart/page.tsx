@@ -141,7 +141,7 @@ export default function CartPage() {
               return [];
             }
             const currentPrice = variant?.price_iqd ?? product.price_iqd;
-            const currentUnit = variant?.unit || product.unit;
+            const currentUnit = product.unit;
             const currentStock = product.stock_quantity;
             const remainingStock = remainingStockByProduct.has(product.id) ? remainingStockByProduct.get(product.id) ?? null : currentStock;
             const quantity = remainingStock === null ? item.quantity : Math.min(item.quantity, remainingStock);
