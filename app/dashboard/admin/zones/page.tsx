@@ -147,14 +147,6 @@ export default function ZonesPage() {
           p_outer_radius_m: Math.round(parsedOuterRadiusKm * 1000),
         };
         const { data: savedZoneId, error } = await supabase.rpc("admin_save_service_zone_circle", circleArgs);
-        /*
-        const { data: savedZoneId, error } = await supabase.rpc("admin_save_service_zone_circle", {
-          ...args,
-          p_center_latitude: effectiveCircleCenter!.latitude,
-          p_center_longitude: effectiveCircleCenter!.longitude,
-          p_outer_radius_m: Math.round(parsedOuterRadiusKm * 1000),
-        });
-        */
         if (error) throw error;
         if (!savedZoneId) throw new Error("ناسنامەی زۆنی بازنەیی وەرنەگیرا.");
         setMessage(editingId ? "زۆنی بازنەیی و مەوداکەی نوێ کرایەوە." : "زۆنی بازنەیی زیاد کرا؛ لە زۆنی پێشووەوە بەردەوامە.");
