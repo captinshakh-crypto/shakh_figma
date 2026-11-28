@@ -52,8 +52,8 @@ type Merchant = {
 
 type Category = { id: string; store_type: string; category_key: string; name: string; sort_order: number; is_active: boolean };
 type Subcategory = { id: string; category_id: string; subcategory_key: string; name: string; sort_order: number; is_active: boolean };
-type ProductVariant = { id: string; product_id: string; variant_label: string; color_name: string | null; color_hex: string | null; scent: string | null; size_label: string | null; unit: string | null; price_iqd: number; cost_price_iqd: number | null; stock_quantity: number | null; sku: string | null; is_active: boolean; sort_order: number };
-type VariantDraft = { id?: string; variant_label: string; color_name: string; color_hex: string; scent: string; size_label: string; unit: string; price: string; costPrice: string; stock: string; sku: string };
+type ProductVariant = { id: string; product_id: string; variant_label: string; color_name: string | null; color_hex: string | null; scent: string | null; size_label: string | null; unit: string | null; price_iqd: number; cost_price_iqd: number | null; stock_quantity: number | null; sku: string | null; image_path: string | null; is_active: boolean; sort_order: number };
+type VariantDraft = { id?: string; variant_label: string; color_name: string; color_hex: string; scent: string; size_label: string; unit: string; price: string; costPrice: string; stock: string; sku: string; image_path: string | null; image_file: File | null; image_preview: string | null };
 type Product = {
   id: string;
   merchant_id: string | null;
@@ -220,7 +220,7 @@ export default function StorePage() {
     if (productIds.length > 0) {
       const { data: variantsData, error: variantsError } = await supabase
         .from("product_variants")
-        .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,is_active,sort_order")
+        .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,image_path,is_active,sort_order")
         .in("product_id", productIds).eq("is_active", true).order("sort_order");
       if (variantsError) throw variantsError;
       variantRows = (variantsData || []) as ProductVariant[];
@@ -270,6 +270,19 @@ export default function StorePage() {
     return matchesSearch && matchesAvailability;
   }), [products, search, availabilityFilter]);
 
+  function setVariantImage(index: number, file: File | null) {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      setMessage("وێنەی جۆر دەبێت JPG یان PNG یان WebP بێت و قەبارەکەی زیاتر نەبێت لە ١٠MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index
+      ? { ...row, image_file: file, image_preview: typeof reader.result === "string" ? reader.result : null }
+      : row));
+    reader.readAsDataURL(file);
+  }
+
   function resetProductForm() {
     variantLoadRequest.current += 1;
     setEditing(null);
@@ -305,7 +318,7 @@ export default function StorePage() {
     void (async () => {
       try {
         const { data, error } = await createClient().from("product_variants")
-          .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,is_active,sort_order")
+          .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,image_path,is_active,sort_order")
           .eq("product_id", product.id).order("sort_order");
         if (requestId !== variantLoadRequest.current) return;
         if (error) {
@@ -324,6 +337,9 @@ export default function StorePage() {
           costPrice: variant.cost_price_iqd === null ? "" : String(variant.cost_price_iqd),
           stock: variant.stock_quantity === null ? "" : String(variant.stock_quantity),
           sku: variant.sku || "",
+          image_path: variant.image_path || null,
+          image_file: null,
+          image_preview: variant.image_path ? createClient().storage.from("product-images").getPublicUrl(variant.image_path).data.publicUrl : null,
         })));
       } catch {
         if (requestId === variantLoadRequest.current) setMessage("هەڵەیەک ڕوویدا لە بارکردنی جۆرەکانی کاڵا.");
@@ -403,6 +419,8 @@ export default function StorePage() {
       cost_price_iqd: variant.costPrice.trim() === "" ? null : Number(variant.costPrice),
       stock_quantity: variant.stock.trim() === "" ? null : Number(variant.stock),
       sku: variant.sku.trim() || null,
+      image_path: variant.image_path,
+      image_file: variant.image_file,
     }));
     for (const variant of parsedVariants) {
       if (!variant.variant_label || !Number.isSafeInteger(variant.price_iqd) || variant.price_iqd <= 0) {
@@ -415,6 +433,10 @@ export default function StorePage() {
       }
       if (variant.cost_price_iqd !== null && (!Number.isSafeInteger(variant.cost_price_iqd) || variant.cost_price_iqd < 0)) {
         setMessage("نرخی کڕینی جۆرەکان دەبێت ژمارەیەکی دروست بێت.");
+        return;
+      }
+      if (variant.image_file && (!["image/jpeg", "image/png", "image/webp"].includes(variant.image_file.type) || variant.image_file.size > 10 * 1024 * 1024)) {
+        setMessage("وێنەی هەر جۆرێک دەبێت JPG یان PNG یان WebP بێت و تا ١٠MB بێت.");
         return;
       }
       if (variant.color_hex && !/^#[0-9a-fA-F]{6}$/.test(variant.color_hex)) {
@@ -436,6 +458,8 @@ export default function StorePage() {
     const supabase = createClient();
     let uploadedPath: string | null = null;
     let keepUploadedPath = false;
+    const uploadedVariantPaths: string[] = [];
+    let keepUploadedVariantPaths = false;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("تکایە دووبارە بچۆ ژوورەوە.");
@@ -479,7 +503,20 @@ export default function StorePage() {
       keepUploadedPath = true;
 
       let retainedVariantIds = new Set<string>();
+      const replacedVariantImagePaths: string[] = [];
       if (parsedVariants.length) {
+        for (const variant of parsedVariants) {
+          if (!variant.image_file) continue;
+          const uploadFile = await compressProductImage(variant.image_file);
+          if (uploadFile.size > 10 * 1024 * 1024) throw new Error("دوای گونجاندنیش قەبارەی وێنەی جۆر لە ١٠MB زیاترە.");
+          const extension = uploadFile.type === "image/png" ? "png" : uploadFile.type === "image/webp" ? "webp" : "jpg";
+          const path = `${user.id}/variants/${crypto.randomUUID()}.${extension}`;
+          const { error: uploadError } = await supabase.storage.from("product-images").upload(path, uploadFile, { contentType: uploadFile.type, upsert: false });
+          if (uploadError) throw uploadError;
+          uploadedVariantPaths.push(path);
+          if (variant.image_path) replacedVariantImagePaths.push(variant.image_path);
+          variant.image_path = path;
+        }
         const variantPayload = parsedVariants.map((variant, index) => ({
           ...(variant.id ? { id: variant.id } : {}),
           product_id: productId,
@@ -493,6 +530,7 @@ export default function StorePage() {
           cost_price_iqd: variant.cost_price_iqd,
           stock_quantity: variant.stock_quantity,
           sku: variant.sku,
+          image_path: variant.image_path,
           sort_order: index,
           is_active: true,
         }));
@@ -503,15 +541,20 @@ export default function StorePage() {
 
       // Only deactivate removed options after all submitted options were saved successfully.
       const { data: savedVariantRows, error: variantListError } = await supabase
-        .from("product_variants").select("id").eq("product_id", productId);
+        .from("product_variants").select("id,image_path").eq("product_id", productId);
       if (variantListError) throw variantListError;
-      const removedVariantIds = (savedVariantRows || []).map((variant) => variant.id).filter((id) => !retainedVariantIds.has(id));
+      const removedVariantRows = (savedVariantRows || []).filter((variant) => !retainedVariantIds.has(variant.id));
+      const retainedImagePaths = new Set(parsedVariants.map((variant) => variant.image_path).filter((path): path is string => Boolean(path)));
+      const removedVariantIds = removedVariantRows.map((variant) => variant.id);
       if (removedVariantIds.length) {
         const { error: deactivateError } = await supabase.from("product_variants")
           .update({ is_active: false }).in("id", removedVariantIds);
         if (deactivateError) throw deactivateError;
       }
 
+      keepUploadedVariantPaths = true;
+      const obsoleteVariantPaths = [...new Set([...replacedVariantImagePaths, ...(savedVariantRows || []).map((variant) => variant.image_path).filter((path): path is string => Boolean(path) && !retainedImagePaths.has(path as string))])];
+      if (obsoleteVariantPaths.length) await supabase.storage.from("product-images").remove(obsoleteVariantPaths);
       if (uploadedPath && editing?.image_path) {
         await supabase.storage.from("product-images").remove([editing.image_path]);
       }
@@ -521,6 +564,7 @@ export default function StorePage() {
       await load();
     } catch (error) {
       if (uploadedPath && !keepUploadedPath) await supabase.storage.from("product-images").remove([uploadedPath]);
+      if (uploadedVariantPaths.length && !keepUploadedVariantPaths) await supabase.storage.from("product-images").remove(uploadedVariantPaths);
       setMessage(error instanceof Error ? error.message : "پاشەکەوتکردنی کاڵا سەرکەوتوو نەبوو.");
     } finally {
       setSaving(false);
@@ -765,7 +809,7 @@ export default function StorePage() {
                       <h3 className="font-black text-slate-900">جۆرەکانی کاڵا (ڕەنگ، بۆن، قەبارە، حەجم...)</h3>
                       <p className="mt-1 text-xs leading-6 text-slate-600">ئەگەر کاڵاکە چەند جۆری هەیە، هەر جۆرێک بە نرخ و کۆگای تایبەتی زیاد بکە. ئەگەر هیچ جۆرێکی نییە، ئەم بەشە بەتاڵ بهێڵەوە.</p>
                     </div>
-                    <button type="button" onClick={() => setVariantDrafts((current) => [...current, { variant_label: "", color_name: "", color_hex: "", scent: "", size_label: "", unit: form.unit, price: form.price, costPrice: "", stock: "", sku: "" }])} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-shakh-blue px-4 text-sm font-bold text-white">
+                    <button type="button" onClick={() => setVariantDrafts((current) => [...current, { variant_label: "", color_name: "", color_hex: "", scent: "", size_label: "", unit: form.unit, price: form.price, costPrice: "", stock: "", sku: "", image_path: null, image_file: null, image_preview: null }])} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-shakh-blue px-4 text-sm font-bold text-white">
                       <Plus size={16}/> زیادکردنی جۆر
                     </button>
                   </div>
@@ -777,6 +821,20 @@ export default function StorePage() {
                           <button type="button" onClick={() => setVariantDrafts((current) => current.filter((_, rowIndex) => rowIndex !== index))} className="rounded-lg border border-red-100 p-2 text-red-600" aria-label="سڕینەوەی جۆر"><Trash2 size={15}/></button>
                         </div>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <div className="sm:col-span-2 rounded-xl border border-dashed border-blue-200 bg-blue-50/60 p-3">
+                            <div className="flex items-center gap-3">
+                              {variant.image_preview ? <img src={variant.image_preview} alt={`وێنەی جۆری ${index + 1}`} className="h-20 w-20 rounded-lg border bg-white object-contain p-1"/> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-lg border bg-white text-slate-300"><ImagePlus size={26}/></div>}
+                              <div className="min-w-0 flex-1">
+                                <label className="block text-xs font-black">وێنەی تایبەتی ئەم جۆرە
+                                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setVariantImage(index, event.target.files?.[0] || null)} className="mt-2 block w-full text-xs font-medium"/>
+                                </label>
+                                <p className="mt-1 text-[11px] text-slate-500">وێنەی جیاواز بۆ ئەم جۆرە؛ تا ١٠MB</p>
+                                {variant.image_file && <p className="mt-1 truncate text-[11px] font-bold text-green-700">{variant.image_file.name}</p>}
+                                {variant.image_path && !variant.image_file && <p className="mt-1 text-[11px] text-green-700">وێنەی پاشەکەوتکراو</p>}
+                              </div>
+                              {(variant.image_path || variant.image_file) && <button type="button" onClick={() => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, image_path: null, image_file: null, image_preview: null } : row))} className="rounded-lg border border-red-200 p-2 text-red-600" aria-label="لابردنی وێنەی جۆر"><X size={16}/></button>}
+                            </div>
+                          </div>
                           <label className="text-xs font-bold">ناوی جۆر (پێویستە)
                             <input required value={variant.variant_label} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, variant_label: event.target.value } : row))} placeholder="نموونە: بۆنی گوڵ · ١٠٠ گرام" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
                           </label>
