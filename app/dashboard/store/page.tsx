@@ -995,7 +995,7 @@ export default function StorePage() {
               {loading ? <p className="mt-5 text-slate-500">بارکردن...</p> : filteredProducts.length === 0 ? (
                 <div className="mt-5 rounded-2xl bg-white p-8 text-center text-slate-500">{products.length === 0 ? "هێشتا هیچ کاڵایەک زیاد نەکراوە." : "هیچ کاڵایەک لەگەڵ ئەم گەڕانەدا نەدۆزرایەوە."}</div>
               ) : (
-                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-3" aria-label="پۆستەکانی بەرهەم بە شێوەی ئاسۆیی">
                   {filteredProducts.map((product) => {
                     const publicImage = product.image_path
                       ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
@@ -1005,15 +1005,15 @@ export default function StorePage() {
                        ? Math.min(...product.variants.map((variant) => variant.price_iqd))
                        : product.price_iqd;
                     return (
-                      <article key={product.id} className="overflow-hidden rounded-2xl bg-white shadow-soft">
-                        <div className="flex gap-4 p-4">
-                          <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-xl bg-shakh-mist text-shakh-blue">
+                      <article key={product.id} className="w-[min(82vw,340px)] shrink-0 snap-start overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft sm:w-[310px]">
+                        <div className="flex gap-3 p-3">
+                          <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-shakh-mist text-shakh-blue">
                             {publicImage ? <img src={publicImage} alt={product.title} className="h-full w-full object-cover"/> : <Store size={30}/>}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="font-black">{product.title}</h3>
-                              <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${product.approval_status === "pending" ? "bg-amber-50 text-amber-800" : product.approval_status === "rejected" ? "bg-red-50 text-red-700" : product.is_available && !outOfStock ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{product.approval_status === "pending" ? "چاوەڕوانی پەسەندکردن" : product.approval_status === "rejected" ? "ڕەفزکراو" : outOfStock ? "کۆگا تەواو بووە" : product.is_available ? "بەردەست" : "ناچالاک"}</span>
+                              <h3 className="line-clamp-1 text-sm font-black">{product.title}</h3>
+                              <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${product.approval_status === "pending" ? "bg-amber-50 text-amber-800" : product.approval_status === "rejected" ? "bg-red-50 text-red-700" : product.is_available && !outOfStock ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{product.approval_status === "pending" ? "چاوەڕوانی پەسەندکردن" : product.approval_status === "rejected" ? "ڕەفزکراو" : outOfStock ? "کۆگا تەواو بووە" : product.is_available ? "بەردەست" : "ناچالاک"}</span>
                             </div>
                             {isAdmin && <p className="mt-1 text-xs font-semibold text-slate-500">{product.variants.length > 0
                                ? `${product.variants.length} ڕەنگی جیاواز · تێچوو و قازانج بەپێی نرخی کڕینی هەر ڕەنگ تۆمار دەکرێت`
@@ -1022,20 +1022,20 @@ export default function StorePage() {
                             {product.referral_commission_iqd > 0
                               ? <p className="mt-1 rounded-lg bg-purple-50 px-2 py-1 text-xs font-black text-purple-800">خەڵاتی شێر بۆ هەر دانە: {formatIQD(product.referral_commission_iqd)}</p>
                               : <p className="mt-1 rounded-lg bg-slate-50 px-2 py-1 text-xs font-medium text-slate-500">ئەم کاڵایە بە شێوەی ئاسایی دەفرۆشرێت؛ شێر و خەڵاتی نییە.</p>}
-                            <p className="mt-1 text-lg font-black text-shakh-orange">{product.variants.length > 0 ? "لە " : ""}{formatIQD(lowestVariantPrice)} <small className="text-xs font-medium text-slate-500">/ {units.find((unit) => unit.value === product.unit)?.label || product.unit}</small></p>
-                             <p className="mt-1 text-sm text-slate-500">کۆگای هاوبەش: {product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}</p>
-                            {product.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>}{product.rejection_reason && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">هۆکاری ڕەفز: {product.rejection_reason}</p>}
+                            <p className="mt-1 text-base font-black text-shakh-orange">{product.variants.length > 0 ? "لە " : ""}{formatIQD(lowestVariantPrice)} <small className="text-xs font-medium text-slate-500">/ {units.find((unit) => unit.value === product.unit)?.label || product.unit}</small></p>
+                             <p className="mt-1 text-xs text-slate-500">کۆگای هاوبەش: {product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}</p>
+                            {product.description && <p className="mt-1 line-clamp-1 text-[11px] text-slate-500">{product.description}</p>}{product.rejection_reason && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">هۆکاری ڕەفز: {product.rejection_reason}</p>}
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-2 border-t border-slate-100 p-3">
+                        <div className="flex flex-wrap gap-1.5 border-t border-slate-100 p-2">
                           {(!isAdmin || product.is_shakh_store) && product.referral_commission_iqd > 0 && product.approval_status === "approved" && product.is_available && !outOfStock && (
-                            <button disabled={saving} onClick={() => void shareProductReward(product)} className="inline-flex items-center gap-1 rounded-lg bg-purple-50 px-3 py-2 text-sm font-bold text-purple-800 disabled:opacity-50"><Share2 size={15}/> شێرکردنی پۆست و وەرگرتنی خەڵات</button>
+                            <button disabled={saving} onClick={() => void shareProductReward(product)} className="inline-flex items-center gap-1 rounded-lg bg-purple-50 px-2 py-1.5 text-xs font-bold text-purple-800 disabled:opacity-50"><Share2 size={15}/> شێرکردنی پۆست و وەرگرتنی خەڵات</button>
                           )}
                           {(!isAdmin || product.is_shakh_store) && <>
-                            <button disabled={saving} onClick={() => startEditing(product)} className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 disabled:opacity-50"><Pencil size={15}/> دەستکاری</button>
-                            <button disabled={saving} onClick={() => void toggleAvailability(product)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-50">{product.is_available ? <EyeOff size={15}/> : <Eye size={15}/>} {product.is_available ? "ناچالاککردن" : "بەردەستکردن"}</button>
+                            <button disabled={saving} onClick={() => startEditing(product)} className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-bold text-blue-700 disabled:opacity-50"><Pencil size={15}/> دەستکاری</button>
+                            <button disabled={saving} onClick={() => void toggleAvailability(product)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1.5 text-xs font-bold text-slate-700 disabled:opacity-50">{product.is_available ? <EyeOff size={15}/> : <Eye size={15}/>} {product.is_available ? "ناچالاککردن" : "بەردەستکردن"}</button>
                           </>}
-                          <button disabled={saving} onClick={() => void removeProduct(product)} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50"><Trash2 size={15}/> سڕینەوەی یەکجاری</button>
+                          <button disabled={saving} onClick={() => void removeProduct(product)} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-xs font-bold text-red-700 disabled:opacity-50"><Trash2 size={15}/> سڕینەوەی یەکجاری</button>
                         </div>
                       </article>
                     );
