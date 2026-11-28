@@ -89,22 +89,22 @@ const emptyProduct = {
   subcategoryId: "",
 };
 
-const categoryVisuals: Record<string, { icon: string; hint: string }> = {
+const categoryVisuals: Record<string, { icon: string; hint: string; image?: string }> = {
   supermarket: { icon: "🛒", hint: "خواردەمەنی و پێداویستی ماڵ" },
   restaurant: { icon: "🍽️", hint: "خواردن و خواردنەوەی ئامادە" },
   grocery: { icon: "🥬", hint: "سەوزەوات و پێداویستی ڕۆژانە" },
   butcher_poultry: { icon: "🥩", hint: "گۆشت، مریشک و سپیاتی" },
-  groceries: { icon: "🌾", hint: "برنج، دانەوێڵە و پاقلەمەنی" },
-  cleaning: { icon: "🧴", hint: "پاککەرەوە و جلشۆر" },
-  biscuits_snacks: { icon: "🍪", hint: "بسکویت و خواردنی سووک" },
-  dairy: { icon: "🥛", hint: "شیر، ماست و پەنیر" },
-  beverages: { icon: "🧃", hint: "ئاو و خواردنەوە" },
+  groceries: { icon: "🌾", hint: "برنج، دانەوێڵە و پاقلەمەنی", image: "/category-covers/groceries.svg" },
+  cleaning: { icon: "🧴", hint: "پاککەرەوە و جلشۆر", image: "/category-covers/cleaning.svg" },
+  biscuits_snacks: { icon: "🍪", hint: "بسکویت و خواردنی سووک", image: "/category-covers/biscuits-snacks.svg" },
+  dairy: { icon: "🥛", hint: "شیر، ماست و پەنیر", image: "/category-covers/dairy.svg" },
+  beverages: { icon: "🧃", hint: "ئاو و خواردنەوە", image: "/category-covers/beverages.svg" },
   personal_care: { icon: "🧼", hint: "چاودێری و پاکوخاوێنی" },
   frozen: { icon: "🧊", hint: "بەرهەمی ساردکراو" },
-  meals: { icon: "🍛", hint: "خواردنی سەرەکی و ناوخۆیی" },
+  meals: { icon: "🍛", hint: "خواردنی سەرەکی و ناوخۆیی", image: "/category-covers/main-meals.svg" },
   grills: { icon: "🍢", hint: "کەباب و گریل" },
-  fast_food: { icon: "🌯", hint: "برگر، پیتزا، شاورمە و لێفە" },
-  sides: { icon: "🍟", hint: "سوورکراوە و خواردنی لاوەکی" },
+  fast_food: { icon: "🌯", hint: "برگر، پیتزا، شاورمە و لێفە", image: "/category-covers/fast-food.svg" },
+  sides: { icon: "🍟", hint: "سوورکراوە و خواردنی لاوەکی", image: "/category-covers/fried-foods.svg" },
   breakfast: { icon: "🍳", hint: "خواردنی بەیانی" },
   drinks: { icon: "🥤", hint: "خواردنەوەکان" },
   desserts: { icon: "🍰", hint: "شیرینی و دێزێرت" },
@@ -809,15 +809,21 @@ export default function StorePage() {
                             category: item.category_key,
                             subcategoryId: "",
                           }))}
-                          className={`flex min-w-[172px] snap-start items-center gap-3 rounded-2xl border p-3 text-right transition ${selected ? "border-shakh-blue bg-shakh-blue text-white shadow-md ring-2 ring-blue-100" : "border-slate-200 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50"}`}
+                          className={`group flex min-w-[208px] max-w-[208px] snap-start flex-col overflow-hidden rounded-2xl border text-right transition sm:min-w-[224px] sm:max-w-[224px] ${selected ? "border-shakh-blue bg-blue-50 shadow-md ring-2 ring-blue-100" : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm"}`}
                         >
-                          <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-2xl ${selected ? "bg-white/15" : "bg-slate-50"}`}>{visual.icon}</span>
-                          <span className="min-w-0 flex-1">
-                            <b className="block truncate text-sm">{item.name}</b>
-                            <small className={`mt-1 block text-[10px] leading-4 ${selected ? "text-blue-100" : "text-slate-500"}`}>{visual.hint}</small>
-                            <small className={`mt-1 block text-[10px] font-bold ${selected ? "text-white" : "text-shakh-orange"}`}>{childCount} ژێربەش</small>
+                          <span className="relative block h-28 w-full overflow-hidden bg-slate-100 sm:h-32">
+                            {visual.image ? (
+                              <img src={visual.image} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-300 group-hover:scale-105"/>
+                            ) : (
+                              <span className="grid h-full w-full place-items-center bg-gradient-to-br from-blue-50 to-orange-50 text-5xl">{visual.icon}</span>
+                            )}
+                            <span className="absolute right-2 top-2 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm">{childCount} ژێربەش</span>
+                            {selected && <span className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-shakh-blue text-sm font-black text-white shadow">✓</span>}
                           </span>
-                          {selected && <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white text-shakh-blue">✓</span>}
+                          <span className="block min-w-0 p-3">
+                            <b className={`block truncate text-sm font-black ${selected ? "text-shakh-blue" : "text-slate-900"}`}>{item.name}</b>
+                            <small className="mt-1 block min-h-8 text-[11px] leading-5 text-slate-500">{visual.hint}</small>
+                          </span>
                         </button>
                       );
                     })}
