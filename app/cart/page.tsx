@@ -386,12 +386,12 @@ export default function CartPage() {
                         {item.variant_image_path ? <img src={createClient().storage.from("product-images").getPublicUrl(item.variant_image_path).data.publicUrl} alt={item.variant_label || item.title} className="h-14 w-14 shrink-0 rounded-xl border bg-white object-contain p-1"/> : item.color_hex ? <span className="h-9 w-9 shrink-0 rounded-full border border-slate-300" style={{ backgroundColor: item.color_hex }}/> : null}
                         <div className="min-w-0">
                         <b>{item.title}</b>
-                        {item.variant_label && <p className="mt-1 text-xs font-bold text-shakh-blue">{item.variant_label}{[item.color_name, item.scent, item.size_label].filter(Boolean).length ? " · " + [item.color_name, item.scent, item.size_label].filter(Boolean).join(" · ") : ""}</p>}
+                        {item.variant_label && <p className="mt-1 text-xs font-bold text-shakh-blue">{item.variant_label}{[item.scent, item.size_label].filter(Boolean).length ? " · " + [item.scent, item.size_label].filter(Boolean).join(" · ") : ""}</p>}
                         <p className="text-sm text-shakh-orange">{item.price_iqd.toLocaleString("en-US")} د.ع / {unitLabels[item.unit || "piece"] || item.unit}</p>
                         {item.stock_quantity !== null && item.stock_quantity !== undefined && <p className="mt-1 text-xs text-slate-500">کۆگا: {item.stock_quantity.toLocaleString("en-US")}</p>}
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2>
+                      <div className="flex shrink-0 items-center gap-2">
                         <button type="button" aria-label="کەمکردنەوەی بڕ" onClick={() => changeQuantity(item, -1)} className="h-9 w-9 rounded-lg bg-slate-100">−</button>
                         <b className="min-w-16 text-center">{item.quantity.toLocaleString("en-US", { maximumFractionDigits: 3 })} {unitLabels[item.unit || "piece"] || item.unit}</b>
                         <button type="button" aria-label="زیادکردنی بڕ" disabled={item.stock_quantity !== null && item.stock_quantity !== undefined && item.quantity + (item.unit === "kg" ? 0.5 : 1) > item.stock_quantity} onClick={() => changeQuantity(item, 1)} className="h-9 w-9 rounded-lg bg-slate-100 disabled:opacity-40">+</button>
