@@ -742,6 +742,7 @@ export type Database = {
           price_iqd: number
           referral_commission_iqd: number
           rejection_reason: string | null
+          views_count: number
           reviewed_at: string | null
           reviewed_by: string | null
           stock_quantity: number | null
@@ -766,6 +767,7 @@ export type Database = {
           price_iqd: number
           referral_commission_iqd?: number
           rejection_reason?: string | null
+          views_count?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
           stock_quantity?: number | null
@@ -790,6 +792,7 @@ export type Database = {
           price_iqd?: number
           referral_commission_iqd?: number
           rejection_reason?: string | null
+          views_count?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
           stock_quantity?: number | null
@@ -1125,6 +1128,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      increment_product_view: {
+        Args: { p_product_id: string }
+        Returns: number
+      }
       admin_assign_captain: {
         Args: { p_captain_user_id: string; p_order_id: string }
         Returns: undefined
