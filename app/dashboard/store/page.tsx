@@ -389,6 +389,20 @@ export default function StorePage() {
       setMessage("کاتەگۆرییەکە لە لیستی ناوەندی چالاک نییە؛ دووبارە هەڵیبژێرە.");
       return;
     }
+    const chosenSubcategory = catalogSubcategories.find((item) =>
+      item.id === form.subcategoryId && item.category_id === chosenCategory.id && item.is_active
+    );
+    const hasActiveSubcategories = catalogSubcategories.some((item) =>
+      item.category_id === chosenCategory.id && item.is_active
+    );
+    if (hasActiveSubcategories && !chosenSubcategory) {
+      setMessage("تکایە ژێرکاتەگۆرییەکی گونجاو هەڵبژێرە بۆ ئەوەی کاڵاکە بە دروستی پۆلێن بکرێت.");
+      return;
+    }
+    if (form.subcategoryId && !chosenSubcategory) {
+      setMessage("ژێرکاتەگۆرییەکە لەگەڵ کاتەگۆریی سەرەکی ناگونجێت؛ دووبارە هەڵیبژێرە.");
+      return;
+    }
     const costPrice = form.costPrice.trim() === "" ? null : Number(form.costPrice);
     const referralCommission = Number(form.referralCommission || 0);
     if (!Number.isSafeInteger(referralCommission) || referralCommission < 0) {
@@ -467,7 +481,7 @@ export default function StorePage() {
         unit: form.unit,
         category_key: chosenCategory.category_key,
         category_id: chosenCategory.id,
-        subcategory_id: form.subcategoryId || null,
+        subcategory_id: chosenSubcategory?.id || null,
         ...(uploadedPath ? { image_path: uploadedPath } : {}),
       };
 
@@ -750,11 +764,12 @@ export default function StorePage() {
                     </select>
                     <small className="mt-1 block text-xs font-medium leading-5 text-slate-500">هەمان لیستی ناوەندیی سوپەر ئەدمین بەکاردەهێنرێت.</small>
                   </label>
-                  <label className="block text-sm font-bold">ژێرکاتەگۆری (ئارەزوومەندانە)
-                    <select value={form.subcategoryId} onChange={(event) => setForm((old) => ({ ...old, subcategoryId: event.target.value }))} disabled={!form.categoryId || formSubcategories.length === 0} className="mt-2 w-full rounded-xl border border-slate-200 p-3 disabled:bg-slate-50">
-                      <option value="">بێ ژێرکاتەگۆری</option>
+                  <label className="block text-sm font-bold">ژێرکاتەگۆری
+                    <select value={form.subcategoryId} onChange={(event) => setForm((old) => ({ ...old, subcategoryId: event.target.value }))} disabled={!form.categoryId || formSubcategories.length === 0} required={formSubcategories.length > 0} className="mt-2 w-full rounded-xl border border-slate-200 p-3 disabled:bg-slate-50">
+                      <option value="">{formSubcategories.length > 0 ? "ژێرکاتەگۆری هەڵبژێرە" : "ژێرکاتەگۆری نییە"}</option>
                       {formSubcategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                     </select>
+                    <small className="mt-1 block text-xs font-medium leading-5 text-slate-500">کاتێک ژێرکاتەگۆری هەیە، هەڵبژاردنی پێویستە بۆ جیاکردنەوەی کاڵاکان.</small>
                   </label>
                 </div>
                 <label className="block text-sm font-bold">وردەکاری کاڵا

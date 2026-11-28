@@ -15,6 +15,7 @@ type ProductVariant = {
   price_iqd: number;
 };
 type ProductCategory = { id: string; store_type: string; category_key: string; name: string; is_active: boolean };
+type ProductSubcategory = { id: string; category_id: string; subcategory_key: string; name: string; is_active: boolean };
 type Product = {
   id: string;
   title: string;
@@ -72,6 +73,7 @@ export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [catalogCategories, setCatalogCategories] = useState<ProductCategory[]>([]);
+  const [catalogSubcategories, setCatalogSubcategories] = useState<ProductSubcategory[]>([]);
   const [variantProduct, setVariantProduct] = useState<Product | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState("");
   const [variantQuantity, setVariantQuantity] = useState(1);
@@ -80,6 +82,7 @@ export default function ShopPage() {
   const [searchInitialized, setSearchInitialized] = useState(false);
   const [storeType, setStoreType] = useState("all");
   const [category, setCategory] = useState("all");
+  const [subcategory, setSubcategory] = useState("all");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [referralCampaignId, setReferralCampaignId] = useState("");
@@ -97,7 +100,7 @@ export default function ShopPage() {
     setReferralCampaignId(savedReferral);
 
     const refreshCatalog = async () => {
-      const [productResult, merchantResult, categoryResult] = await Promise.all([
+      const [productResult, merchantResult, categoryResult, subcategoryResult] = await Promise.all([
         supabase.from("products")
           .select("id,title,description,price_iqd,category_key,category_id,subcategory_id,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
           .eq("is_available", true).eq("approval_status", "approved").order("created_at", { ascending: false }),
@@ -105,9 +108,11 @@ export default function ShopPage() {
           .select("id,business_name,merchant_type,address").eq("approval_status", "approved"),
         supabase.from("product_categories")
           .select("id,store_type,category_key,name,is_active").eq("is_active", true).order("sort_order").order("name"),
+        supabase.from("product_subcategories")
+          .select("id,category_id,subcategory_key,name,is_active").eq("is_active", true).order("sort_order").order("name"),
       ]);
       if (!active) return;
-      if (productResult.error || merchantResult.error || categoryResult.error) {
+      if (productResult.error || merchantResult.error || categoryResult.error || subcategoryResult.error) {
         setMessage("نەتوانرا زانیاری بازاڕ و کاتەگۆرییەکان باربکرێن.");
         setLoading(false);
         return;
@@ -131,6 +136,7 @@ export default function ShopPage() {
       setProducts(productRows.map((product) => ({ ...product, variants: byProduct.get(product.id) || [] })));
       setMerchants(merchantResult.data || []);
       setCatalogCategories((categoryResult.data || []) as ProductCategory[]);
+      setCatalogSubcategories((subcategoryResult.data || []) as ProductSubcategory[]);
       setLoading(false);
     };
 
@@ -185,6 +191,10 @@ export default function ShopPage() {
     () => catalogCategories.filter((item) => storeType === "all" || item.store_type === storeType),
     [catalogCategories, storeType]
   );
+  const subcategories = useMemo(
+    () => category === "all" ? [] : catalogSubcategories.filter((item) => item.category_id === category && item.is_active),
+    [catalogSubcategories, category]
+  );
 
   const filtered = useMemo(() => products.filter((product) => {
     const merchant = product.merchant_id ? merchantMap[product.merchant_id] : null;
@@ -193,9 +203,10 @@ export default function ShopPage() {
       .toLowerCase().includes(search.toLowerCase());
     const matchesType = storeType === "all" || typeForProduct(product) === storeType;
     const matchesCategory = category === "all" || product.category_id === category;
+    const matchesSubcategory = subcategory === "all" || product.subcategory_id === subcategory;
     const matchesSharedProduct = !sharedProductId || product.id === sharedProductId;
-    return matchesSearch && matchesType && matchesCategory && matchesSharedProduct;
-  }), [products, merchants, search, storeType, category, sharedProductId]);
+    return matchesSearch && matchesType && matchesCategory && matchesSubcategory && matchesSharedProduct;
+  }), [products, merchants, search, storeType, category, subcategory, sharedProductId]);
 
   function addToCart(product: Product, quantity = 1, variant?: ProductVariant) {
     const availableStock = product.stock_quantity;
@@ -350,17 +361,23 @@ export default function ShopPage() {
           <div className="flex items-center gap-2 text-sm font-bold text-slate-500"><SlidersHorizontal size={16}/> جۆری دوکان</div>
           <div className="mt-3 flex flex-wrap gap-2">
             {storeTypes.map((type) => (
-              <button key={type.value} onClick={() => { setStoreType(type.value); setCategory("all"); }}
+              <button key={type.value} onClick={() => { setStoreType(type.value); setCategory("all"); setSubcategory("all"); }}
                 className={`rounded-full px-4 py-2 text-sm font-bold transition ${storeType === type.value ? "bg-shakh-blue text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
                 {type.label}
               </button>
             ))}
           </div>
           <div className="mt-3">
-            <select aria-label="بەشی کاڵا" value={category} onChange={(event) => setCategory(event.target.value)} className="w-full max-w-xs rounded-xl border border-slate-200 p-3 text-sm">
-              <option value="all">هەموو بەشەکانی کاڵا</option>
-              {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            <div className="flex flex-wrap gap-3">
+              <select aria-label="کاتەگۆری سەرەکی" value={category} onChange={(event) => { setCategory(event.target.value); setSubcategory("all"); }} className="w-full max-w-xs rounded-xl border border-slate-200 p-3 text-sm">
+                <option value="all">هەموو بەشەکانی کاڵا</option>
+                {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+              <select aria-label="ژێرکاتەگۆری کاڵا" value={subcategory} onChange={(event) => setSubcategory(event.target.value)} disabled={category === "all" || subcategories.length === 0} className="w-full max-w-xs rounded-xl border border-slate-200 p-3 text-sm disabled:bg-slate-50 disabled:text-slate-400">
+                <option value="all">{category === "all" ? "سەرەتا کاتەگۆری هەڵبژێرە" : "هەموو ژێرکاتەگۆرییەکان"}</option>
+                {subcategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            </div>
           </div>
         </section>
 
@@ -428,6 +445,7 @@ export default function ShopPage() {
                 ? Math.min(...product.variants.map((variant) => variant.price_iqd))
                 : product.price_iqd;
               const categoryName = catalogCategories.find((item) => item.id === product.category_id)?.name || categoryLabels[product.category_key] || product.category_key;
+              const subcategoryName = catalogSubcategories.find((item) => item.id === product.subcategory_id)?.name || "";
               const detailsOpen = expandedProductIds.includes(product.id);
 
               return (
@@ -456,6 +474,7 @@ export default function ShopPage() {
                   </div>
                   <div className="flex flex-col gap-2 p-3 sm:p-4">
                     <p className="truncate text-sm font-semibold text-slate-600">{storeName}</p>
+                    <p className="text-xs text-slate-500">{categoryName}{subcategoryName ? " · " + subcategoryName : ""}</p>
                     <p className="font-black text-lg text-shakh-orange">{product.variants.length > 0 ? "لە " : ""}{listedPrice.toLocaleString("en-US")} د.ع</p>
                     <button
                       type="button"
@@ -470,7 +489,7 @@ export default function ShopPage() {
                       <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 text-sm">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="font-bold text-shakh-orange">{storeLabel}</span>
-                          <span className="text-xs text-slate-400">{categoryName}</span>
+                          <span className="text-xs text-slate-400">{categoryName}{subcategoryName ? " / " + subcategoryName : ""}</span>
                         </div>
                         <h2 className="font-bold leading-6 text-slate-800">{product.title}</h2>
                         {product.description && <p className="text-xs leading-5 text-slate-500">{product.description}</p>}
