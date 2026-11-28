@@ -83,7 +83,7 @@ export default function HomePage() {
           .from("products")
           .select("id,title,description,price_iqd,image_path,category_key,is_shakh_store")
           .eq("is_available", true)
-          .eq("is_shakh_store", false)
+          .eq("approval_status", "approved")
           .order("created_at", { ascending: false })
           .limit(8);
         if (!active) return;
