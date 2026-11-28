@@ -13,6 +13,7 @@ type ProductVariant = {
   variant_label: string;
   color_name: string | null;
   color_hex: string | null;
+  image_path: string | null;
   scent: string | null;
   size_label: string | null;
   unit: string | null;
@@ -44,6 +45,8 @@ type CartItem = {
   variant_id?: string;
   variant_label?: string;
   color_name?: string | null;
+  color_hex?: string | null;
+  variant_image_path?: string | null;
   scent?: string | null;
   size_label?: string | null;
   title: string;
@@ -125,7 +128,7 @@ export default function ShopPage() {
       let variantRows: ProductVariant[] = [];
       if (productIds.length > 0) {
         const { data, error } = await supabase.from("product_variants")
-          .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,stock_quantity,is_active")
+          .select("id,product_id,variant_label,color_name,color_hex,image_path,scent,size_label,unit,price_iqd,stock_quantity,is_active")
           .in("product_id", productIds).eq("is_active", true).order("sort_order");
         if (error) setMessage("نوێکردنەوەی جۆرەکانی کاڵا سەرکەوتوو نەبوو.");
         else variantRows = (data || []) as ProductVariant[];
@@ -233,6 +236,8 @@ export default function ShopPage() {
             variant_id: variant.id,
             variant_label: variant.variant_label,
             color_name: variant.color_name,
+            color_hex: variant.color_hex,
+            variant_image_path: variant.image_path,
             scent: variant.scent,
             size_label: variant.size_label,
           } : {}),
@@ -385,11 +390,12 @@ export default function ShopPage() {
                 {variantProduct.variants.map((variant) => {
                   const isSelected = selectedVariantId === variant.id;
                   const exhausted = variant.stock_quantity === 0;
-                  const attributes = [variant.color_name, variant.scent, variant.size_label].filter(Boolean);
+                  const attributes = [variant.scent, variant.size_label].filter(Boolean);
+                  const variantImageUrl = variant.image_path ? createClient().storage.from("product-images").getPublicUrl(variant.image_path).data.publicUrl : null;
                   return (
                     <button key={variant.id} type="button" disabled={exhausted} onClick={() => { setSelectedVariantId(variant.id); setVariantQuantity(variant.unit === "kg" ? 0.5 : 1); }}
                       className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-right transition ${isSelected ? "border-shakh-blue bg-blue-50 ring-1 ring-shakh-blue" : "border-slate-200"} ${exhausted ? "opacity-40" : ""}`}>
-                      {variant.color_hex ? <span className="h-8 w-8 shrink-0 rounded-full border border-slate-300" style={{ backgroundColor: variant.color_hex }}/> : <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-xs">✓</span>}
+                      {variantImageUrl ? <img src={variantImageUrl} alt={variant.variant_label} loading="lazy" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1"/> : variant.color_hex ? <span aria-label={variant.color_name || "ڕەنگ"} className="h-10 w-10 shrink-0 rounded-full border border-slate-300 shadow-inner" style={{ backgroundColor: variant.color_hex }}/> : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-slate-100 text-xs">✓</span>}
                       <span className="min-w-0 flex-1"><b className="block text-sm">{variant.variant_label}</b><span className="block text-xs text-slate-500">{attributes.join(" · ") || "جۆری تایبەت"}</span><span className="mt-1 block text-[11px] text-slate-400">{exhausted ? "لە کۆگا نەماوە" : variant.stock_quantity === null ? "بەردەست" : `کۆگا: ${variant.stock_quantity}`}</span></span>
                       <span className="shrink-0 text-sm font-black text-shakh-orange">{variant.price_iqd.toLocaleString("en-US")} د.ع</span>
                       {isSelected && <span className="text-shakh-blue">✓</span>}
