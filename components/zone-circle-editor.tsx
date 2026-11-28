@@ -17,10 +17,13 @@ type LeafletApi = {
   marker(point: [number, number]): Layer;
   latLngBounds(points: [number, number][]): unknown;
 };
-declare global { interface Window { L?: LeafletApi } }
+type WindowWithLeaflet = Window & { L?: LeafletApi };
+function getLeaflet(): LeafletApi | undefined {
+  return (window as WindowWithLeaflet).L;
+}
 
 function loadLeaflet(): Promise<LeafletApi> {
-  if (window.L) return Promise.resolve(window.L);
+  if (getLeaflet()) return Promise.resolve(getLeaflet() as LeafletApi);
   if (!document.getElementById("shakh-leaflet-css")) {
     const link = document.createElement("link");
     link.id = "shakh-leaflet-css";
@@ -31,7 +34,7 @@ function loadLeaflet(): Promise<LeafletApi> {
   return new Promise((resolve, reject) => {
     const existing = document.getElementById("shakh-leaflet-js") as HTMLScriptElement | null;
     if (existing) {
-      existing.addEventListener("load", () => window.L ? resolve(window.L) : reject(new Error("Leaflet failed")), { once: true });
+      existing.addEventListener("load", () => getLeaflet() ? resolve(getLeaflet()) : reject(new Error("Leaflet failed")), { once: true });
       existing.addEventListener("error", () => reject(new Error("Leaflet failed")), { once: true });
       return;
     }
@@ -39,7 +42,7 @@ function loadLeaflet(): Promise<LeafletApi> {
     script.id = "shakh-leaflet-js";
     script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
     script.async = true;
-    script.onload = () => window.L ? resolve(window.L) : reject(new Error("Leaflet failed"));
+    script.onload = () => getLeaflet() ? resolve(getLeaflet() as LeafletApi) : reject(new Error("Leaflet failed"));
     script.onerror = () => reject(new Error("Leaflet failed"));
     document.body.appendChild(script);
   });
@@ -106,8 +109,9 @@ export function ZoneCircleEditor({
   }, [mapId]);
 
   useEffect(() => {
-    if (!window.L || !mapRef.current) return;
-    redraw(window.L, center, innerRadiusM, outerRadiusM);
+    const L = getLeaflet();
+    if (!L || !mapRef.current) return;
+    redraw(L, center, innerRadiusM, outerRadiusM);
   }, [center, innerRadiusM, outerRadiusM]);
 
   function redraw(L: LeafletApi, current: CircleCenter | null, inner: number, outer: number) {
