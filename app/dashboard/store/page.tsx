@@ -52,8 +52,8 @@ type Merchant = {
 
 type Category = { id: string; store_type: string; category_key: string; name: string; sort_order: number; is_active: boolean };
 type Subcategory = { id: string; category_id: string; subcategory_key: string; name: string; sort_order: number; is_active: boolean };
-type ProductVariant = { id: string; product_id: string; variant_label: string; color_name: string | null; color_hex: string | null; scent: string | null; size_label: string | null; unit: string | null; price_iqd: number; cost_price_iqd: number | null; stock_quantity: number | null; sku: string | null; image_path: string | null; is_active: boolean; sort_order: number };
-type VariantDraft = { id?: string; variant_label: string; color_name: string; color_hex: string; scent: string; size_label: string; unit: string; price: string; costPrice: string; stock: string; sku: string; image_path: string | null; image_file: File | null; image_preview: string | null };
+type ProductVariant = { id: string; product_id: string; variant_label: string; price_iqd: number; cost_price_iqd: number | null; stock_quantity: number | null; image_path: string | null; is_active: boolean; sort_order: number };
+type VariantDraft = { id?: string; variant_label: string; price: string; costPrice: string; image_path: string | null; image_file: File | null; image_preview: string | null };
 type Product = {
   id: string;
   merchant_id: string | null;
@@ -220,7 +220,7 @@ export default function StorePage() {
     if (productIds.length > 0) {
       const { data: variantsData, error: variantsError } = await supabase
         .from("product_variants")
-        .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,image_path,is_active,sort_order")
+        .select("id,product_id,variant_label,price_iqd,cost_price_iqd,stock_quantity,image_path,is_active,sort_order")
         .in("product_id", productIds).eq("is_active", true).order("sort_order");
       if (variantsError) throw variantsError;
       variantRows = (variantsData || []) as ProductVariant[];
@@ -261,9 +261,7 @@ export default function StorePage() {
 
   const filteredProducts = useMemo(() => products.filter((product) => {
     const matchesSearch = (product.title + " " + (product.description || "")).toLowerCase().includes(search.toLowerCase());
-    const outOfStock = product.variants.length > 0
-      ? product.variants.every((variant) => variant.stock_quantity === 0)
-      : product.stock_quantity === 0;
+    const outOfStock = product.stock_quantity === 0;
     const matchesAvailability = availabilityFilter === "all"
       || (availabilityFilter === "available" && product.is_available && !outOfStock)
       || (availabilityFilter === "unavailable" && (!product.is_available || outOfStock));
@@ -318,25 +316,23 @@ export default function StorePage() {
     void (async () => {
       try {
         const { data, error } = await createClient().from("product_variants")
-          .select("id,product_id,variant_label,color_name,color_hex,scent,size_label,unit,price_iqd,cost_price_iqd,stock_quantity,sku,image_path,is_active,sort_order")
+          .select("id,product_id,variant_label,price_iqd,cost_price_iqd,stock_quantity,image_path,is_active,sort_order")
           .eq("product_id", product.id).order("sort_order");
         if (requestId !== variantLoadRequest.current) return;
         if (error) {
           setMessage("نەتوانرا جۆرەکانی کاڵا باربکرێن: " + error.message);
           return;
         }
-        setVariantDrafts(((data || []) as ProductVariant[]).filter((variant) => variant.is_active).map((variant) => ({
+        const activeVariants = ((data || []) as ProductVariant[]).filter((variant) => variant.is_active);
+        if (product.stock_quantity === null && activeVariants.length > 0 && activeVariants.every((variant) => variant.stock_quantity !== null)) {
+          const legacyCombinedStock = activeVariants.reduce((total, variant) => total + (variant.stock_quantity || 0), 0);
+          setForm((old) => old.stock.trim() ? old : { ...old, stock: String(legacyCombinedStock) });
+        }
+        setVariantDrafts(activeVariants.map((variant) => ({
           id: variant.id,
           variant_label: variant.variant_label,
-          color_name: variant.color_name || "",
-          color_hex: variant.color_hex || "",
-          scent: variant.scent || "",
-          size_label: variant.size_label || "",
-          unit: variant.unit || product.unit,
           price: String(variant.price_iqd),
           costPrice: variant.cost_price_iqd === null ? "" : String(variant.cost_price_iqd),
-          stock: variant.stock_quantity === null ? "" : String(variant.stock_quantity),
-          sku: variant.sku || "",
           image_path: variant.image_path || null,
           image_file: null,
           image_preview: variant.image_path ? createClient().storage.from("product-images").getPublicUrl(variant.image_path).data.publicUrl : null,
@@ -410,15 +406,10 @@ export default function StorePage() {
     const parsedVariants = variantDrafts.map((variant) => ({
       id: variant.id,
       variant_label: variant.variant_label.trim(),
-      color_name: variant.color_name.trim() || null,
-      color_hex: variant.color_hex.trim() || null,
-      scent: variant.scent.trim() || null,
-      size_label: variant.size_label.trim() || null,
-      unit: variant.unit || form.unit,
       price_iqd: Number(variant.price),
       cost_price_iqd: variant.costPrice.trim() === "" ? null : Number(variant.costPrice),
-      stock_quantity: variant.stock.trim() === "" ? null : Number(variant.stock),
-      sku: variant.sku.trim() || null,
+      image_path: variant.image_path,
+      image_file: variant.image_file,
       image_path: variant.image_path,
       image_file: variant.image_file,
     }));
@@ -427,12 +418,12 @@ export default function StorePage() {
         setMessage("هەر جۆرێک دەبێت ناو و نرخی دروستی هەبێت.");
         return;
       }
-      if (variant.stock_quantity !== null && (!Number.isFinite(variant.stock_quantity) || variant.stock_quantity < 0 || variant.stock_quantity > 100000000)) {
-        setMessage("کۆگای هەر جۆرێک دەبێت سفر یان زیاتر بێت.");
+      if (isAdmin && (variant.cost_price_iqd === null || !Number.isSafeInteger(variant.cost_price_iqd) || variant.cost_price_iqd < 0)) {
+        setMessage("نرخی کڕینی هەر ڕەنگێک دەبێت سفر یان ژمارەیەکی تەواوی دروست بێت.");
         return;
       }
-      if (variant.cost_price_iqd !== null && (!Number.isSafeInteger(variant.cost_price_iqd) || variant.cost_price_iqd < 0)) {
-        setMessage("نرخی کڕینی جۆرەکان دەبێت ژمارەیەکی دروست بێت.");
+      if (!variant.image_path && !variant.image_file && !variant.id) {
+        setMessage("تکایە وێنەی هەر ڕەنگێکی نوێ زیاد بکە.");
         return;
       }
       if (variant.image_file && (!["image/jpeg", "image/png", "image/webp"].includes(variant.image_file.type) || variant.image_file.size > 10 * 1024 * 1024)) {
@@ -443,10 +434,6 @@ export default function StorePage() {
         setMessage("کۆدی ڕەنگ دەبێت بە شێوەی #RRGGBB بێت.");
         return;
       }
-    }
-    if (new Set(parsedVariants.filter((v) => v.sku).map((v) => v.sku)).size !== parsedVariants.filter((v) => v.sku).length) {
-      setMessage("کۆدی SKU نابێت لە نێوان دوو جۆردا دووبارە بێت.");
-      return;
     }
     if (image && (!["image/jpeg", "image/png", "image/webp"].includes(image.type) || image.size > 10 * 1024 * 1024)) {
       setMessage("وێنە دەبێت JPG یان PNG یان WebP بێت و قەبارەکەی زیاتر نەبێت لە ١٠MB.");
@@ -482,7 +469,7 @@ export default function StorePage() {
         price_iqd: parsedVariants.length ? Math.min(...parsedVariants.map((v) => v.price_iqd)) : price,
         ...(isAdmin ? { cost_price_iqd: costPrice } : {}),
         referral_commission_iqd: referralCommission,
-        stock_quantity: parsedVariants.length ? null : stock,
+        stock_quantity: stock,
         unit: form.unit,
         category_key: chosenCategory.category_key,
         category_id: chosenCategory.id,
@@ -521,15 +508,15 @@ export default function StorePage() {
           ...(variant.id ? { id: variant.id } : {}),
           product_id: productId,
           variant_label: variant.variant_label,
-          color_name: variant.color_name,
-          color_hex: variant.color_hex,
-          scent: variant.scent,
-          size_label: variant.size_label,
-          unit: variant.unit,
+          color_name: null,
+          color_hex: null,
+          scent: null,
+          size_label: null,
+          unit: form.unit,
           price_iqd: variant.price_iqd,
           cost_price_iqd: variant.cost_price_iqd,
-          stock_quantity: variant.stock_quantity,
-          sku: variant.sku,
+          stock_quantity: null,
+          sku: null,
           image_path: variant.image_path,
           sort_order: index,
           is_active: true,
@@ -796,20 +783,19 @@ export default function StorePage() {
                     <input type="number" min="0" step="1" value={form.referralCommission} onChange={(event) => setForm((old) => ({ ...old, referralCommission: event.target.value }))} placeholder="٠ = بێ خەڵات · نموونە: ٥٠٠ د.ع" className="mt-2 w-full rounded-xl border-2 border-purple-200 bg-purple-50 p-3 text-base font-black text-purple-900 focus:border-purple-500 focus:outline-none"/>
                     <small className="mt-2 block text-xs font-medium leading-6 text-slate-500">٠ دابنێ ئەگەر ناتەوێت ئەم کاڵایە خەڵاتی شێری هەبێت. تەنها کاتێک بڕێکی زیاتر لە سفر دابنێیت، ئەم کاڵایە لە پرۆگرامی شێر و خەڵاتدا دەردەکەوێت؛ خەڵاتەکە دوای گەیاندنی داواکاری زیاد دەکرێت.</small>
                   </label>
-                  {variantDrafts.length === 0
-                    ? <label className="block text-sm font-bold">بڕی کۆگا (بەتاڵ = بێ سنوور)
-                        <input type="number" min="0" step="0.001" value={form.stock} onChange={(event) => setForm((old) => ({ ...old, stock: event.target.value }))} placeholder="بۆ نموونە: ٢٥" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
-                      </label>
-                    : <div className="rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">کۆگا لەسەر هەر جۆرێک بە جیاوازی هەژمار دەکرێت؛ کۆگای بنەڕەتی بەکارناهێنرێت.</div>}
+                  <label className="block text-sm font-bold">بڕی کۆگای هەموو ڕەنگەکان (بەتاڵ = بێ سنوور)
+                    <input type="number" min="0" step="0.001" value={form.stock} onChange={(event) => setForm((old) => ({ ...old, stock: event.target.value }))} placeholder="بۆ نموونە: ٢٥" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
+                    {variantDrafts.length > 0 && <small className="mt-1 block text-xs font-medium text-slate-500">کۆگا بۆ هەموو ڕەنگەکان یەکە؛ سیستەم بڕی فرۆشراو لە کۆگای هاوبەشی کاڵاکە کەم دەکاتەوە.</small>}
+                  </label>
                 </div>
                 {loadingVariants && <p className="rounded-xl bg-blue-50 p-3 text-xs font-bold text-blue-800">بارکردنی جۆرەکانی ئەم کاڵایە...</p>}
                 <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <h3 className="font-black text-slate-900">جۆرەکانی کاڵا (ڕەنگ، بۆن، قەبارە، حەجم...)</h3>
-                      <p className="mt-1 text-xs leading-6 text-slate-600">ئەگەر کاڵاکە چەند جۆری هەیە، هەر جۆرێک بە نرخ و کۆگای تایبەتی زیاد بکە. ئەگەر هیچ جۆرێکی نییە، ئەم بەشە بەتاڵ بهێڵەوە.</p>
+                      <h3 className="font-black text-slate-900">ڕەنگە جیاوازەکانی کاڵا</h3>
+                      <p className="mt-1 text-xs leading-6 text-slate-600">هەر ڕەنگێک تەنها ناو، وێنە، نرخی کڕین و نرخی فرۆشتنی تایبەتی خۆی هەیە؛ قەبارە و ناوەڕۆک و یەکەکەی هەموویان هاوبەشە.</p>
                     </div>
-                    <button type="button" onClick={() => setVariantDrafts((current) => [...current, { variant_label: "", color_name: "", color_hex: "", scent: "", size_label: "", unit: form.unit, price: form.price, costPrice: "", stock: "", sku: "", image_path: null, image_file: null, image_preview: null }])} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-shakh-blue px-4 text-sm font-bold text-white">
+                    <button type="button" onClick={() => setVariantDrafts((current) => [...current, { variant_label: "", price: form.price, costPrice: "", image_path: null, image_file: null, image_preview: null }])} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-shakh-blue px-4 text-sm font-bold text-white">
                       <Plus size={16}/> زیادکردنی جۆر
                     </button>
                   </div>
@@ -825,47 +811,24 @@ export default function StorePage() {
                             <div className="flex items-center gap-3">
                               {variant.image_preview ? <img src={variant.image_preview} alt={`وێنەی جۆری ${index + 1}`} className="h-20 w-20 rounded-lg border bg-white object-contain p-1"/> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-lg border bg-white text-slate-300"><ImagePlus size={26}/></div>}
                               <div className="min-w-0 flex-1">
-                                <label className="block text-xs font-black">وێنەی تایبەتی ئەم جۆرە
+                                <label className="block text-xs font-black">وێنەی ئەم ڕەنگە
                                   <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setVariantImage(index, event.target.files?.[0] || null)} className="mt-2 block w-full text-xs font-medium"/>
                                 </label>
-                                <p className="mt-1 text-[11px] text-slate-500">وێنەی جیاواز بۆ ئەم جۆرە؛ تا ١٠MB</p>
+                                <p className="mt-1 text-[11px] text-slate-500">وێنەی ئەم ڕەنگە؛ JPG / PNG / WebP تا ١٠MB</p>
                                 {variant.image_file && <p className="mt-1 truncate text-[11px] font-bold text-green-700">{variant.image_file.name}</p>}
                                 {variant.image_path && !variant.image_file && <p className="mt-1 text-[11px] text-green-700">وێنەی پاشەکەوتکراو</p>}
                               </div>
                               {(variant.image_path || variant.image_file) && <button type="button" onClick={() => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, image_path: null, image_file: null, image_preview: null } : row))} className="rounded-lg border border-red-200 p-2 text-red-600" aria-label="لابردنی وێنەی جۆر"><X size={16}/></button>}
                             </div>
                           </div>
-                          <label className="text-xs font-bold">ناوی جۆر (پێویستە)
-                            <input required value={variant.variant_label} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, variant_label: event.target.value } : row))} placeholder="نموونە: بۆنی گوڵ · ١٠٠ گرام" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
-                          </label>
-                          <label className="text-xs font-bold">کۆدی SKU (ئارەزوومەندانە)
-                            <input dir="ltr" value={variant.sku} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, sku: event.target.value } : row))} placeholder="HERO-ROSE-100" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
-                          </label>
-                          <label className="text-xs font-bold">ڕەنگ
-                            <input value={variant.color_name} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, color_name: event.target.value } : row))} placeholder="ڕەش، سپی، سوور..." className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
-                          </label>
-                          <label className="text-xs font-bold">کۆدی ڕەنگ (#RRGGBB)
-                            <input dir="ltr" value={variant.color_hex} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, color_hex: event.target.value } : row))} placeholder="#F4A261" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
-                          </label>
-                          <label className="text-xs font-bold">بۆن یان تام
-                            <input value={variant.scent} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, scent: event.target.value } : row))} placeholder="گوڵ، لیمۆ، لاڤەندەر..." className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
-                          </label>
-                          <label className="text-xs font-bold">قەبارە / حەجم
-                            <input value={variant.size_label} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, size_label: event.target.value } : row))} placeholder="١٠٠ گرام، ٥٠٠ مل..." className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
-                          </label>
-                          <label className="text-xs font-bold">نرخ (د.ع)
-                            <input required type="number" min="1" step="1" value={variant.price} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, price: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                          <label className="text-xs font-bold">ناوی ڕەنگ / جۆر (پێویستە)
+                            <input required maxLength={160} value={variant.variant_label} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, variant_label: event.target.value } : row))} placeholder="نموونە: ڕەش، سپی، سوور" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
                           </label>
                           {isAdmin && <label className="text-xs font-bold">نرخی کڕین (د.ع)
-                            <input type="number" min="0" step="1" value={variant.costPrice} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, costPrice: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
+                            <input required type="number" min="0" step="1" value={variant.costPrice} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, costPrice: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
                           </label>}
-                          <label className="text-xs font-bold">کۆگای ئەم جۆرە (بەتاڵ = بێ سنوور)
-                            <input type="number" min="0" step="0.001" value={variant.stock} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, stock: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
-                          </label>
-                          <label className="text-xs font-bold">یەکە
-                            <select value={variant.unit} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, unit: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm">
-                              {units.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
-                            </select>
+                          <label className="text-xs font-bold">نرخی فرۆشتن (د.ع)
+                            <input required type="number" min="1" step="1" value={variant.price} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, price: event.target.value } : row))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/>
                           </label>
                         </div>
                       </div>
@@ -939,13 +902,11 @@ export default function StorePage() {
                     const publicImage = product.image_path
                       ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
                       : null;
-                    const outOfStock = product.variants.length > 0
-                       ? product.variants.every((variant) => variant.stock_quantity === 0)
-                       : product.stock_quantity === 0;
+                    const outOfStock = product.stock_quantity === 0;
                      const lowestVariantPrice = product.variants.length > 0
                        ? Math.min(...product.variants.map((variant) => variant.price_iqd))
                        : product.price_iqd;
-                     const availableVariantCount = product.variants.filter((variant) => variant.stock_quantity !== 0).length;
+                     const availableVariantCount = product.variants.length;
                     return (
                       <article key={product.id} className="overflow-hidden rounded-2xl bg-white shadow-soft">
                         <div className="flex gap-4 p-4">
@@ -958,7 +919,7 @@ export default function StorePage() {
                               <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${product.approval_status === "pending" ? "bg-amber-50 text-amber-800" : product.approval_status === "rejected" ? "bg-red-50 text-red-700" : product.is_available && !outOfStock ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{product.approval_status === "pending" ? "چاوەڕوانی پەسەندکردن" : product.approval_status === "rejected" ? "ڕەفزکراو" : outOfStock ? "کۆگا تەواو بووە" : product.is_available ? "بەردەست" : "ناچالاک"}</span>
                             </div>
                             {isAdmin && <p className="mt-1 text-xs font-semibold text-slate-500">{product.variants.length > 0
-                               ? `${product.variants.length} جۆری تایبەت · تێچوو و قازانج بەپێی هەر جۆرێک لە ئۆردەر تۆمار دەکرێت`
+                               ? `${product.variants.length} ڕەنگی جیاواز · تێچوو و قازانج بەپێی نرخی کڕینی هەر ڕەنگ تۆمار دەکرێت`
                                : `نرخی کڕین: ${product.cost_price_iqd === null ? "تۆمار نەکراوە" : formatIQD(product.cost_price_iqd)} · قازانجی هەر دانە: ${product.cost_price_iqd === null ? "—" : formatIQD(product.price_iqd - product.cost_price_iqd)}`}</p>}
                             {isAdmin && !product.is_shakh_store && <p className="mt-1 rounded-lg bg-blue-50 px-2 py-1 text-xs font-bold text-blue-800">خاوەنی پۆست: {merchantNames[product.merchant_id || ""] || "دوکانداری نەناسراو"}</p>}
                             {product.referral_commission_iqd > 0
