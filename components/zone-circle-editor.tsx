@@ -34,7 +34,7 @@ function loadLeaflet(): Promise<LeafletApi> {
   return new Promise((resolve, reject) => {
     const existing = document.getElementById("shakh-leaflet-js") as HTMLScriptElement | null;
     if (existing) {
-      existing.addEventListener("load", () => getLeaflet() ? resolve(getLeaflet()) : reject(new Error("Leaflet failed")), { once: true });
+      existing.addEventListener("load", () => getLeaflet() ? resolve(getLeaflet() as LeafletApi) : reject(new Error("Leaflet failed")), { once: true });
       existing.addEventListener("error", () => reject(new Error("Leaflet failed")), { once: true });
       return;
     }
