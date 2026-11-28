@@ -258,6 +258,7 @@ export default function ShopPage() {
 
     const viewClient = createClient();
     const observer = new IntersectionObserver((entries) => {
+      const newlyViewedProductIds: string[] = [];
       for (const entry of entries) {
         if (!entry.isIntersecting || entry.intersectionRatio < 0.5) continue;
         const productId = (entry.target as HTMLElement).dataset.productViewId;
@@ -265,14 +266,22 @@ export default function ShopPage() {
 
         trackedProductViews.current.add(productId);
         observer.unobserve(entry.target);
-        void viewClient.rpc("increment_product_view", { p_product_id: productId }).then(({ data, error }) => {
-          const nextCount = Number(data);
-          if (error || !Number.isFinite(nextCount)) return;
-          setProducts((current) => current.map((product) =>
-            product.id === productId ? { ...product, views_count: nextCount } : product
-          ));
-        });
+        newlyViewedProductIds.push(productId);
       }
+
+      if (newlyViewedProductIds.length === 0) return;
+      void viewClient.rpc("increment_product_views", {
+        p_product_ids: newlyViewedProductIds,
+      }).then(({ data, error }) => {
+        if (error || !data) return;
+        const countByProduct = new Map(
+          data.map((item) => [item.product_id, Number(item.views_count)])
+        );
+        setProducts((current) => current.map((product) => {
+          const nextCount = countByProduct.get(product.id);
+          return nextCount === undefined ? product : { ...product, views_count: nextCount };
+        }));
+      });
     }, { threshold: 0.5 });
 
     document.querySelectorAll<HTMLElement>("[data-product-view-id]").forEach((node) => observer.observe(node));
