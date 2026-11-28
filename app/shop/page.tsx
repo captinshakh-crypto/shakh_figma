@@ -232,7 +232,7 @@ export default function ShopPage() {
           price_iqd: variant?.price_iqd ?? product.price_iqd,
           merchant_id: product.merchant_id,
           quantity,
-          unit: variant?.unit || product.unit,
+          unit: product.unit,
           stock_quantity: availableStock,
           referral_campaign_id: activeReferral,
         });
