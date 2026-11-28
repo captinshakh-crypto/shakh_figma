@@ -85,6 +85,7 @@ export default function ShopPage() {
   const [subcategory, setSubcategory] = useState("all");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [catalogActionsReady, setCatalogActionsReady] = useState(false);
   const [referralCampaignId, setReferralCampaignId] = useState("");
   const [sharedProductId, setSharedProductId] = useState("");
   const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
@@ -92,6 +93,11 @@ export default function ShopPage() {
   useEffect(() => {
     const supabase = createClient();
     let active = true;
+    let refreshing = false;
+    let refreshAgain = false;
+    let hasLoadedDetails = false;
+    let refreshTimer: number | null = null;
+
     const urlParams = new URLSearchParams(window.location.search);
     const urlReferral = urlParams.get("ref");
     setSharedProductId(urlParams.get("product") || "");
@@ -99,50 +105,97 @@ export default function ShopPage() {
     if (urlReferral) localStorage.setItem("shakh-referral-campaign", urlReferral);
     setReferralCampaignId(savedReferral);
 
-    const refreshCatalog = async () => {
-      const [productResult, merchantResult, categoryResult, subcategoryResult] = await Promise.all([
-        supabase.from("products")
-          .select("id,title,description,price_iqd,category_key,category_id,subcategory_id,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
-          .eq("is_available", true).eq("approval_status", "approved").order("created_at", { ascending: false }),
-        supabase.from("merchant_profiles")
-          .select("id,business_name,merchant_type,address").eq("approval_status", "approved"),
-        supabase.from("product_categories")
-          .select("id,store_type,category_key,name,is_active").eq("is_active", true).order("sort_order").order("name"),
-        supabase.from("product_subcategories")
-          .select("id,category_id,subcategory_key,name,is_active").eq("is_active", true).order("sort_order").order("name"),
-      ]);
-      if (!active) return;
-      if (productResult.error || merchantResult.error || categoryResult.error || subcategoryResult.error) {
-        setMessage("نەتوانرا زانیاری بازاڕ و کاتەگۆرییەکان باربکرێن.");
-        setLoading(false);
-        return;
-      }
-      const productRows = (productResult.data || []) as Omit<Product, "variants">[];
-      const productIds = productRows.map((product) => product.id);
-      let variantRows: ProductVariant[] = [];
-      if (productIds.length > 0) {
-        const { data, error } = await supabase.from("product_variants")
-          .select("id,product_id,variant_label,image_path,price_iqd")
-          .in("product_id", productIds).eq("is_active", true).order("sort_order");
-        if (error) setMessage("نوێکردنەوەی جۆرەکانی کاڵا سەرکەوتوو نەبوو.");
-        else variantRows = (data || []) as ProductVariant[];
-      }
-      const byProduct = new Map<string, ProductVariant[]>();
-      for (const variant of variantRows) {
-        const group = byProduct.get(variant.product_id) || [];
-        group.push(variant);
-        byProduct.set(variant.product_id, group);
-      }
-      setProducts(productRows.map((product) => ({ ...product, variants: byProduct.get(product.id) || [] })));
-      setMerchants(merchantResult.data || []);
-      setCatalogCategories((categoryResult.data || []) as ProductCategory[]);
-      setCatalogSubcategories((subcategoryResult.data || []) as ProductSubcategory[]);
-      setLoading(false);
+    const scheduleCatalogRefresh = () => {
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+        void refreshCatalog();
+      }, 180);
     };
 
-    void refreshCatalog().catch(() => {
-      if (active) { setMessage("نەتوانرا بازاڕ باربکرێت."); setLoading(false); }
-    });
+    const refreshCatalog = async () => {
+      if (refreshing) {
+        refreshAgain = true;
+        return;
+      }
+      refreshing = true;
+      try {
+        const productResult = await supabase.from("products")
+          .select("id,title,description,price_iqd,category_key,category_id,subcategory_id,merchant_id,is_shakh_store,image_path,referral_commission_iqd,stock_quantity,unit")
+          .eq("is_available", true)
+          .eq("approval_status", "approved")
+          .order("created_at", { ascending: false })
+          .range(0, 999);
+
+        if (!active) return;
+        if (productResult.error) {
+          setMessage("نەتوانرا پۆستە بەردەستەکانی بازاڕ باربکرێن. تکایە دووبارە هەوڵ بدە.");
+          setLoading(false);
+          return;
+        }
+
+        const productRows = (productResult.data || []) as Omit<Product, "variants">[];
+        setProducts((current) => {
+          const variantsByProduct = new Map(current.map((product) => [product.id, product.variants]));
+          return productRows.map((product) => ({ ...product, variants: variantsByProduct.get(product.id) || [] }));
+        });
+        setLoading(false);
+
+        const productIds = productRows.map((product) => product.id);
+        const [merchantResult, categoryResult, subcategoryResult, variantResult] = await Promise.all([
+          supabase.from("merchant_profiles")
+            .select("id,business_name,merchant_type,address").eq("approval_status", "approved"),
+          supabase.from("product_categories")
+            .select("id,store_type,category_key,name,is_active").eq("is_active", true).order("sort_order").order("name"),
+          supabase.from("product_subcategories")
+            .select("id,category_id,subcategory_key,name,is_active").eq("is_active", true).order("sort_order").order("name"),
+          productIds.length > 0
+            ? supabase.from("product_variants")
+                .select("id,product_id,variant_label,image_path,price_iqd")
+                .in("product_id", productIds).eq("is_active", true).order("sort_order")
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+        if (!active) return;
+
+        if (!merchantResult.error) setMerchants(merchantResult.data || []);
+        if (!categoryResult.error) setCatalogCategories((categoryResult.data || []) as ProductCategory[]);
+        if (!subcategoryResult.error) setCatalogSubcategories((subcategoryResult.data || []) as ProductSubcategory[]);
+
+        if (variantResult.error) {
+          setMessage("هەندێک جۆری کاڵا نەکرا باربکرێت؛ بەڵام پۆستەکان لە بازاڕدا دەردەکەون.");
+          if (!hasLoadedDetails) setCatalogActionsReady(false);
+        } else {
+          const byProduct = new Map<string, ProductVariant[]>();
+          for (const variant of (variantResult.data || []) as ProductVariant[]) {
+            const group = byProduct.get(variant.product_id) || [];
+            group.push(variant);
+            byProduct.set(variant.product_id, group);
+          }
+          setProducts(productRows.map((product) => ({ ...product, variants: byProduct.get(product.id) || [] })));
+          setCatalogActionsReady(true);
+        }
+
+        if (merchantResult.error || categoryResult.error || subcategoryResult.error) {
+          setMessage("کاڵاکان پیشان دراون؛ بەڵام هەندێک زانیاریی کاتەگۆری یان دوکان بارنەکرا.");
+        } else if (!variantResult.error) {
+          setMessage((current) => current.includes("نەتوانرا پۆست") ? current : "");
+        }
+        hasLoadedDetails = true;
+      } catch {
+        if (active) {
+          setMessage("پۆستەکان پیشان دراون، بەڵام نوێکردنەوەی وردەکارییەکان سەرکەوتوو نەبوو.");
+          setLoading(false);
+        }
+      } finally {
+        refreshing = false;
+        if (active && refreshAgain) {
+          refreshAgain = false;
+          scheduleCatalogRefresh();
+        }
+      }
+    };
+
+    void refreshCatalog();
 
     try {
       const cart = JSON.parse(localStorage.getItem("shakh-cart") || "[]") as CartItem[];
@@ -150,18 +203,21 @@ export default function ShopPage() {
     } catch { setCartCount(0); }
 
     const channel = supabase.channel("shakh-shop-catalog-visibility")
-      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => { void refreshCatalog(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "product_variants" }, () => { void refreshCatalog(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "product_categories" }, () => { void refreshCatalog(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "product_subcategories" }, () => { void refreshCatalog(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, scheduleCatalogRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_variants" }, scheduleCatalogRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_categories" }, scheduleCatalogRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_subcategories" }, scheduleCatalogRefresh)
       .subscribe();
-    const refreshOnReturn = () => { void refreshCatalog(); };
-    window.addEventListener("focus", refreshOnReturn);
-    window.addEventListener("pageshow", refreshOnReturn);
+
+    const refreshOnPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) scheduleCatalogRefresh();
+    };
+    window.addEventListener("pageshow", refreshOnPageShow);
+
     return () => {
       active = false;
-      window.removeEventListener("focus", refreshOnReturn);
-      window.removeEventListener("pageshow", refreshOnReturn);
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      window.removeEventListener("pageshow", refreshOnPageShow);
       void supabase.removeChannel(channel);
     };
   }, []);
