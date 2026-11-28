@@ -90,6 +90,10 @@ const emptyProduct = {
 };
 
 const categoryVisuals: Record<string, { icon: string; hint: string }> = {
+  supermarket: { icon: "🛒", hint: "خواردەمەنی و پێداویستی ماڵ" },
+  restaurant: { icon: "🍽️", hint: "خواردن و خواردنەوەی ئامادە" },
+  grocery: { icon: "🥬", hint: "سەوزەوات و پێداویستی ڕۆژانە" },
+  butcher_poultry: { icon: "🥩", hint: "گۆشت، مریشک و سپیاتی" },
   groceries: { icon: "🌾", hint: "برنج، دانەوێڵە و پاقلەمەنی" },
   cleaning: { icon: "🧴", hint: "پاککەرەوە و جلشۆر" },
   biscuits_snacks: { icon: "🍪", hint: "بسکویت و خواردنی سووک" },
