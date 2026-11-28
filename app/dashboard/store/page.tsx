@@ -89,6 +89,40 @@ const emptyProduct = {
   subcategoryId: "",
 };
 
+const categoryVisuals: Record<string, { icon: string; hint: string }> = {
+  supermarket: { icon: "🛒", hint: "خواردەمەنی و پێداویستی ماڵ" },
+  restaurant: { icon: "🍽️", hint: "خواردن و خواردنەوەی ئامادە" },
+  grocery: { icon: "🥬", hint: "سەوزەوات و پێداویستی ڕۆژانە" },
+  butcher_poultry: { icon: "🥩", hint: "گۆشت، مریشک و سپیاتی" },
+  groceries: { icon: "🌾", hint: "برنج، دانەوێڵە و پاقلەمەنی" },
+  cleaning: { icon: "🧴", hint: "پاککەرەوە و جلشۆر" },
+  biscuits_snacks: { icon: "🍪", hint: "بسکویت و خواردنی سووک" },
+  dairy: { icon: "🥛", hint: "شیر، ماست و پەنیر" },
+  beverages: { icon: "🧃", hint: "ئاو و خواردنەوە" },
+  personal_care: { icon: "🧼", hint: "چاودێری و پاکوخاوێنی" },
+  frozen: { icon: "🧊", hint: "بەرهەمی ساردکراو" },
+  meals: { icon: "🍛", hint: "خواردنی سەرەکی و ناوخۆیی" },
+  grills: { icon: "🍢", hint: "کەباب و گریل" },
+  fast_food: { icon: "🌯", hint: "برگر، پیتزا، شاورمە و لێفە" },
+  sides: { icon: "🍟", hint: "سوورکراوە و خواردنی لاوەکی" },
+  breakfast: { icon: "🍳", hint: "خواردنی بەیانی" },
+  drinks: { icon: "🥤", hint: "خواردنەوەکان" },
+  desserts: { icon: "🍰", hint: "شیرینی و دێزێرت" },
+  vegetables: { icon: "🥬", hint: "سەوزەوات" },
+  fruits: { icon: "🍎", hint: "میوەی تازە" },
+  beef: { icon: "🥩", hint: "جۆرەکانی گۆشت" },
+  chicken: { icon: "🍗", hint: "گۆشتی مریشک" },
+  spices: { icon: "🌶️", hint: "بەهارات و سپیاتی" },
+  staples: { icon: "🫘", hint: "نیسک، نۆک و لوبیا" },
+  sweets: { icon: "🍫", hint: "شیرینی و چۆکڵێت" },
+  bread_bakery: { icon: "🥖", hint: "نان و بەرهەمی نانەوا" },
+  household: { icon: "🏠", hint: "پێداویستی ماڵ" },
+};
+
+function categoryVisual(categoryKey: string) {
+  return categoryVisuals[categoryKey] || { icon: "📦", hint: "کاڵا و پێداویستییەکان" };
+}
+
 async function compressProductImage(file: File): Promise<File> {
   if (file.size > 10 * 1024 * 1024) {
     throw new Error("قەبارەی وێنە نابێت لە ١٠MB زیاتر بێت.");
@@ -745,33 +779,82 @@ export default function StorePage() {
                 <h2 className="text-xl font-black">{editing ? "دەستکاریکردنی کاڵا" : isAdmin ? "زیادکردن بۆ شاخ ستۆر" : "زیادکردنی کاڵای نوێ"}</h2>
               </div>
               <form onSubmit={saveProduct} className="mt-5 space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="block text-sm font-bold">ناوی کاڵا
-                    <input required maxLength={180} value={form.title} onChange={(event) => setForm((old) => ({ ...old, title: event.target.value }))} placeholder="ناوی کاڵا" className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
-                  </label>
-                  <label className="block text-sm font-bold">کاتەگۆری سەرەکی
-                    <select required value={form.categoryId} onChange={(event) => {
-                      const selected = formCategories.find((item) => item.id === event.target.value);
-                      setForm((old) => ({
-                        ...old,
-                        categoryId: event.target.value,
-                        category: selected?.category_key || "",
-                        subcategoryId: "",
-                      }));
-                    }} className="mt-2 w-full rounded-xl border border-slate-200 p-3">
-                      <option value="">کاتەگۆری هەڵبژێرە</option>
-                      {formCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                    </select>
-                    <small className="mt-1 block text-xs font-medium leading-5 text-slate-500">هەمان لیستی ناوەندیی سوپەر ئەدمین بەکاردەهێنرێت.</small>
-                  </label>
-                  <label className="block text-sm font-bold">ژێرکاتەگۆری
-                    <select value={form.subcategoryId} onChange={(event) => setForm((old) => ({ ...old, subcategoryId: event.target.value }))} disabled={!form.categoryId || formSubcategories.length === 0} required={formSubcategories.length > 0} className="mt-2 w-full rounded-xl border border-slate-200 p-3 disabled:bg-slate-50">
-                      <option value="">{formSubcategories.length > 0 ? "ژێرکاتەگۆری هەڵبژێرە" : "ژێرکاتەگۆری نییە"}</option>
-                      {formSubcategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                    </select>
-                    <small className="mt-1 block text-xs font-medium leading-5 text-slate-500">کاتێک ژێرکاتەگۆری هەیە، هەڵبژاردنی پێویستە بۆ جیاکردنەوەی کاڵاکان.</small>
-                  </label>
-                </div>
+                <label className="block text-sm font-bold">ناوی کاڵا
+                  <input required maxLength={180} value={form.title} onChange={(event) => setForm((old) => ({ ...old, title: event.target.value }))} placeholder="بۆ نموونە: برنجی باسماتی، قۆزی، بسکویت..." className="mt-2 w-full rounded-xl border border-slate-200 p-3.5"/>
+                </label>
+
+                <section className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/90 to-white p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-shakh-orange">هەنگاوی ١</p>
+                      <h3 className="mt-1 text-base font-black text-slate-900">بەشی کاڵا هەڵبژێرە</h3>
+                      <p className="mt-1 text-xs text-slate-500">بەشەکان بە شێوەی ئاسۆیی بخزێنە بۆ بینینی هەموویان.</p>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-500">{formCategories.length} بەش</span>
+                  </div>
+
+                  <div className="-mx-1 mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-3">
+                    {formCategories.map((item) => {
+                      const selected = form.categoryId === item.id;
+                      const visual = categoryVisual(item.category_key);
+                      const childCount = catalogSubcategories.filter((sub) => sub.category_id === item.id && sub.is_active).length;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setForm((old) => ({
+                            ...old,
+                            categoryId: item.id,
+                            category: item.category_key,
+                            subcategoryId: "",
+                          }))}
+                          className={`flex min-w-[172px] snap-start items-center gap-3 rounded-2xl border p-3 text-right transition ${selected ? "border-shakh-blue bg-shakh-blue text-white shadow-md ring-2 ring-blue-100" : "border-slate-200 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50"}`}
+                        >
+                          <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-2xl ${selected ? "bg-white/15" : "bg-slate-50"}`}>{visual.icon}</span>
+                          <span className="min-w-0 flex-1">
+                            <b className="block truncate text-sm">{item.name}</b>
+                            <small className={`mt-1 block text-[10px] leading-4 ${selected ? "text-blue-100" : "text-slate-500"}`}>{visual.hint}</small>
+                            <small className={`mt-1 block text-[10px] font-bold ${selected ? "text-white" : "text-shakh-orange"}`}>{childCount} ژێربەش</small>
+                          </span>
+                          {selected && <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white text-shakh-blue">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {form.categoryId && formSubcategories.length > 0 && (
+                    <div className="border-t border-blue-100 pt-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[11px] font-black text-shakh-orange">هەنگاوی ٢</p>
+                          <h4 className="mt-1 text-sm font-black text-slate-900">ژێربەش هەڵبژێرە</h4>
+                        </div>
+                        <span className="text-xs font-bold text-slate-500">{formSubcategories.length} هەڵبژاردە</span>
+                      </div>
+                      <div className="-mx-1 mt-3 flex snap-x gap-2 overflow-x-auto px-1 pb-2">
+                        {formSubcategories.map((item) => {
+                          const selected = form.subcategoryId === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              aria-pressed={selected}
+                              onClick={() => setForm((old) => ({ ...old, subcategoryId: item.id }))}
+                              className={`shrink-0 snap-start rounded-full border px-4 py-2.5 text-xs font-bold transition ${selected ? "border-shakh-orange bg-shakh-orange text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-orange-200 hover:bg-orange-50"}`}
+                            >
+                              {item.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {form.categoryId && formSubcategories.length === 0 && (
+                    <p className="mt-3 border-t border-blue-100 pt-3 text-xs text-slate-500">ئەم بەشە ژێربەشی چالاکی نییە؛ دەتوانیت بە شێوەی ڕاستەوخۆ کاڵا پۆست بکەیت.</p>
+                  )}
+                </section>
                 <label className="block text-sm font-bold">وردەکاری کاڵا
                   <textarea maxLength={1000} rows={3} value={form.description} onChange={(event) => setForm((old) => ({ ...old, description: event.target.value }))} placeholder="پێناسە و زانیاریی کاڵا..." className="mt-2 w-full rounded-xl border border-slate-200 p-3"/>
                 </label>
@@ -884,7 +967,7 @@ export default function StorePage() {
                   {editing?.image_path && !image && <small className="mt-2 block text-xs font-medium text-slate-500">وێنەی ئێستا دەمێنێتەوە؛ بۆ گۆڕینی، یەکێک لە دوو هەڵبژاردەکە بەکاربهێنە.</small>}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button disabled={saving || loadingVariants || !form.title.trim() || !form.price || (!isAdmin && walletBalance <= 0)} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
+                  <button disabled={saving || loadingVariants || !form.title.trim() || !form.price || !form.categoryId || (formSubcategories.length > 0 && !form.subcategoryId) || (!isAdmin && walletBalance <= 0)} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
                     <Save size={17}/>{saving ? "پاشەکەوت دەکرێت..." : editing ? "پاشەکەوتکردنی گۆڕانکاری" : "زیادکردنی کاڵا"}
                   </button>
                   {editing && <button type="button" onClick={resetProductForm} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 font-bold text-slate-700"><X size={17}/> هەڵوەشاندنەوە</button>}

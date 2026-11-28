@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ShoppingCart, ShoppingBasket, Store, Search, Package, SlidersHorizontal, Share2, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ShakhBrand from "@/components/shakh-brand";
@@ -77,6 +77,7 @@ export default function ShopPage() {
   const [catalogCategories, setCatalogCategories] = useState<ProductCategory[]>([]);
   const [catalogSubcategories, setCatalogSubcategories] = useState<ProductSubcategory[]>([]);
   const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+  const [imagePreviewProduct, setImagePreviewProduct] = useState<Product | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState("");
   const [variantQuantity, setVariantQuantity] = useState(1);
   const [cartCount, setCartCount] = useState(0);
@@ -88,7 +89,6 @@ export default function ShopPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingVariantProductId, setLoadingVariantProductId] = useState<string | null>(null);
-  const trackedProductViews = useRef(new Set<string>());
   const [referralCampaignId, setReferralCampaignId] = useState("");
   const [sharedProductId, setSharedProductId] = useState("");
   const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
@@ -252,41 +252,24 @@ export default function ShopPage() {
     return matchesSearch && matchesType && matchesCategory && matchesSubcategory && matchesSharedProduct;
   }), [products, merchants, search, storeType, category, subcategory, sharedProductId]);
 
-  const visibleProductIds = filtered.map((product) => product.id).join(",");
-  useEffect(() => {
-    if (!visibleProductIds || typeof IntersectionObserver === "undefined") return;
-
+  function registerProductView(productId: string) {
     const viewClient = createClient();
-    const observer = new IntersectionObserver((entries) => {
-      const newlyViewedProductIds: string[] = [];
-      for (const entry of entries) {
-        if (!entry.isIntersecting || entry.intersectionRatio < 0.5) continue;
-        const productId = (entry.target as HTMLElement).dataset.productViewId;
-        if (!productId || trackedProductViews.current.has(productId)) continue;
+    void viewClient.rpc("increment_product_views", {
+      p_product_ids: [productId],
+    }).then(({ data, error }) => {
+      if (error || !data) return;
+      const viewedProduct = data.find((item) => item.product_id === productId);
+      const nextCount = Number(viewedProduct?.views_count);
+      if (!Number.isFinite(nextCount)) return;
 
-        trackedProductViews.current.add(productId);
-        observer.unobserve(entry.target);
-        newlyViewedProductIds.push(productId);
-      }
-
-      if (newlyViewedProductIds.length === 0) return;
-      void viewClient.rpc("increment_product_views", {
-        p_product_ids: newlyViewedProductIds,
-      }).then(({ data, error }) => {
-        if (error || !data) return;
-        const countByProduct = new Map(
-          data.map((item) => [item.product_id, Number(item.views_count)])
-        );
-        setProducts((current) => current.map((product) => {
-          const nextCount = countByProduct.get(product.id);
-          return nextCount === undefined ? product : { ...product, views_count: nextCount };
-        }));
-      });
-    }, { threshold: 0.5 });
-
-    document.querySelectorAll<HTMLElement>("[data-product-view-id]").forEach((node) => observer.observe(node));
-    return () => observer.disconnect();
-  }, [visibleProductIds]);
+      setProducts((current) => current.map((product) =>
+        product.id === productId ? { ...product, views_count: nextCount } : product
+      ));
+      setImagePreviewProduct((current) =>
+        current?.id === productId ? { ...current, views_count: nextCount } : current
+      );
+    });
+  }
 
 
   function addToCart(product: Product, quantity = 1, variant?: ProductVariant) {
@@ -489,6 +472,65 @@ export default function ShopPage() {
 
         {message && <p role="status" className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">{message}</p>}
 
+        {imagePreviewProduct && (
+          <div
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/75 p-3 sm:p-6"
+            role="presentation"
+            onClick={(event) => { if (event.target === event.currentTarget) setImagePreviewProduct(null); }}
+          >
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="product-image-preview-title"
+              className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-4 shadow-2xl sm:p-6"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-shakh-orange">پێداچوونەوەی کاڵا</p>
+                  <h2 id="product-image-preview-title" className="mt-1 truncate text-lg font-black text-slate-900">{imagePreviewProduct.title}</h2>
+                </div>
+                <button type="button" onClick={() => setImagePreviewProduct(null)} aria-label="داخستن" className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"><span aria-hidden="true">×</span></button>
+              </div>
+              <div className="mt-4 grid min-h-[220px] place-items-center overflow-hidden rounded-2xl bg-slate-50">
+                {imagePreviewProduct.image_path ? (
+                  <img
+                    src={createClient().storage.from("product-images").getPublicUrl(imagePreviewProduct.image_path).data.publicUrl}
+                    alt={imagePreviewProduct.title}
+                    className="max-h-[62vh] w-full object-contain"
+                  />
+                ) : <Store size={52} className="text-slate-300"/>}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs text-slate-500">
+                    {catalogCategories.find((item) => item.id === imagePreviewProduct.category_id)?.name || categoryLabels[imagePreviewProduct.category_key] || imagePreviewProduct.category_key}
+                    {catalogSubcategories.find((item) => item.id === imagePreviewProduct.subcategory_id)?.name
+                      ? " · " + catalogSubcategories.find((item) => item.id === imagePreviewProduct.subcategory_id)?.name
+                      : ""}
+                  </p>
+                  <b className="mt-1 block text-xl text-shakh-orange">{Number(imagePreviewProduct.price_iqd).toLocaleString("en-US")} د.ع</b>
+                </div>
+                <p className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">
+                  <Eye size={14}/> {Number(products.find((item) => item.id === imagePreviewProduct.id)?.views_count ?? imagePreviewProduct.views_count).toLocaleString("en-US")} بینین
+                </p>
+              </div>
+              {imagePreviewProduct.description && <p className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-600">{imagePreviewProduct.description}</p>}
+              <button
+                type="button"
+                disabled={imagePreviewProduct.stock_quantity === 0 || Boolean(loadingVariantProductId)}
+                onClick={() => {
+                  const selectedProduct = imagePreviewProduct;
+                  setImagePreviewProduct(null);
+                  void add(selectedProduct);
+                }}
+                className="mt-5 min-h-12 w-full rounded-xl bg-shakh-orange px-4 font-black text-white disabled:opacity-50"
+              >
+                زیادکردن بۆ سەبەتە
+              </button>
+            </section>
+          </div>
+        )}
+
         {variantProduct && (
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 sm:items-center" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setVariantProduct(null); }}>
             <section role="dialog" aria-modal="true" aria-labelledby="variant-dialog-title" className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
@@ -564,9 +606,33 @@ export default function ShopPage() {
               const detailsOpen = expandedProductIds.includes(product.id);
 
               return (
-                <article key={product.id} data-product-view-id={product.id} className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
+                <article key={product.id} className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
                   <div className="relative grid aspect-square w-full shrink-0 place-items-center overflow-hidden bg-shakh-mist text-shakh-blue">
-                    {imageUrl ? <img src={imageUrl} alt={product.title} loading="lazy" className="h-full w-full object-contain p-2 sm:p-3"/> : <Store size={36}/>}
+                    {imageUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          registerProductView(product.id);
+                          setImagePreviewProduct(product);
+                        }}
+                        aria-label={`کردنەوەی وێنە و زانیاری ${product.title}`}
+                        className="h-full w-full cursor-zoom-in p-2 transition hover:bg-white/40 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-shakh-blue sm:p-3"
+                      >
+                        <img src={imageUrl} alt={product.title} loading="lazy" className="h-full w-full object-contain"/>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          registerProductView(product.id);
+                          setImagePreviewProduct(product);
+                        }}
+                        className="grid h-full w-full place-items-center"
+                        aria-label={`کردنەوەی زانیاری ${product.title}`}
+                      >
+                        <Store size={36}/>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => add(product)}
@@ -597,7 +663,10 @@ export default function ShopPage() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => setExpandedProductIds((current) => detailsOpen ? current.filter((id) => id !== product.id) : [...current, product.id])}
+                      onClick={() => {
+                        if (!detailsOpen) registerProductView(product.id);
+                        setExpandedProductIds((current) => detailsOpen ? current.filter((id) => id !== product.id) : [...current, product.id]);
+                      }}
                       aria-expanded={detailsOpen}
                       className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-shakh-blue transition hover:bg-slate-100"
                     >
