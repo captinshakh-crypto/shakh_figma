@@ -410,8 +410,6 @@ export default function StorePage() {
       cost_price_iqd: variant.costPrice.trim() === "" ? null : Number(variant.costPrice),
       image_path: variant.image_path,
       image_file: variant.image_file,
-      image_path: variant.image_path,
-      image_file: variant.image_file,
     }));
     for (const variant of parsedVariants) {
       if (!variant.variant_label || !Number.isSafeInteger(variant.price_iqd) || variant.price_iqd <= 0) {
@@ -428,10 +426,6 @@ export default function StorePage() {
       }
       if (variant.image_file && (!["image/jpeg", "image/png", "image/webp"].includes(variant.image_file.type) || variant.image_file.size > 10 * 1024 * 1024)) {
         setMessage("وێنەی هەر جۆرێک دەبێت JPG یان PNG یان WebP بێت و تا ١٠MB بێت.");
-        return;
-      }
-      if (variant.color_hex && !/^#[0-9a-fA-F]{6}$/.test(variant.color_hex)) {
-        setMessage("کۆدی ڕەنگ دەبێت بە شێوەی #RRGGBB بێت.");
         return;
       }
     }
