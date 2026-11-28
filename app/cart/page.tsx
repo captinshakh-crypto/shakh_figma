@@ -146,6 +146,7 @@ export default function CartPage() {
             const remainingStock = remainingStockByProduct.has(product.id) ? remainingStockByProduct.get(product.id) ?? null : currentStock;
             const quantity = remainingStock === null ? item.quantity : Math.min(item.quantity, remainingStock);
             if (remainingStock !== null) remainingStockByProduct.set(product.id, Math.max(0, remainingStock - quantity));
+            if (quantity <= 0) { removed += 1; return []; }
             if (quantity !== item.quantity || currentPrice !== item.price_iqd) adjusted = true;
             return [{
               ...item,
