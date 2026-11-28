@@ -502,7 +502,12 @@ export default function ShopPage() {
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs text-slate-500">{imagePreviewProduct.category_key.replaceAll("_", " ")}</p>
+                  <p className="text-xs text-slate-500">
+                    {catalogCategories.find((item) => item.id === imagePreviewProduct.category_id)?.name || categoryLabels[imagePreviewProduct.category_key] || imagePreviewProduct.category_key}
+                    {catalogSubcategories.find((item) => item.id === imagePreviewProduct.subcategory_id)?.name
+                      ? " · " + catalogSubcategories.find((item) => item.id === imagePreviewProduct.subcategory_id)?.name
+                      : ""}
+                  </p>
                   <b className="mt-1 block text-xl text-shakh-orange">{Number(imagePreviewProduct.price_iqd).toLocaleString("en-US")} د.ع</b>
                 </div>
                 <p className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">
