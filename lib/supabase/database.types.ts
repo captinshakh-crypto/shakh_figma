@@ -936,6 +936,10 @@ export type Database = {
         Row: {
           boundary_geojson: Json | null
           captain_delivery_share_iqd: number
+          circle_center_latitude: number | null
+          circle_center_longitude: number | null
+          circle_outer_radius_m: number | null
+          circle_ring_order: number | null
           created_at: string
           delivery_fee_iqd: number
           description: string | null
@@ -943,10 +947,15 @@ export type Database = {
           is_active: boolean
           name: string
           shakh_delivery_share_iqd: number
+          zone_type: string
         }
         Insert: {
           boundary_geojson?: Json | null
           captain_delivery_share_iqd: number
+          circle_center_latitude?: number | null
+          circle_center_longitude?: number | null
+          circle_outer_radius_m?: number | null
+          circle_ring_order?: number | null
           created_at?: string
           delivery_fee_iqd?: number
           description?: string | null
@@ -954,10 +963,15 @@ export type Database = {
           is_active?: boolean
           name: string
           shakh_delivery_share_iqd: number
+          zone_type?: string
         }
         Update: {
           boundary_geojson?: Json | null
           captain_delivery_share_iqd?: number
+          circle_center_latitude?: number | null
+          circle_center_longitude?: number | null
+          circle_outer_radius_m?: number | null
+          circle_ring_order?: number | null
           created_at?: string
           delivery_fee_iqd?: number
           description?: string | null
@@ -965,6 +979,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           shakh_delivery_share_iqd?: number
+          zone_type?: string
         }
         Relationships: []
       }
@@ -1176,6 +1191,21 @@ export type Database = {
           p_description?: string
           p_is_active?: boolean
           p_name?: string
+          p_shakh_share_iqd?: number
+          p_zone_id?: string
+        }
+        Returns: string
+      }
+      admin_save_service_zone_circle: {
+        Args: {
+          p_captain_share_iqd?: number
+          p_center_latitude?: number
+          p_center_longitude?: number
+          p_delivery_fee_iqd?: number
+          p_description?: string
+          p_is_active?: boolean
+          p_name?: string
+          p_outer_radius_m?: number
           p_shakh_share_iqd?: number
           p_zone_id?: string
         }
