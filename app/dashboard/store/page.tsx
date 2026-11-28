@@ -458,6 +458,8 @@ export default function StorePage() {
     const supabase = createClient();
     let uploadedPath: string | null = null;
     let keepUploadedPath = false;
+    const uploadedVariantPaths: string[] = [];
+    let keepUploadedVariantPaths = false;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("تکایە دووبارە بچۆ ژوورەوە.");
@@ -511,6 +513,7 @@ export default function StorePage() {
           const path = `${user.id}/variants/${crypto.randomUUID()}.${extension}`;
           const { error: uploadError } = await supabase.storage.from("product-images").upload(path, uploadFile, { contentType: uploadFile.type, upsert: false });
           if (uploadError) throw uploadError;
+          uploadedVariantPaths.push(path);
           if (variant.image_path) replacedVariantImagePaths.push(variant.image_path);
           variant.image_path = path;
         }
@@ -541,6 +544,7 @@ export default function StorePage() {
         .from("product_variants").select("id,image_path").eq("product_id", productId);
       if (variantListError) throw variantListError;
       const removedVariantRows = (savedVariantRows || []).filter((variant) => !retainedVariantIds.has(variant.id));
+      const retainedImagePaths = new Set(parsedVariants.map((variant) => variant.image_path).filter((path): path is string => Boolean(path)));
       const removedVariantIds = removedVariantRows.map((variant) => variant.id);
       if (removedVariantIds.length) {
         const { error: deactivateError } = await supabase.from("product_variants")
@@ -548,7 +552,8 @@ export default function StorePage() {
         if (deactivateError) throw deactivateError;
       }
 
-      const obsoleteVariantPaths = [...new Set([...replacedVariantImagePaths, ...removedVariantRows.map((variant) => variant.image_path).filter((path): path is string => Boolean(path))])];
+      keepUploadedVariantPaths = true;
+      const obsoleteVariantPaths = [...new Set([...replacedVariantImagePaths, ...(savedVariantRows || []).map((variant) => variant.image_path).filter((path): path is string => Boolean(path) && !retainedImagePaths.has(path as string))])];
       if (obsoleteVariantPaths.length) await supabase.storage.from("product-images").remove(obsoleteVariantPaths);
       if (uploadedPath && editing?.image_path) {
         await supabase.storage.from("product-images").remove([editing.image_path]);
@@ -559,6 +564,7 @@ export default function StorePage() {
       await load();
     } catch (error) {
       if (uploadedPath && !keepUploadedPath) await supabase.storage.from("product-images").remove([uploadedPath]);
+      if (uploadedVariantPaths.length && !keepUploadedVariantPaths) await supabase.storage.from("product-images").remove(uploadedVariantPaths);
       setMessage(error instanceof Error ? error.message : "پاشەکەوتکردنی کاڵا سەرکەوتوو نەبوو.");
     } finally {
       setSaving(false);
