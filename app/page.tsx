@@ -150,7 +150,7 @@ export default function HomePage() {
             <NotificationsHeaderBell />
             <PwaInstallCta compact />
             <Link href="/cart" aria-label="سەبەتە" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20">
-              <ShoppingBasket size={20}/>
+              <ShoppingBasket size={18}/>
             </Link>
             <Link href={accountHref} aria-label={accountLabel} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20 sm:h-11 sm:w-11">
               <UserRound size={20}/>
