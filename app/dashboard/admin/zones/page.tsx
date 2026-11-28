@@ -131,7 +131,6 @@ export default function ZonesPage() {
     try {
       const supabase = createClient();
       const args = {
-        p_zone_id: editingId,
         p_name: form.name.trim(),
         p_description: form.description.trim(),
         p_delivery_fee_iqd: fee,
@@ -140,19 +139,29 @@ export default function ZonesPage() {
         p_is_active: form.isActive,
       };
       if (zoneType === "circle") {
+        const circleArgs = {
+          ...args,
+          ...(editingId ? { p_zone_id: editingId } : {}),
+          p_center_latitude: effectiveCircleCenter!.latitude,
+          p_center_longitude: effectiveCircleCenter!.longitude,
+          p_outer_radius_m: Math.round(parsedOuterRadiusKm * 1000),
+        };
+        const { data: savedZoneId, error } = await supabase.rpc("admin_save_service_zone_circle", circleArgs);
+        /*
         const { data: savedZoneId, error } = await supabase.rpc("admin_save_service_zone_circle", {
           ...args,
           p_center_latitude: effectiveCircleCenter!.latitude,
           p_center_longitude: effectiveCircleCenter!.longitude,
           p_outer_radius_m: Math.round(parsedOuterRadiusKm * 1000),
         });
+        */
         if (error) throw error;
         if (!savedZoneId) throw new Error("ناسنامەی زۆنی بازنەیی وەرنەگیرا.");
         setMessage(editingId ? "زۆنی بازنەیی و مەوداکەی نوێ کرایەوە." : "زۆنی بازنەیی زیاد کرا؛ لە زۆنی پێشووەوە بەردەوامە.");
       } else {
         const { data: savedZoneId, error } = editingId
-          ? await supabase.rpc("admin_save_service_zone", args)
-          : await supabase.rpc("admin_save_service_zone", { ...args, p_zone_id: undefined });
+          ? await supabase.rpc("admin_save_service_zone", { ...args, p_zone_id: editingId })
+          : await supabase.rpc("admin_save_service_zone", args);
         if (error) throw error;
         const zoneId = editingId || savedZoneId;
         if (!zoneId) throw new Error("ناسنامەی زۆن وەرنەگیرا.");
@@ -277,7 +286,7 @@ export default function ZonesPage() {
                     <p className="mt-1 text-xs text-blue-700">کۆتایی زۆنی پێشوو؛ بۆشایی لە نێوان زۆنەکاندا نییە.</p>
                   </div>
                   <label className="block text-sm font-bold">کۆتایی بازنە (کم)
-                    <input type="number" required min={Math.max(0.001, innerRadiusM / 1000 + 0.001)} max="100" step="0.1" value={outerRadiusKm} onChange={(event) => setOuterRadiusKm(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
+                    <input type="number" required min={Math.max(0.001, innerRadiusM / 1000 + 0.001)} max="100" step="0.001" value={outerRadiusKm} onChange={(event) => setOuterRadiusKm(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
                   </label>
                 </div>
                 <ZoneCircleEditor
