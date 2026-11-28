@@ -48,11 +48,33 @@ type VariantSnapshot = {
 };
 
 type ZoneBoundary = { type: "Polygon"; coordinates: [number, number][][] };
-type Zone = { id: string; name: string; delivery_fee_iqd: number; boundary_geojson: ZoneBoundary | null };
-function pointInsideZone(boundary: ZoneBoundary, latitude: number, longitude: number) {
- const ring=boundary.coordinates?.[0]; if(!ring||ring.length<4)return false; let inside=false;
- for(let i=0,j=ring.length-1;i<ring.length;j=i++){const [xi,yi]=ring[i];const [xj,yj]=ring[j];const cross=(longitude-xi)*(yj-yi)-(latitude-yi)*(xj-xi);if(Math.abs(cross)<1e-10&&longitude>=Math.min(xi,xj)&&longitude<=Math.max(xi,xj)&&latitude>=Math.min(yi,yj)&&latitude<=Math.max(yi,yj))return true;const crosses=(yi>latitude)!==(yj>latitude)&&longitude<((xj-xi)*(latitude-yi))/(yj-yi)+xi;if(crosses)inside=!inside;}
- return inside;
+type Zone = {
+  id: string; name: string; delivery_fee_iqd: number; boundary_geojson: ZoneBoundary | null;
+  zone_type: "polygon" | "circle"; circle_center_latitude: number | null; circle_center_longitude: number | null;
+  circle_outer_radius_m: number | null; circle_inner_radius_m: number; circle_ring_order: number | null;
+};
+function pointInsidePolygon(boundary: ZoneBoundary, latitude: number, longitude: number) {
+  const ring=boundary.coordinates?.[0]; if(!ring||ring.length<4)return false; let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const [xi,yi]=ring[i]; const [xj,yj]=ring[j];
+    const cross=(longitude-xi)*(yj-yi)-(latitude-yi)*(xj-xi);
+    if(Math.abs(cross)<1e-10&&longitude>=Math.min(xi,xj)&&longitude<=Math.max(xi,xj)&&latitude>=Math.min(yi,yj)&&latitude<=Math.max(yi,yj))return true;
+    const crosses=(yi>latitude)!==(yj>latitude)&&longitude<((xj-xi)*(latitude-yi))/(yj-yi)+xi;
+    if(crosses)inside=!inside;
+  }
+  return inside;
+}
+function zoneContainsPoint(zone: Zone, latitude: number, longitude: number) {
+  if(zone.zone_type==="circle"){
+    if(zone.circle_center_latitude===null||zone.circle_center_longitude===null||zone.circle_outer_radius_m===null)return false;
+    const rad=(value:number)=>(value*Math.PI)/180;
+    const lat1=rad(zone.circle_center_latitude),lat2=rad(latitude);
+    const dLat=rad(latitude-zone.circle_center_latitude),dLon=rad(longitude-zone.circle_center_longitude);
+    const a=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+    const distance=2*6371008.8*Math.asin(Math.min(1,Math.sqrt(Math.max(0,a))));
+    return distance>=zone.circle_inner_radius_m&&distance<=zone.circle_outer_radius_m;
+  }
+  return zone.boundary_geojson?pointInsidePolygon(zone.boundary_geojson,latitude,longitude):false;
 }
 
 const unitLabels: Record<string, string> = {
@@ -162,12 +184,25 @@ export default function CartPage() {
 
       const [{ data: { user } }, zoneResult] = await Promise.all([
         supabase.auth.getUser(),
-        supabase.from("service_zones").select("id,name,delivery_fee_iqd,boundary_geojson").eq("is_active", true).order("name"),
+        supabase.from("service_zones").select("id,name,delivery_fee_iqd,boundary_geojson,zone_type,circle_center_latitude,circle_center_longitude,circle_outer_radius_m,circle_ring_order").eq("is_active", true).order("name"),
       ]);
       if (!active) return;
       setIsAuthenticated(Boolean(user));
-      setZones((zoneResult.data || []) as unknown as Zone[]);
-      if (zoneResult.data?.[0]) setZone(zoneResult.data[0].id);
+      const zoneRows = (zoneResult.data || []) as unknown as Omit<Zone, "circle_inner_radius_m">[];
+      const circleRows = zoneRows.filter((item) => item.zone_type === "circle").sort((a,b)=>(a.circle_ring_order||0)-(b.circle_ring_order||0));
+      const zoneRowsWithInner = zoneRows.map((item) => ({
+        ...item,
+        circle_inner_radius_m: item.zone_type === "circle"
+          ? circleRows.filter((previous)=>(previous.circle_ring_order||0)<(item.circle_ring_order||0))
+              .reduce((max,previous)=>Math.max(max,previous.circle_outer_radius_m||0),0)
+          : 0,
+      })) as Zone[];
+      const orderedZones = [
+        ...zoneRowsWithInner.filter((item)=>item.zone_type==="circle").sort((a,b)=>(a.circle_ring_order||0)-(b.circle_ring_order||0)),
+        ...zoneRowsWithInner.filter((item)=>item.zone_type!=="circle").sort((a,b)=>a.name.localeCompare(b.name)),
+      ];
+      setZones(orderedZones);
+      if (orderedZones[0]) setZone(orderedZones[0].id);
       if (user) {
         const { data: profile } = await supabase.from("profiles").select("phone").eq("id", user.id).maybeSingle();
         if (active && profile?.phone) setDeliveryPhone(profile.phone);
@@ -242,8 +277,8 @@ export default function CartPage() {
         const coordinates={latitude:position.coords.latitude,longitude:position.coords.longitude,accuracy:position.coords.accuracy};
         setDeliveryCoordinates(coordinates); setLocating(false);
         const selectedZone=zones.find((item)=>item.id===zone);
-        if(!selectedZone?.boundary_geojson)setMessage("سنووری نەخشەی ئەم زۆنە هێشتا دیاری نەکراوە؛ تکایە پەیوەندی بە سوپەر ئەدمینەوە بکە.");
-        else if(!pointInsideZone(selectedZone.boundary_geojson,coordinates.latitude,coordinates.longitude))setMessage("گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ ئەم شوێنە لە دەرەوەی زۆنی هەڵبژێردراوە.");
+        if(!selectedZone)setMessage("زۆنی گەیاندن هەڵنەبژێردراوە.");
+        else if(!zoneContainsPoint(selectedZone,coordinates.latitude,coordinates.longitude))setMessage("گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ ئەم شوێنە لە دەرەوەی مەودای زۆنی هەڵبژێردراوە.");
         else setMessage("شوێنی GPS تۆمار کرا و لە ناو زۆنی گەیاندنە.");
       },
       (error) => {
@@ -265,8 +300,8 @@ export default function CartPage() {
     if (deliveryPhone.replace(/\D/g, "").length < 7) { setMessage("ژمارەی تەلەفۆنی دروست بنووسە."); return; }
     const selectedZone=zones.find((item)=>item.id===zone);
     if(!deliveryCoordinates){setMessage("پێویستە سەرەتا بە دوکمەی «گەیاندنی شوێنی کڕیار بە GPS» شوێنی خۆت دیاری بکەیت.");return;}
-    if(!selectedZone?.boundary_geojson){setMessage("سنووری نەخشەی ئەم زۆنە دیاری نەکراوە؛ لەم زۆنەدا ئۆردەر وەرناگیرێت تا سنوورەکە دیاری بکرێت.");return;}
-    if(!pointInsideZone(selectedZone.boundary_geojson,deliveryCoordinates.latitude,deliveryCoordinates.longitude)){setMessage("گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ شوێنی GPS لە دەرەوەی زۆنی هەڵبژێردراوە.");return;}
+    if(!selectedZone){setMessage("زۆنی گەیاندن هەڵنەبژێردراوە.");return;}
+    if(!zoneContainsPoint(selectedZone,deliveryCoordinates.latitude,deliveryCoordinates.longitude)){setMessage("گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ شوێنی GPS لە دەرەوەی مەودای زۆنی هەڵبژێردراوە.");return;}
 
     setBusy(true);
     setMessage("");
@@ -403,12 +438,22 @@ export default function CartPage() {
                 <h2 className="font-black">زۆنی گەیاندن</h2>
                 <select required value={zone} onChange={(event) => {
                   const nextZoneId=event.target.value;setZone(nextZoneId);const nextZone=zones.find((item)=>item.id===nextZoneId);
-                  if(deliveryCoordinates){if(!nextZone?.boundary_geojson)setMessage("سنووری نەخشەی ئەم زۆنە دیاری نەکراوە.");else if(!pointInsideZone(nextZone.boundary_geojson,deliveryCoordinates.latitude,deliveryCoordinates.longitude))setMessage("گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ لە دەرەوەی ئەم زۆنەیە.");else setMessage("شوێنی GPS لە ناو زۆنی هەڵبژێردراوە.");}
+                  if(deliveryCoordinates){if(!nextZone)setMessage("زۆنی گەیاندن هەڵنەبژێردراوە.");else if(!zoneContainsPoint(nextZone,deliveryCoordinates.latitude,deliveryCoordinates.longitude))setMessage("گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ لە دەرەوەی مەودای ئەم زۆنەیە.");else setMessage("شوێنی GPS لە ناو مەودای زۆنی هەڵبژێردراوە.");}
                 }} className="mt-3 w-full rounded-xl border p-3">
                   <option value="">زۆن هەڵبژێرە</option>
-                  {zones.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.delivery_fee_iqd.toLocaleString("en-US")} د.ع</option>)}
+                  {zones.map((item) => <option key={item.id} value={item.id}>{item.name}{item.zone_type==="circle"?` · ${(item.circle_inner_radius_m/1000).toFixed(2)}–${((item.circle_outer_radius_m||0)/1000).toFixed(2)} کم`:""} · {item.delivery_fee_iqd.toLocaleString("en-US")} د.ع</option>)}
                 </select>
-                {(() => { const selected=zones.find((item)=>item.id===zone);return selected&&<p className={`mt-3 rounded-xl p-3 text-xs font-bold ${!selected.boundary_geojson?"bg-amber-50 text-amber-800":deliveryCoordinates&&pointInsideZone(selected.boundary_geojson,deliveryCoordinates.latitude,deliveryCoordinates.longitude)?"bg-emerald-50 text-emerald-800":"bg-rose-50 text-rose-800"}`}>{!selected.boundary_geojson?"سنووری ئەم زۆنە لەلایەن سوپەر ئەدمینەوە دیاری نەکراوە.":!deliveryCoordinates?"شوێنی GPS دیاری بکە تا سیستەم دڵنیایی لە ناو زۆنەکە بدات.":pointInsideZone(selected.boundary_geojson,deliveryCoordinates.latitude,deliveryCoordinates.longitude)?"شوێنی GPS لە ناو سنووری ئەم زۆنەیە.":"گەیاندن بۆ ئەم شوێنە بەردەست نییە؛ دەرەوەی زۆنە."}</p>;})()}
+                {(() => {
+                  const selected=zones.find((item)=>item.id===zone);
+                  if(!selected)return null;
+                  const configured=selected.zone_type==="circle"
+                    ? selected.circle_center_latitude!==null&&selected.circle_center_longitude!==null&&selected.circle_outer_radius_m!==null
+                    : selected.boundary_geojson!==null;
+                  const inside=!!deliveryCoordinates&&zoneContainsPoint(selected,deliveryCoordinates.latitude,deliveryCoordinates.longitude);
+                  return <p className={`mt-3 rounded-xl p-3 text-xs font-bold ${!configured?"bg-amber-50 text-amber-800":deliveryCoordinates&&inside?"bg-emerald-50 text-emerald-800":"bg-rose-50 text-rose-800"}`}>
+                    {!configured?"سنووری ئەم زۆنە هێشتا لەلایەن سوپەر ئەدمینەوە دیاری نەکراوە.":!deliveryCoordinates?"شوێنی GPS دیاری بکە تا مەودای زۆنەکە بپشکنرێت.":inside?"شوێنی GPS لە ناو مەودای ئەم زۆنەیە.":"شوێنی GPS لە دەرەوەی مەودای ئەم زۆنەیە."}
+                  </p>;
+                })()}
                 <div className="mt-4 rounded-xl bg-shakh-mist p-4">
                   <div className="flex justify-between text-sm"><span>کۆی کاڵاکان</span><b>{subtotal.toLocaleString("en-US")} د.ع</b></div>
                   <div className="mt-2 flex justify-between text-sm"><span>کۆی کرێی گەیاندن ({storeGroups.length} فرۆشگا)</span><b>{deliveryFee.toLocaleString("en-US")} د.ع</b></div>
