@@ -379,7 +379,7 @@ export default function ShopPage() {
                   const exhausted = variantProduct.stock_quantity === 0;
                   const variantImageUrl = variant.image_path ? createClient().storage.from("product-images").getPublicUrl(variant.image_path).data.publicUrl : null;
                   return (
-                    <button key={variant.id} type="button" disabled={exhausted} onClick={() => { setSelectedVariantId(variant.id); setVariantQuantity(variant.unit === "kg" ? 0.5 : 1); }}
+                    <button key={variant.id} type="button" disabled={exhausted} onClick={() => { setSelectedVariantId(variant.id); setVariantQuantity(variantProduct.unit === "kg" ? 0.5 : 1); }}
                       className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-right transition ${isSelected ? "border-shakh-blue bg-blue-50 ring-1 ring-shakh-blue" : "border-slate-200"} ${exhausted ? "opacity-40" : ""}`}>
                       {variantImageUrl ? <img src={variantImageUrl} alt={variant.variant_label} loading="lazy" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1"/> : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-300"><Package size={22}/></span>}
                       <span className="min-w-0 flex-1"><b className="block text-sm">{variant.variant_label}</b><span className="mt-1 block text-[11px] text-slate-400">{exhausted ? "لە کۆگا نەماوە" : "بەردەست"}</span></span>
