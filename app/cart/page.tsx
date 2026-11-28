@@ -128,6 +128,7 @@ export default function CartPage() {
           );
           let removed = 0;
           let adjusted = false;
+          const remainingStockByProduct = new Map<string, number | null>();
           const refreshed = saved.flatMap((item) => {
             const product = productMap[item.product_id];
             if (!product || !product.is_available || product.stock_quantity === 0) {
@@ -142,7 +143,9 @@ export default function CartPage() {
             const currentPrice = variant?.price_iqd ?? product.price_iqd;
             const currentUnit = variant?.unit || product.unit;
             const currentStock = product.stock_quantity;
-            const quantity = currentStock === null ? item.quantity : Math.min(item.quantity, currentStock);
+            const remainingStock = remainingStockByProduct.has(product.id) ? remainingStockByProduct.get(product.id) ?? null : currentStock;
+            const quantity = remainingStock === null ? item.quantity : Math.min(item.quantity, remainingStock);
+            if (remainingStock !== null) remainingStockByProduct.set(product.id, Math.max(0, remainingStock - quantity));
             if (quantity !== item.quantity || currentPrice !== item.price_iqd) adjusted = true;
             return [{
               ...item,
@@ -247,8 +250,11 @@ export default function CartPage() {
   function update(id: string, variantId: string | undefined, quantity: number) {
     const item = items.find((value) => value.product_id === id && (value.variant_id || "") === (variantId || ""));
     if (!item) return;
-    if (quantity > 0 && item.stock_quantity !== null && item.stock_quantity !== undefined && quantity > item.stock_quantity) {
-      setMessage("ئەو بڕەی داوات کردووە لە کۆگا زیاترە.");
+    const otherColorQuantity = items
+      .filter((value) => value.product_id === id && (value.variant_id || "") !== (variantId || ""))
+      .reduce((total, value) => total + value.quantity, 0);
+    if (quantity > 0 && item.stock_quantity !== null && item.stock_quantity !== undefined && otherColorQuantity + quantity > item.stock_quantity) {
+      setMessage("کۆگای هاوبەشی ئەم کاڵایە بەشی ئەو بڕە نییە؛ هەموو ڕەنگەکان لە یەک کۆگادا هەژمار دەکرێن.");
       return;
     }
     const next = items.map((value) => value.product_id === id && (value.variant_id || "") === (variantId || "")
