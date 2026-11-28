@@ -268,7 +268,7 @@ export default function ShopPage() {
       setImagePreviewProduct((current) =>
         current?.id === productId ? { ...current, views_count: nextCount } : current
       );
-    }).catch(() => undefined);
+    });
   }
 
 
