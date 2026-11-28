@@ -282,6 +282,7 @@ export default function ZonesPage() {
                   </label>
                 </div>
                 <ZoneCircleEditor
+                  key={`${editingId || "new-circle"}-${canChangeCircleCenter ? "center-editable" : "center-locked"}`}
                   center={effectiveCircleCenter}
                   onChange={setCircleCenter}
                   innerRadiusM={innerRadiusM}
