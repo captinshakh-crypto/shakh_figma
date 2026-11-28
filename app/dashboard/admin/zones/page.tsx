@@ -117,7 +117,7 @@ export default function ZonesPage() {
     }
     const parsedOuterRadiusKm = Number(outerRadiusKm);
     if (zoneType === "circle") {
-      if (!circleCenter) {
+      if (!effectiveCircleCenter) {
         setMessage("تکایە ناوەندی دوکان لەسەر نەخشە دیاری بکە.");
         return;
       }
@@ -142,8 +142,8 @@ export default function ZonesPage() {
       if (zoneType === "circle") {
         const { data: savedZoneId, error } = await supabase.rpc("admin_save_service_zone_circle", {
           ...args,
-          p_center_latitude: circleCenter!.latitude,
-          p_center_longitude: circleCenter!.longitude,
+          p_center_latitude: effectiveCircleCenter!.latitude,
+          p_center_longitude: effectiveCircleCenter!.longitude,
           p_outer_radius_m: Math.round(parsedOuterRadiusKm * 1000),
         });
         if (error) throw error;
@@ -164,6 +164,7 @@ export default function ZonesPage() {
         setMessage(editingId ? "زۆن و سنووری پۆلیگۆن نوێ کرانەوە." : "زۆنی پۆلیگۆن زیاد کرا.");
       }
       resetForm();
+      if (zoneType === "circle") setOuterRadiusKm(String(Math.round((parsedOuterRadiusKm + 1) * 10) / 10));
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "پاشەکەوتکردنی زۆن سەرکەوتوو نەبوو.");
@@ -199,10 +200,10 @@ export default function ZonesPage() {
     return circleZones.reduce((max, item) => item.circle_ring_order !== null && item.circle_ring_order < ringOrder
       ? Math.max(max, item.circle_outer_radius_m || 0) : max, 0);
   }, [circleZones, editingZone]);
-  const sharedCircleCenter = circleZones[0]?.circle_center_latitude !== null && circleZones[0]?.circle_center_longitude !== null
-    ? { latitude: circleZones[0].circle_center_latitude as number, longitude: circleZones[0].circle_center_longitude as number }
+  const sharedCircleCenter = circleZones.length > 0 && circleZones[0].circle_center_latitude !== null && circleZones[0].circle_center_longitude !== null
+    ? { latitude: circleZones[0].circle_center_latitude, longitude: circleZones[0].circle_center_longitude }
     : null;
-  const effectiveCircleCenter = circleCenter || (editingZone?.zone_type === "circle" ? circleCenter : sharedCircleCenter);
+  const effectiveCircleCenter = circleCenter || sharedCircleCenter;
   const canChangeCircleCenter = circleZones.length === 0 || (editingZone?.zone_type === "circle" && circleZones.length === 1);
   const activeCount = useMemo(() => zones.filter((zone) => zone.is_active).length, [zones]);
 
