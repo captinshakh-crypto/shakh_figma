@@ -62,12 +62,15 @@ export function ZoneCircleEditor({
   const mapRef = useRef<MapApi | null>(null);
   const centerRef = useRef(center);
   const onChangeRef = useRef(onChange);
+  const innerRadiusRef = useRef(innerRadiusM);
+  const outerRadiusRef = useRef(outerRadiusM);
   const circleLayersRef = useRef<Layer[]>([]);
   const centerMarkerRef = useRef<Layer | null>(null);
   const [mapError, setMapError] = useState("");
 
   useEffect(() => { centerRef.current = center; }, [center]);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useEffect(() => { innerRadiusRef.current = innerRadiusM; outerRadiusRef.current = outerRadiusM; }, [innerRadiusM, outerRadiusM]);
 
   useEffect(() => {
     let disposed = false;
@@ -88,10 +91,10 @@ export function ZoneCircleEditor({
           const next = { latitude: event.latlng.lat, longitude: event.latlng.lng };
           centerRef.current = next;
           onChangeRef.current(next);
-          redraw(L, next, innerRadiusM, outerRadiusM);
+          redraw(L, next, innerRadiusRef.current, outerRadiusRef.current);
         });
       }
-      redraw(L, centerRef.current, innerRadiusM, outerRadiusM);
+      redraw(L, centerRef.current, innerRadiusRef.current, outerRadiusRef.current);
     }).catch(() => {
       if (!disposed) setMapError("نەخشە بارنەبوو؛ تکایە ئینتەرنێت بپشکنە و پەڕەکە نوێ بکەرەوە.");
     });
