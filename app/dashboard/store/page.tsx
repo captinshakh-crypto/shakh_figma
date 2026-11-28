@@ -900,7 +900,6 @@ export default function StorePage() {
                      const lowestVariantPrice = product.variants.length > 0
                        ? Math.min(...product.variants.map((variant) => variant.price_iqd))
                        : product.price_iqd;
-                     const availableVariantCount = product.variants.length;
                     return (
                       <article key={product.id} className="overflow-hidden rounded-2xl bg-white shadow-soft">
                         <div className="flex gap-4 p-4">
@@ -920,9 +919,7 @@ export default function StorePage() {
                               ? <p className="mt-1 rounded-lg bg-purple-50 px-2 py-1 text-xs font-black text-purple-800">خەڵاتی شێر بۆ هەر دانە: {formatIQD(product.referral_commission_iqd)}</p>
                               : <p className="mt-1 rounded-lg bg-slate-50 px-2 py-1 text-xs font-medium text-slate-500">ئەم کاڵایە بە شێوەی ئاسایی دەفرۆشرێت؛ شێر و خەڵاتی نییە.</p>}
                             <p className="mt-1 text-lg font-black text-shakh-orange">{product.variants.length > 0 ? "لە " : ""}{formatIQD(lowestVariantPrice)} <small className="text-xs font-medium text-slate-500">/ {units.find((unit) => unit.value === product.unit)?.label || product.unit}</small></p>
-                            <p className="mt-1 text-sm text-slate-500">{product.variants.length > 0
-                               ? `کۆگا: ${availableVariantCount} لە ${product.variants.length} جۆر بەردەستن`
-                               : `کۆگا: ${product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}`}</p>
+                             <p className="mt-1 text-sm text-slate-500">کۆگای هاوبەش: {product.stock_quantity === null ? "بێ سنوور" : product.stock_quantity.toLocaleString("en-US") + " " + (units.find((unit) => unit.value === product.unit)?.label || product.unit)}</p>
                             {product.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>}{product.rejection_reason && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">هۆکاری ڕەفز: {product.rejection_reason}</p>}
                           </div>
                         </div>
