@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Pencil, Plus, Save, X } from "lucide-react";
 import { ZoneBoundaryEditor, type ZoneBoundary } from "@/components/zone-boundary-editor";
+import { ZoneCircleEditor } from "@/components/zone-circle-editor";
 
 type Zone = {
   id: string;
@@ -15,7 +16,14 @@ type Zone = {
   captain_delivery_share_iqd: number;
   is_active: boolean;
   boundary_geojson: ZoneBoundary | null;
+  zone_type: "polygon" | "circle";
+  circle_center_latitude: number | null;
+  circle_center_longitude: number | null;
+  circle_outer_radius_m: number | null;
+  circle_ring_order: number | null;
 };
+
+type CircleCenter = { latitude: number; longitude: number };
 
 const initialForm = {
   name: "",
@@ -35,6 +43,9 @@ export default function ZonesPage() {
   const [saving, setSaving] = useState(false);
   const [boundary, setBoundary] = useState<ZoneBoundary | null>(null);
   const [boundaryEditorVersion, setBoundaryEditorVersion] = useState(0);
+  const [zoneType, setZoneType] = useState<"polygon" | "circle">("circle");
+  const [circleCenter, setCircleCenter] = useState<CircleCenter | null>(null);
+  const [outerRadiusKm, setOuterRadiusKm] = useState("1");
 
   const fee = Number(form.fee);
   const shakh = Number(form.shakh);
@@ -55,7 +66,7 @@ export default function ZonesPage() {
     if (profile?.role !== "super_admin") { window.location.href = "/dashboard"; return; }
 
     const { data, error } = await supabase.from("service_zones")
-      .select("id,name,description,delivery_fee_iqd,shakh_delivery_share_iqd,captain_delivery_share_iqd,is_active,boundary_geojson")
+      .select("id,name,description,delivery_fee_iqd,shakh_delivery_share_iqd,captain_delivery_share_iqd,is_active,boundary_geojson,zone_type,circle_center_latitude,circle_center_longitude,circle_outer_radius_m,circle_ring_order")
       .order("name");
     if (error) throw error;
     setZones((data || []) as unknown as Zone[]);
@@ -70,6 +81,11 @@ export default function ZonesPage() {
     setEditingId(zone.id);
     setBoundaryEditorVersion((version) => version + 1);
     setBoundary(zone.boundary_geojson);
+    setZoneType(zone.zone_type || "polygon");
+    setCircleCenter(zone.zone_type === "circle" && zone.circle_center_latitude !== null && zone.circle_center_longitude !== null
+      ? { latitude: zone.circle_center_latitude, longitude: zone.circle_center_longitude }
+      : null);
+    setOuterRadiusKm(zone.circle_outer_radius_m ? String(zone.circle_outer_radius_m / 1000) : "1");
     setForm({
       name: zone.name,
       description: zone.description || "",
@@ -86,6 +102,10 @@ export default function ZonesPage() {
     setEditingId(null);
     setForm(initialForm);
     setBoundary(null);
+    setZoneType("circle");
+    setCircleCenter(null);
+    const lastRadius = circleZones.reduce((max, item) => Math.max(max, item.circle_outer_radius_m || 0), 0);
+    setOuterRadiusKm(String(Math.max(1, (lastRadius + 1000) / 1000)));
     setBoundaryEditorVersion((version) => version + 1);
   }
 
@@ -95,10 +115,23 @@ export default function ZonesPage() {
       setMessage("کۆی بەشی شاخ و کاپتن دەبێت یەکسان بێت بە کرێی گەیاندن.");
       return;
     }
+    const parsedOuterRadiusKm = Number(outerRadiusKm);
+    if (zoneType === "circle") {
+      if (!circleCenter) {
+        setMessage("تکایە ناوەندی دوکان لەسەر نەخشە دیاری بکە.");
+        return;
+      }
+      if (!Number.isFinite(parsedOuterRadiusKm) || parsedOuterRadiusKm <= innerRadiusM / 1000 || parsedOuterRadiusKm > 100) {
+        setMessage("کۆتایی مەودای بازنە دەبێت لە کۆتایی زۆنی پێشوو زیاتر و لە ١٠٠ کیلۆمەتر کەمتر بێت.");
+        return;
+      }
+    }
     setSaving(true);
     setMessage("");
     try {
+      const supabase = createClient();
       const args = {
+        p_zone_id: editingId,
         p_name: form.name.trim(),
         p_description: form.description.trim(),
         p_delivery_fee_iqd: fee,
@@ -106,17 +139,30 @@ export default function ZonesPage() {
         p_captain_share_iqd: captain,
         p_is_active: form.isActive,
       };
-      const supabase = createClient();
-      const { data: savedZoneId, error } = editingId
-        ? await supabase.rpc("admin_save_service_zone", { ...args, p_zone_id: editingId })
-        : await supabase.rpc("admin_save_service_zone", args);
-      if (error) throw error;
-      const zoneId = editingId || savedZoneId;
-      if (!zoneId) throw new Error("ناسنامەی زۆن وەرنەگیرا.");
-      setEditingId(zoneId);
-      const { error: boundaryError } = await supabase.rpc("admin_save_service_zone_boundary", { p_zone_id: zoneId, p_boundary_geojson: boundary });
-      if (boundaryError) throw boundaryError;
-      setMessage(editingId ? "زۆن و نرخەکانی نوێ کرانەوە." : "زۆنی نوێ زیاد کرا.");
+      if (zoneType === "circle") {
+        const { data: savedZoneId, error } = await supabase.rpc("admin_save_service_zone_circle", {
+          ...args,
+          p_center_latitude: circleCenter!.latitude,
+          p_center_longitude: circleCenter!.longitude,
+          p_outer_radius_m: Math.round(parsedOuterRadiusKm * 1000),
+        });
+        if (error) throw error;
+        if (!savedZoneId) throw new Error("ناسنامەی زۆنی بازنەیی وەرنەگیرا.");
+        setMessage(editingId ? "زۆنی بازنەیی و مەوداکەی نوێ کرایەوە." : "زۆنی بازنەیی زیاد کرا؛ لە زۆنی پێشووەوە بەردەوامە.");
+      } else {
+        const { data: savedZoneId, error } = editingId
+          ? await supabase.rpc("admin_save_service_zone", args)
+          : await supabase.rpc("admin_save_service_zone", { ...args, p_zone_id: undefined });
+        if (error) throw error;
+        const zoneId = editingId || savedZoneId;
+        if (!zoneId) throw new Error("ناسنامەی زۆن وەرنەگیرا.");
+        const { error: boundaryError } = await supabase.rpc("admin_save_service_zone_boundary", {
+          p_zone_id: zoneId,
+          p_boundary_geojson: boundary,
+        });
+        if (boundaryError) throw boundaryError;
+        setMessage(editingId ? "زۆن و سنووری پۆلیگۆن نوێ کرانەوە." : "زۆنی پۆلیگۆن زیاد کرا.");
+      }
       resetForm();
       await load();
     } catch (error) {
@@ -143,6 +189,21 @@ export default function ZonesPage() {
     if (!error) await load();
   }
 
+  const circleZones = useMemo(
+    () => zones.filter((zone) => zone.zone_type === "circle").sort((a, b) => (a.circle_ring_order || 0) - (b.circle_ring_order || 0)),
+    [zones]
+  );
+  const editingZone = zones.find((zone) => zone.id === editingId) || null;
+  const innerRadiusM = useMemo(() => {
+    const ringOrder = editingZone?.zone_type === "circle" ? editingZone.circle_ring_order || 0 : Number.MAX_SAFE_INTEGER;
+    return circleZones.reduce((max, item) => item.circle_ring_order !== null && item.circle_ring_order < ringOrder
+      ? Math.max(max, item.circle_outer_radius_m || 0) : max, 0);
+  }, [circleZones, editingZone]);
+  const sharedCircleCenter = circleZones[0]?.circle_center_latitude !== null && circleZones[0]?.circle_center_longitude !== null
+    ? { latitude: circleZones[0].circle_center_latitude as number, longitude: circleZones[0].circle_center_longitude as number }
+    : null;
+  const effectiveCircleCenter = circleCenter || (editingZone?.zone_type === "circle" ? circleCenter : sharedCircleCenter);
+  const canChangeCircleCenter = circleZones.length === 0 || (editingZone?.zone_type === "circle" && circleZones.length === 1);
   const activeCount = useMemo(() => zones.filter((zone) => zone.is_active).length, [zones]);
 
   return (
@@ -198,7 +259,37 @@ export default function ZonesPage() {
               {!isSplitValid && <p className="mt-1">جیاوازی: {Number.isFinite(remaining) ? remaining.toLocaleString("en-US") : "—"} د.ع؛ کۆی دوو بەشەکە دەبێت کرێی گەیاندن بێت.</p>}
             </div>
 
-            <ZoneBoundaryEditor key={`${editingId || "new-zone"}-${boundaryEditorVersion}`} initialValue={boundary} onChange={setBoundary} />
+            {!editingId && (
+              <label className="block text-sm font-bold">شێوەی زۆن
+                <select value={zoneType} onChange={(event) => setZoneType(event.target.value as "circle" | "polygon")} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3">
+                  <option value="circle">بازنەیی / هەڵقەیی (پێشنیارکراو)</option>
+                  <option value="polygon">پۆلیگۆن / سنووری دەستی</option>
+                </select>
+              </label>
+            )}
+            {zoneType === "circle" ? (
+              <div className="space-y-3">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl bg-blue-50 p-4">
+                    <p className="text-xs font-bold text-blue-800">سەرەتای ئەم زۆنە</p>
+                    <p className="mt-1 text-xl font-black text-blue-900">{(innerRadiusM / 1000).toFixed(2)} کم</p>
+                    <p className="mt-1 text-xs text-blue-700">کۆتایی زۆنی پێشوو؛ بۆشایی لە نێوان زۆنەکاندا نییە.</p>
+                  </div>
+                  <label className="block text-sm font-bold">کۆتایی بازنە (کم)
+                    <input type="number" required min={Math.max(0.001, innerRadiusM / 1000 + 0.001)} max="100" step="0.1" value={outerRadiusKm} onChange={(event) => setOuterRadiusKm(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"/>
+                  </label>
+                </div>
+                <ZoneCircleEditor
+                  center={effectiveCircleCenter}
+                  onChange={setCircleCenter}
+                  innerRadiusM={innerRadiusM}
+                  outerRadiusM={Math.max(1, Math.round((Number(outerRadiusKm) || 0) * 1000))}
+                  allowCenterChange={canChangeCircleCenter}
+                />
+              </div>
+            ) : (
+              <ZoneBoundaryEditor key={`${editingId || "new-zone"}-${boundaryEditorVersion}`} initialValue={boundary} onChange={setBoundary} />
+            )}
 
             <label className="flex items-center gap-3 text-sm font-bold">
               <input type="checkbox" checked={form.isActive} onChange={(event) => setForm((old) => ({ ...old, isActive: event.target.checked }))} className="h-4 w-4"/>
@@ -206,7 +297,7 @@ export default function ZonesPage() {
             </label>
 
             <div className="flex flex-wrap gap-2">
-              <button disabled={saving || !isSplitValid || !form.name.trim()} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
+              <button disabled={saving || !isSplitValid || !form.name.trim() || (zoneType === "circle" && (!effectiveCircleCenter || Number(outerRadiusKm) * 1000 <= innerRadiusM || Number(outerRadiusKm) > 100))} className="inline-flex items-center gap-2 rounded-xl bg-shakh-orange px-5 py-3 font-bold text-white disabled:opacity-50">
                 <Save size={17}/>{saving ? "پاشەکەوت دەکرێت..." : editingId ? "پاشەکەوتکردنی گۆڕانکاری" : "زیادکردنی زۆن"}
               </button>
               {editingId && <button type="button" onClick={resetForm} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 font-bold text-slate-700"><X size={17}/> هەڵوەشاندنەوە</button>}
@@ -227,7 +318,17 @@ export default function ZonesPage() {
                     <span className={`rounded-full px-3 py-1 text-xs font-bold ${zone.is_active ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{zone.is_active ? "چالاک" : "ناچالاک"}</span>
                   </div>
                   {zone.description && <p className="mt-1 text-sm text-slate-500">{zone.description}</p>}
-                  <p className={`mt-2 text-xs font-bold ${zone.boundary_geojson ? "text-emerald-700" : "text-amber-700"}`}>{zone.boundary_geojson ? "سنووری نەخشە تۆمار کراوە" : "سنووری نەخشە دیاری نەکراوە — ئۆردەر وەرناگیرێت"}</p>
+                  {zone.zone_type === "circle" ? (
+                    <p className="mt-2 text-xs font-bold text-emerald-700">
+                      {(() => {
+                        const previous = circleZones.filter((item) => (item.circle_ring_order || 0) < (zone.circle_ring_order || 0));
+                        const inner = previous.reduce((max, item) => Math.max(max, item.circle_outer_radius_m || 0), 0);
+                        return `بازنەی ${(inner / 1000).toFixed(2)} تا ${((zone.circle_outer_radius_m || 0) / 1000).toFixed(2)} کم · ناوەندی هاوبەش`;
+                      })()}
+                    </p>
+                  ) : (
+                    <p className={`mt-2 text-xs font-bold ${zone.boundary_geojson ? "text-emerald-700" : "text-amber-700"}`}>{zone.boundary_geojson ? "سنووری پۆلیگۆن تۆمار کراوە" : "سنووری نەخشە دیاری نەکراوە — ئۆردەر وەرناگیرێت"}</p>
+                  )}
                 </div>
                 <div className="text-left">
                   <p className="text-xs text-slate-500">کرێی گەیاندن</p>
