@@ -1128,9 +1128,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      increment_product_view: {
-        Args: { p_product_id: string }
-        Returns: number
+      increment_product_views: {
+        Args: { p_product_ids: string[] }
+        Returns: { product_id: string; views_count: number }[]
       }
       admin_assign_captain: {
         Args: { p_captain_user_id: string; p_order_id: string }
