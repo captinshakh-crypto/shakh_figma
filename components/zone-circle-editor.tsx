@@ -83,7 +83,6 @@ export function ZoneCircleEditor({
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map);
-      if (centerRef.current) map.fitBounds(L.latLngBounds([[centerRef.current.latitude, centerRef.current.longitude]]), { padding: [35, 35] });
       if (allowCenterChange) {
         map.on("click", (event) => {
           const next = { latitude: event.latlng.lat, longitude: event.latlng.lng };
