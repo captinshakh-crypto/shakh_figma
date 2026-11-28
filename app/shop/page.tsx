@@ -314,6 +314,10 @@ export default function ShopPage() {
   }
 
   function add(product: Product) {
+    if (!catalogActionsReady) {
+      setMessage("تکایە چاوەڕێ بکە تا جۆرەکانی کاڵا باربکرێن.");
+      return;
+    }
     if (product.variants.length > 0) {
       const firstAvailable = product.variants[0];
       setVariantProduct(product);
@@ -481,7 +485,16 @@ export default function ShopPage() {
             </section>
           </div>
         )}
-        {loading ? <p className="mt-8">بارکردن...</p> : filtered.length === 0 ? (
+        {loading ? (
+          <div className="mt-6 grid grid-cols-2 items-start gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4" aria-label="بارکردنی کاڵاکان">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="animate-pulse overflow-hidden rounded-2xl bg-white shadow-soft">
+                <div className="aspect-square bg-slate-200"/>
+                <div className="space-y-2 p-3"><div className="h-3 w-2/3 rounded bg-slate-200"/><div className="h-4 w-full rounded bg-slate-200"/><div className="h-5 w-1/3 rounded bg-slate-200"/></div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="mt-8 rounded-2xl bg-white p-10 text-center text-slate-500">
             <Package size={32} className="mx-auto mb-3 text-slate-300"/>
             هیچ کاڵایەکی گونجاو لەگەڵ ئەم هەڵبژاردنە نەدۆزرایەوە.
@@ -511,9 +524,9 @@ export default function ShopPage() {
                     <button
                       type="button"
                       onClick={() => add(product)}
-                      disabled={outOfStock}
-                      aria-label={outOfStock ? "ئەم کاڵایە لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
-                      title={outOfStock ? "لە کۆگا نەماوە" : "زیادکردن بۆ سەبەتە"}
+                      disabled={outOfStock || !catalogActionsReady}
+                      aria-label={outOfStock ? "ئەم کاڵایە لە کۆگا نەماوە" : !catalogActionsReady ? "بارکردنی جۆرەکان..." : "زیادکردن بۆ سەبەتە"}
+                      title={outOfStock ? "لە کۆگا نەماوە" : !catalogActionsReady ? "بارکردنی جۆرەکان..." : "زیادکردن بۆ سەبەتە"}
                       className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-full bg-shakh-blue text-white shadow-lg ring-2 ring-white/90 transition hover:scale-105 hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:opacity-75"
                     >
                       <ShoppingBasket size={20} strokeWidth={2.4}/>
