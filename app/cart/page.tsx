@@ -16,11 +16,7 @@ type CartItem = {
   stock_quantity?: number | null;
   variant_id?: string;
   variant_label?: string;
-  color_name?: string | null;
-  color_hex?: string | null;
   variant_image_path?: string | null;
-  scent?: string | null;
-  size_label?: string | null;
   is_shakh_store?: boolean;
   referral_campaign_id?: string | null;
 };
@@ -40,14 +36,8 @@ type VariantSnapshot = {
   id: string;
   product_id: string;
   variant_label: string;
-  color_name: string | null;
-  color_hex: string | null;
   image_path: string | null;
-  scent: string | null;
-  size_label: string | null;
-  unit: string | null;
   price_iqd: number;
-  stock_quantity: number | null;
   is_active: boolean;
 };
 
@@ -120,7 +110,7 @@ export default function CartPage() {
         const variantIds = [...new Set(saved.map((item) => item.variant_id).filter((id): id is string => !!id))];
         const variantResult = variantIds.length
           ? await supabase.from("product_variants")
-              .select("id,product_id,variant_label,color_name,color_hex,image_path,scent,size_label,unit,price_iqd,stock_quantity,is_active")
+              .select("id,product_id,variant_label,image_path,price_iqd,is_active")
               .in("id", variantIds)
           : { data: [], error: null };
 
@@ -138,6 +128,7 @@ export default function CartPage() {
           );
           let removed = 0;
           let adjusted = false;
+          const remainingStockByProduct = new Map<string, number | null>();
           const refreshed = saved.flatMap((item) => {
             const product = productMap[item.product_id];
             if (!product || !product.is_available || product.stock_quantity === 0) {
@@ -145,14 +136,17 @@ export default function CartPage() {
               return [];
             }
             const variant = item.variant_id ? variantMap[item.variant_id] : null;
-            if (item.variant_id && (!variant || !variant.is_active || variant.product_id !== product.id || variant.stock_quantity === 0)) {
+            if (item.variant_id && (!variant || !variant.is_active || variant.product_id !== product.id)) {
               removed += 1;
               return [];
             }
             const currentPrice = variant?.price_iqd ?? product.price_iqd;
-            const currentUnit = variant?.unit || product.unit;
-            const currentStock = variant ? variant.stock_quantity : product.stock_quantity;
-            const quantity = currentStock === null ? item.quantity : Math.min(item.quantity, currentStock);
+            const currentUnit = product.unit;
+            const currentStock = product.stock_quantity;
+            const remainingStock = remainingStockByProduct.has(product.id) ? remainingStockByProduct.get(product.id) ?? null : currentStock;
+            const quantity = remainingStock === null ? item.quantity : Math.min(item.quantity, remainingStock);
+            if (remainingStock !== null) remainingStockByProduct.set(product.id, Math.max(0, remainingStock - quantity));
+            if (quantity <= 0) { removed += 1; return []; }
             if (quantity !== item.quantity || currentPrice !== item.price_iqd) adjusted = true;
             return [{
               ...item,
@@ -164,11 +158,7 @@ export default function CartPage() {
               is_shakh_store: product.is_shakh_store,
               ...(variant ? {
                 variant_label: variant.variant_label,
-                color_name: variant.color_name,
-                color_hex: variant.color_hex,
                 variant_image_path: variant.image_path,
-                scent: variant.scent,
-                size_label: variant.size_label,
               } : {}),
               quantity,
             }];
@@ -261,8 +251,11 @@ export default function CartPage() {
   function update(id: string, variantId: string | undefined, quantity: number) {
     const item = items.find((value) => value.product_id === id && (value.variant_id || "") === (variantId || ""));
     if (!item) return;
-    if (quantity > 0 && item.stock_quantity !== null && item.stock_quantity !== undefined && quantity > item.stock_quantity) {
-      setMessage("ئەو بڕەی داوات کردووە لە کۆگا زیاترە.");
+    const otherColorQuantity = items
+      .filter((value) => value.product_id === id && (value.variant_id || "") !== (variantId || ""))
+      .reduce((total, value) => total + value.quantity, 0);
+    if (quantity > 0 && item.stock_quantity !== null && item.stock_quantity !== undefined && otherColorQuantity + quantity > item.stock_quantity) {
+      setMessage("کۆگای هاوبەشی ئەم کاڵایە بەشی ئەو بڕە نییە؛ هەموو ڕەنگەکان لە یەک کۆگادا هەژمار دەکرێن.");
       return;
     }
     const next = items.map((value) => value.product_id === id && (value.variant_id || "") === (variantId || "")
@@ -383,10 +376,10 @@ export default function CartPage() {
                   {group.items.map((item) => (
                     <div key={`${item.product_id}:${item.variant_id || "base"}`} className="flex items-center justify-between gap-3 border-b py-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        {item.variant_image_path ? <img src={createClient().storage.from("product-images").getPublicUrl(item.variant_image_path).data.publicUrl} alt={item.variant_label || item.title} className="h-14 w-14 shrink-0 rounded-xl border bg-white object-contain p-1"/> : item.color_hex ? <span className="h-9 w-9 shrink-0 rounded-full border border-slate-300" style={{ backgroundColor: item.color_hex }}/> : null}
+                        {item.variant_image_path ? <img src={createClient().storage.from("product-images").getPublicUrl(item.variant_image_path).data.publicUrl} alt={item.variant_label || item.title} className="h-14 w-14 shrink-0 rounded-xl border bg-white object-contain p-1"/> : null}
                         <div className="min-w-0">
                         <b>{item.title}</b>
-                        {item.variant_label && <p className="mt-1 text-xs font-bold text-shakh-blue">{item.variant_label}{[item.scent, item.size_label].filter(Boolean).length ? " · " + [item.scent, item.size_label].filter(Boolean).join(" · ") : ""}</p>}
+                        {item.variant_label && <p className="mt-1 text-xs font-bold text-shakh-blue">{item.variant_label}</p>}
                         <p className="text-sm text-shakh-orange">{item.price_iqd.toLocaleString("en-US")} د.ع / {unitLabels[item.unit || "piece"] || item.unit}</p>
                         {item.stock_quantity !== null && item.stock_quantity !== undefined && <p className="mt-1 text-xs text-slate-500">کۆگا: {item.stock_quantity.toLocaleString("en-US")}</p>}
                         </div>

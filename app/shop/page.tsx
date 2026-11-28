@@ -11,15 +11,8 @@ type ProductVariant = {
   id: string;
   product_id: string;
   variant_label: string;
-  color_name: string | null;
-  color_hex: string | null;
   image_path: string | null;
-  scent: string | null;
-  size_label: string | null;
-  unit: string | null;
   price_iqd: number;
-  stock_quantity: number | null;
-  is_active: boolean;
 };
 type ProductCategory = { id: string; store_type: string; category_key: string; name: string; is_active: boolean };
 type Product = {
@@ -44,11 +37,7 @@ type CartItem = {
   product_id: string;
   variant_id?: string;
   variant_label?: string;
-  color_name?: string | null;
-  color_hex?: string | null;
   variant_image_path?: string | null;
-  scent?: string | null;
-  size_label?: string | null;
   title: string;
   price_iqd: number;
   merchant_id: string | null;
@@ -128,7 +117,7 @@ export default function ShopPage() {
       let variantRows: ProductVariant[] = [];
       if (productIds.length > 0) {
         const { data, error } = await supabase.from("product_variants")
-          .select("id,product_id,variant_label,color_name,color_hex,image_path,scent,size_label,unit,price_iqd,stock_quantity,is_active")
+          .select("id,product_id,variant_label,image_path,price_iqd")
           .in("product_id", productIds).eq("is_active", true).order("sort_order");
         if (error) setMessage("نوێکردنەوەی جۆرەکانی کاڵا سەرکەوتوو نەبوو.");
         else variantRows = (data || []) as ProductVariant[];
@@ -209,7 +198,7 @@ export default function ShopPage() {
   }), [products, merchants, search, storeType, category, sharedProductId]);
 
   function addToCart(product: Product, quantity = 1, variant?: ProductVariant) {
-    const availableStock = variant ? variant.stock_quantity : product.stock_quantity;
+    const availableStock = product.stock_quantity;
     if (availableStock === 0 || (availableStock !== null && availableStock !== undefined && quantity > availableStock)) {
       setMessage("ئەو بڕەی هەڵبژێردراو لە کۆگادا بەردەست نییە.");
       return;
@@ -219,13 +208,15 @@ export default function ShopPage() {
       const activeReferral = referralCampaignId || cart.find((item) => item.referral_campaign_id)?.referral_campaign_id || null;
       const otherReferral = cart.find((item) => item.referral_campaign_id && item.referral_campaign_id !== activeReferral);
       if (otherReferral) { setMessage("سەبەتەکەت بە لینکی شێر و خەڵاتێکی ترە؛ تکایە یەک لینک بەکاربهێنە."); return; }
-      const existing = cart.find((item) => item.product_id === product.id && (item.variant_id || "") === (variant?.id || ""));
+      const sameProductItems = cart.filter((item) => item.product_id === product.id);
+      const existing = sameProductItems.find((item) => (item.variant_id || "") === (variant?.id || ""));
+      const totalProductQuantity = sameProductItems.reduce((total, item) => total + item.quantity, 0);
+      if (availableStock !== null && availableStock !== undefined && totalProductQuantity + quantity > availableStock) {
+        setMessage("کۆگای هاوبەشی ئەم کاڵایە بەشی ئەو بڕە نییە؛ هەموو ڕەنگەکان لە یەک کۆگادا هەژمار دەکرێن.");
+        return;
+      }
       if (existing) {
         const nextQuantity = existing.quantity + quantity;
-        if (availableStock !== null && availableStock !== undefined && nextQuantity > availableStock) {
-          setMessage("کۆگای ئەم جۆرە بەشی ئەو بڕەی زیاتر نییە.");
-          return;
-        }
         existing.quantity = nextQuantity;
         existing.stock_quantity = availableStock;
         if (activeReferral) existing.referral_campaign_id = activeReferral;
@@ -235,17 +226,13 @@ export default function ShopPage() {
           ...(variant ? {
             variant_id: variant.id,
             variant_label: variant.variant_label,
-            color_name: variant.color_name,
-            color_hex: variant.color_hex,
             variant_image_path: variant.image_path,
-            scent: variant.scent,
-            size_label: variant.size_label,
           } : {}),
           title: product.title,
           price_iqd: variant?.price_iqd ?? product.price_iqd,
           merchant_id: product.merchant_id,
           quantity,
-          unit: variant?.unit || product.unit,
+          unit: product.unit,
           stock_quantity: availableStock,
           referral_campaign_id: activeReferral,
         });
@@ -261,10 +248,10 @@ export default function ShopPage() {
 
   function add(product: Product) {
     if (product.variants.length > 0) {
-      const firstAvailable = product.variants.find((variant) => variant.stock_quantity !== 0) || product.variants[0];
+      const firstAvailable = product.variants[0];
       setVariantProduct(product);
       setSelectedVariantId(firstAvailable.id);
-      setVariantQuantity(firstAvailable.unit === "kg" ? 0.5 : 1);
+      setVariantQuantity(product.unit === "kg" ? 0.5 : 1);
       return;
     }
     addToCart(product);
@@ -389,14 +376,13 @@ export default function ShopPage() {
               <div className="mt-4 space-y-2">
                 {variantProduct.variants.map((variant) => {
                   const isSelected = selectedVariantId === variant.id;
-                  const exhausted = variant.stock_quantity === 0;
-                  const attributes = [variant.scent, variant.size_label].filter(Boolean);
+                  const exhausted = variantProduct.stock_quantity === 0;
                   const variantImageUrl = variant.image_path ? createClient().storage.from("product-images").getPublicUrl(variant.image_path).data.publicUrl : null;
                   return (
-                    <button key={variant.id} type="button" disabled={exhausted} onClick={() => { setSelectedVariantId(variant.id); setVariantQuantity(variant.unit === "kg" ? 0.5 : 1); }}
+                    <button key={variant.id} type="button" disabled={exhausted} onClick={() => { setSelectedVariantId(variant.id); setVariantQuantity(variantProduct.unit === "kg" ? 0.5 : 1); }}
                       className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-right transition ${isSelected ? "border-shakh-blue bg-blue-50 ring-1 ring-shakh-blue" : "border-slate-200"} ${exhausted ? "opacity-40" : ""}`}>
-                      {variantImageUrl ? <img src={variantImageUrl} alt={variant.variant_label} loading="lazy" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1"/> : variant.color_hex ? <span aria-label={variant.color_name || "ڕەنگ"} className="h-10 w-10 shrink-0 rounded-full border border-slate-300 shadow-inner" style={{ backgroundColor: variant.color_hex }}/> : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-slate-100 text-xs">✓</span>}
-                      <span className="min-w-0 flex-1"><b className="block text-sm">{variant.variant_label}</b><span className="block text-xs text-slate-500">{attributes.join(" · ") || "جۆری تایبەت"}</span><span className="mt-1 block text-[11px] text-slate-400">{exhausted ? "لە کۆگا نەماوە" : variant.stock_quantity === null ? "بەردەست" : `کۆگا: ${variant.stock_quantity}`}</span></span>
+                      {variantImageUrl ? <img src={variantImageUrl} alt={variant.variant_label} loading="lazy" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1"/> : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-300"><Package size={22}/></span>}
+                      <span className="min-w-0 flex-1"><b className="block text-sm">{variant.variant_label}</b><span className="mt-1 block text-[11px] text-slate-400">{exhausted ? "لە کۆگا نەماوە" : "بەردەست"}</span></span>
                       <span className="shrink-0 text-sm font-black text-shakh-orange">{variant.price_iqd.toLocaleString("en-US")} د.ع</span>
                       {isSelected && <span className="text-shakh-blue">✓</span>}
                     </button>
@@ -405,16 +391,16 @@ export default function ShopPage() {
               </div>
               {selectedVariant && (
                 <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-                  <div className="flex items-center justify-between gap-3"><b className="text-sm">بڕی داواکراو</b><span className="text-xs text-slate-500">{unitLabels[selectedVariant.unit || variantProduct.unit] || selectedVariant.unit || variantProduct.unit}</span></div>
+                  <div className="flex items-center justify-between gap-3"><b className="text-sm">بڕی داواکراو</b><span className="text-xs text-slate-500">{unitLabels[variantProduct.unit] || variantProduct.unit}</span></div>
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <button type="button" onClick={() => setVariantQuantity((q) => Math.max(selectedVariant.unit === "kg" ? 0.5 : 1, Math.round((q - (selectedVariant.unit === "kg" ? 0.5 : 1)) * 1000) / 1000))} className="h-10 w-10 rounded-xl border bg-white">−</button>
+                      <button type="button" onClick={() => setVariantQuantity((q) => Math.max(variantProduct.unit === "kg" ? 0.5 : 1, Math.round((q - (variantProduct.unit === "kg" ? 0.5 : 1)) * 1000) / 1000))} className="h-10 w-10 rounded-xl border bg-white">−</button>
                       <b className="min-w-10 text-center">{variantQuantity}</b>
-                      <button type="button" disabled={selectedVariant.stock_quantity !== null && variantQuantity + (selectedVariant.unit === "kg" ? 0.5 : 1) > selectedVariant.stock_quantity} onClick={() => setVariantQuantity((q) => Math.round((q + (selectedVariant.unit === "kg" ? 0.5 : 1)) * 1000) / 1000)} className="h-10 w-10 rounded-xl border bg-white disabled:opacity-40">+</button>
+                      <button type="button" disabled={variantProduct.stock_quantity !== null && variantQuantity + (variantProduct.unit === "kg" ? 0.5 : 1) > variantProduct.stock_quantity} onClick={() => setVariantQuantity((q) => Math.round((q + (variantProduct.unit === "kg" ? 0.5 : 1)) * 1000) / 1000)} className="h-10 w-10 rounded-xl border bg-white disabled:opacity-40">+</button>
                     </div>
                     <b className="text-lg text-shakh-orange">{Math.round(selectedVariant.price_iqd * variantQuantity).toLocaleString("en-US")} د.ع</b>
                   </div>
-                  <button type="button" disabled={selectedVariant.stock_quantity === 0 || (selectedVariant.stock_quantity !== null && variantQuantity > selectedVariant.stock_quantity)}
+                  <button type="button" disabled={variantProduct.stock_quantity === 0 || (variantProduct.stock_quantity !== null && variantQuantity > variantProduct.stock_quantity)}
                     onClick={() => { addToCart(variantProduct, variantQuantity, selectedVariant); setVariantProduct(null); }}
                     className="mt-4 min-h-12 w-full rounded-xl bg-shakh-orange px-4 font-black text-white disabled:opacity-40">زیادکردن بۆ سەبەتە</button>
                 </div>
@@ -437,9 +423,7 @@ export default function ShopPage() {
               const imageUrl = product.image_path
                 ? createClient().storage.from("product-images").getPublicUrl(product.image_path).data.publicUrl
                 : null;
-              const outOfStock = product.variants.length > 0
-                ? product.variants.every((variant) => variant.stock_quantity === 0)
-                : product.stock_quantity === 0;
+              const outOfStock = product.stock_quantity === 0;
               const listedPrice = product.variants.length > 0
                 ? Math.min(...product.variants.map((variant) => variant.price_iqd))
                 : product.price_iqd;
